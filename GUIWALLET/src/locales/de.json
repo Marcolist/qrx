@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Safety Backups",
   "wallet.auto.7664177df4f4": "~/.qrx/Backups/",
   "wallet.auto.738cb501446c": "Datenverzeichnis",
-  "wallet.auto.541343a73972": "Steuer-Socket",
+  "wallet.auto.541343a73972": "RPC-Endpunkt",
   "wallet.auto.24f617029060": "Wallet-Prüfung",
   "wallet.auto.fd8e754f76a8": "Drücke „Wallet prüfen“, um Format, Adressen, Hybridschlüssel und Passphrase-Schutz zu kontrollieren. Dieser Vorgang ist schreibgeschützt.",
   "wallet.auto.47765d59fc64": "Available Core Wallets",

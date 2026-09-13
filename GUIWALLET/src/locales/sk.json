@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Bezpečnostné zálohy",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Dátový adresár",
-  "wallet.auto.541343a73972": "Riadiaci socket",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Kontrola peňaženky",
   "wallet.auto.fd8e754f76a8": "Stlačte Skontrolovať peňaženku a overte formát, adresy, hybridné kľúče a ochranu heslovou frázou. Operácia je iba na čítanie.",
   "wallet.auto.47765d59fc64": "Dostupné Core peňaženky",

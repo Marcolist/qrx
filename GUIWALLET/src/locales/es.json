@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Seguridad backups",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Directorio de datos",
-  "wallet.auto.541343a73972": "Socket de control",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Cartera inspection",
   "wallet.auto.fd8e754f76a8": "Pulsa «Inspeccionar cartera» para comprobar el formato, las direcciones, las claves híbridas y la protección mediante frase de acceso. Esta operación es de solo lectura.",
   "wallet.auto.47765d59fc64": "Disponible Core carteras",

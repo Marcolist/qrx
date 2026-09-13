@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Veiligheidsback-ups",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Datamap",
-  "wallet.auto.541343a73972": "Controlsocket",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Walletinspectie",
   "wallet.auto.fd8e754f76a8": "Druk op Wallet inspecteren om formaat, adressen, hybride sleutels en wachtwoordzinbeveiliging te controleren. Dit is alleen-lezen.",
   "wallet.auto.47765d59fc64": "Beschikbare Core-wallets",

@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Kopie bezpieczeństwa",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Katalog danych",
-  "wallet.auto.541343a73972": "Gniazdo sterujące",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Kontrola portfela",
   "wallet.auto.fd8e754f76a8": "Naciśnij Sprawdź portfel, aby sprawdzić format, adresy, klucze hybrydowe i ochronę hasłem. Operacja tylko do odczytu.",
   "wallet.auto.47765d59fc64": "Dostępne portfele Core",

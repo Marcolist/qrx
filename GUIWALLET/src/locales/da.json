@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Sikkerhedsbackups",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Datamappe",
-  "wallet.auto.541343a73972": "Kontrolsocket",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Wallet-inspektion",
   "wallet.auto.fd8e754f76a8": "Tryk Inspicér wallet for at kontrollere format, adresser, hybridnøgler og adgangsfrasebeskyttelse. Dette er skrivebeskyttet.",
   "wallet.auto.47765d59fc64": "Tilgængelige Core-wallets",

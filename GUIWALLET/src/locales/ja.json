@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "安全バックアップ",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "データディレクトリ",
-  "wallet.auto.541343a73972": "制御ソケット",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "ウォレット検査",
   "wallet.auto.fd8e754f76a8": "「ウォレットを検査」を押すと、形式、アドレス、ハイブリッド鍵、パスフレーズ保護を確認できます。読み取り専用です。",
   "wallet.auto.47765d59fc64": "利用可能なCoreウォレット",

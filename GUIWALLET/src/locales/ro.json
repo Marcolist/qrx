@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Backupuri de siguranță",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Director de date",
-  "wallet.auto.541343a73972": "Socket de control",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Inspectarea portofelului",
   "wallet.auto.fd8e754f76a8": "Apasă Inspectează portofelul pentru a verifica formatul, adresele, cheile hibride și protecția prin parolă. Este doar pentru citire.",
   "wallet.auto.47765d59fc64": "Portofele Core disponibile",

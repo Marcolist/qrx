@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Safety backups",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Lahatahiry angona",
-  "wallet.auto.541343a73972": "Control socket",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Fanamarinana wallet",
   "wallet.auto.fd8e754f76a8": "Tsindrio Inspect wallet hijerena format, addresses, hybrid keys ary passphrase protection. Read-only izany.",
   "wallet.auto.47765d59fc64": "Core wallets azo ampiasaina",

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::BTreeMap, fs::{self, File}, io::{Read, Write}, path::{Component, Path, PathBuf}};
+use std::{collections::BTreeMap, fs::{self, File}, io::Read, path::{Component, Path, PathBuf}};
 use tauri::Manager;
 use zip::ZipArchive;
 
@@ -237,7 +237,7 @@ pub fn qrx_app_load_bundle(app_id:String)->Result<Value,String>{
 }
 #[tauri::command]
 pub fn open_qrx_app_window(app:tauri::AppHandle,app_id:String,network:Option<String>,wallet:Option<String>)->Result<String,String>{
-    let e=entry_for(&app_id)?;let label=format!("qrx-app-{}",e.manifest.id.replace('.','-'));
+    let e=entry_for(&app_id)?;let label=format!("qrx-app-{}",e.manifest.id.replace('.', "-"));
     if let Some(w)=app.get_window(&label){w.show().map_err(|e|e.to_string())?;w.set_focus().map_err(|e|e.to_string())?;return Ok(format!("{} focused.",e.manifest.name));}
     let url=format!("app-host/index.html?app={}&network={}&wallet={}",e.manifest.id,network.unwrap_or_else(||"alpha".into()),wallet.unwrap_or_else(||"node1".into()));
     tauri::WindowBuilder::new(&app,label,tauri::WindowUrl::App(url.into())).title(&e.manifest.name).inner_size(1180.0,780.0).min_inner_size(720.0,520.0).resizable(true).center().build().map_err(|e|e.to_string())?;

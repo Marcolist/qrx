@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "安全備份",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "資料目錄",
-  "wallet.auto.541343a73972": "控制 Socket",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "錢包檢查",
   "wallet.auto.fd8e754f76a8": "點擊「檢查錢包」以檢查格式、位址、混合金鑰和密碼短語保護。此操作為唯讀。",
   "wallet.auto.47765d59fc64": "可用 Core 錢包",

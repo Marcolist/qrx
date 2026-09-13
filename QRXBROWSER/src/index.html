@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QRX Browser</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="chrome">
+  <div class="tabs"><div class="tab"><span>◈</span><span class="tabTitle" id="tabTitle">New tab</span></div></div>
+  <div class="toolbar">
+    <button class="nav" id="back" title="Back">←</button>
+    <button class="nav" id="forward" title="Forward">→</button>
+    <button class="nav" id="reload" title="Reload">↻</button>
+    <button class="nav home" id="home" title="Home">⌂</button>
+    <input class="address" id="address" autocomplete="off" spellcheck="false" placeholder="Search or enter example.qrx / https://example.com">
+    <button class="go" id="go">Go</button>
+    <div class="route" id="route">HOME</div>
+  </div>
+</div>
+<div class="status" id="status">QRX Browser · two isolated routes</div>
+<script src="app.js"></script>
+</body></html>

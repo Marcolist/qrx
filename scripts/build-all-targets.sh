@@ -8,6 +8,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CORE="$ROOT/qrx-core"
 WALLET="$ROOT/GUIWALLET"
+BROWSER="$ROOT/QRXBROWSER"
 DIST_ROOT="${QRX_DIST_DIR:-$ROOT/dist}"
 BUILD_ROOT="${QRX_BUILD_DIR:-$ROOT/build}"
 JOBS="${JOBS:-}"
@@ -99,15 +100,18 @@ QRX release plan: $TARGET
   2. Build qrx, qrx-cli, qrxd and QRXDB tools
   3. Stage Python wallet/export/arbitrage/Kraken tools
   4. Build qrx-btc-wallet-service for $RUST_TARGET
-  5. Install target-suffixed Core and BTC sidecars
-  6. Stage signed AURA runtime trust/catalog resources
-  7. Build Tauri wallet using $TAURI_CONFIG
-  8. Verify and package one checksummed release
+  5. Build isolated Tauri 2 QRX Browser multi-WebView sidecar
+  6. Install target-suffixed Core/BTC/Browser sidecars
+  7. Stage signed AURA runtime trust/catalog resources
+  8. Build Tauri wallet and verify/package the checksummed release
 EOF
 [[ "$PLAN_ONLY" -eq 1 ]] && exit 0
 
 echo "[0/8] Auditing GUI <-> Core/CLI compatibility"
 python3 "$ROOT/scripts/audit-gui-core-compat.py"
+python3 "$ROOT/scripts/audit-gui-interactions.py"
+python3 "$ROOT/scripts/audit-gui-polish.py"
+python3 "$ROOT/scripts/audit-tauri2-browser.py"
 
 actual_os="$(uname -s)"
 actual_arch="$(uname -m)"
@@ -151,17 +155,17 @@ fi
 echo "[1/8] Building Core and native command-line tools"
 case "$TARGET" in
   linux-x64|linux-arm64)
-    QRX_OPENSSL_PREFIX="${QRX_OPENSSL_PREFIX:-$BUILD_ROOT/deps/openssl-$TARGET}"
-    PREFIX="$QRX_OPENSSL_PREFIX" BUILD_DIR="$CORE_BUILD" JOBS="$JOBS" bash "$CORE/scripts/build-linux-static.sh"
+    QRX_NATIVE_DEPS_PREFIX="${QRX_NATIVE_DEPS_PREFIX:-$BUILD_ROOT/deps/$TARGET}"
+    QRX_NATIVE_DEPS_PREFIX="$QRX_NATIVE_DEPS_PREFIX" BUILD_DIR="$CORE_BUILD" JOBS="$JOBS" bash "$CORE/scripts/build-linux-static.sh"
     ;;
   macos-x64|macos-arm64)
     arch="x86_64"; [[ "$TARGET" == "macos-arm64" ]] && arch="arm64"
-    QRX_OPENSSL_PREFIX="${QRX_OPENSSL_PREFIX:-$BUILD_ROOT/deps/openssl-macos-$arch}"
-    PREFIX="$QRX_OPENSSL_PREFIX" BUILD_DIR="$CORE_BUILD" JOBS="$JOBS" bash "$CORE/scripts/build-macos-static.sh" "$arch"
+    QRX_NATIVE_DEPS_PREFIX="${QRX_NATIVE_DEPS_PREFIX:-$BUILD_ROOT/deps/macos-$arch}"
+    QRX_NATIVE_DEPS_PREFIX="$QRX_NATIVE_DEPS_PREFIX" BUILD_DIR="$CORE_BUILD" JOBS="$JOBS" bash "$CORE/scripts/build-macos-static.sh" "$arch"
     ;;
   windows-x64)
-    vcpkg_root="${VCPKG_ROOT:-${VCPKG_INSTALLATION_ROOT:-C:\\vcpkg}}"
-    pwsh -NoProfile -File "$CORE/scripts/build-windows-x64-static.ps1" -VcpkgRoot "$vcpkg_root" -BuildDir "$CORE_BUILD" -Jobs "$JOBS"
+    QRX_NATIVE_DEPS_PREFIX="${QRX_NATIVE_DEPS_PREFIX:-$BUILD_ROOT/deps/windows-x64}"
+    pwsh -NoProfile -File "$CORE/scripts/build-windows-x64-static.ps1" -BuildDir "$CORE_BUILD" -DepsPrefix "$QRX_NATIVE_DEPS_PREFIX" -Jobs "$JOBS"
     ;;
 esac
 
@@ -198,6 +202,20 @@ BTC_SERVICE="$TAURI_TARGET_DIR/$RUST_TARGET/release/qrx-btc-wallet-service$CORE_
 [[ -f "$BTC_SERVICE" ]] || { echo "BTC wallet service missing: $BTC_SERVICE" >&2; exit 7; }
 cp "$BTC_SERVICE" "$TARGET_OUT/core/qrx-btc-wallet-service$CORE_EXT"
 
+echo "[4/9] Building isolated Tauri 2 QRX Browser multi-WebView sidecar"
+BROWSER_MANIFEST="$BROWSER/src-tauri/Cargo.toml"
+[[ -f "$BROWSER_MANIFEST" ]] || { echo "QRX Browser manifest missing: $BROWSER_MANIFEST" >&2; exit 7; }
+BROWSER_TARGET_DIR="$BUILD_ROOT/browser-cargo"
+mkdir -p "$BROWSER_TARGET_DIR"
+if [[ ! -f "$BROWSER/src-tauri/Cargo.lock" ]]; then
+  echo "Generating QRX Browser Cargo.lock for this source checkout"
+  CARGO_TARGET_DIR="$BROWSER_TARGET_DIR" cargo generate-lockfile --manifest-path "$BROWSER_MANIFEST"
+fi
+CARGO_TARGET_DIR="$BROWSER_TARGET_DIR" cargo build --locked --manifest-path "$BROWSER_MANIFEST" --release --target "$RUST_TARGET"
+QRX_BROWSER_BIN="$BROWSER_TARGET_DIR/$RUST_TARGET/release/qrx-browser$CORE_EXT"
+[[ -f "$QRX_BROWSER_BIN" ]] || { echo "QRX Browser binary missing: $QRX_BROWSER_BIN" >&2; exit 7; }
+cp "$QRX_BROWSER_BIN" "$TARGET_OUT/core/qrx-browser$CORE_EXT"
+
 echo "[4/8] Installing exact target-suffixed Tauri sidecars"
 TAURI_BIN="$WALLET/src-tauri/bin"
 mkdir -p "$TAURI_BIN"
@@ -206,7 +224,8 @@ cp "$CORE_BIN_DIR/qrx-cli$CORE_EXT" "$TAURI_BIN/qrx-cli-$RUST_TARGET$CORE_EXT"
 cp "$CORE_BIN_DIR/qrxd$CORE_EXT" "$TAURI_BIN/qrxd-$RUST_TARGET$CORE_EXT"
 cp "$CORE_BIN_DIR/qrx-upscaler$CORE_EXT" "$TAURI_BIN/qrx-upscaler-$RUST_TARGET$CORE_EXT"
 cp "$BTC_SERVICE" "$TAURI_BIN/qrx-btc-wallet-service-$RUST_TARGET$CORE_EXT"
-[[ "$TARGET" == "windows-x64" ]] || chmod +x "$TAURI_BIN/qrx-$RUST_TARGET" "$TAURI_BIN/qrx-cli-$RUST_TARGET" "$TAURI_BIN/qrxd-$RUST_TARGET" "$TAURI_BIN/qrx-upscaler-$RUST_TARGET" "$TAURI_BIN/qrx-btc-wallet-service-$RUST_TARGET"
+cp "$QRX_BROWSER_BIN" "$TAURI_BIN/qrx-browser-$RUST_TARGET$CORE_EXT"
+[[ "$TARGET" == "windows-x64" ]] || chmod +x "$TAURI_BIN/qrx-$RUST_TARGET" "$TAURI_BIN/qrx-cli-$RUST_TARGET" "$TAURI_BIN/qrxd-$RUST_TARGET" "$TAURI_BIN/qrx-upscaler-$RUST_TARGET" "$TAURI_BIN/qrx-btc-wallet-service-$RUST_TARGET" "$TAURI_BIN/qrx-browser-$RUST_TARGET"
 
 echo "[5/8] Staging signed AURA runtime catalog + pinned publisher key"
 AURA_RES="$WALLET/src-tauri/resources/aura"
@@ -342,7 +361,7 @@ esac
 cp -R "$BUNDLE_DIR"/. "$TARGET_OUT/wallet/"
 
 echo "[7/8] Verifying staged release"
-for binary in qrx qrx-cli qrxd qrx-upscaler qrx-btc-wallet-service; do
+for binary in qrx qrx-cli qrxd qrx-upscaler qrx-btc-wallet-service qrx-browser; do
   [[ -f "$TARGET_OUT/core/$binary$CORE_EXT" ]] || { echo "Release binary missing: $binary" >&2; exit 9; }
 done
 for tool in qrx-wallet-cli.py qrx-complete-ledger-export.py qrx-arbitrage-engine.py qrx-gateway-kraken.py; do

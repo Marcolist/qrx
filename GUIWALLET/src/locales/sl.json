@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Varnostne kopije",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Podatkovni imenik",
-  "wallet.auto.541343a73972": "Nadzorna vtičnica",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Pregled denarnice",
   "wallet.auto.fd8e754f76a8": "Pritisnite Preglej denarnico, da preverite format, naslove, hibridne ključe in zaščito z geslom. To je samo za branje.",
   "wallet.auto.47765d59fc64": "Razpoložljive Core denarnice",
