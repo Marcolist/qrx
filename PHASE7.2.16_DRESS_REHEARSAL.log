@@ -1,0 +1,69 @@
+QRX Mainnet Genesis Dress Rehearsal / Byzantine Multi-Node Simulation
+Scheduled Genesis: 2026-09-15 16:00:00 UTC / 18:00:00 CEST
+Phase 7.2.15 consensus red-team assertions PASS
+{
+  "phase": "7.2.16",
+  "nodes": 7,
+  "total_power": 100,
+  "genesis_time_utc": 1789488000,
+  "scenarios": [
+    {
+      "scenario": "genesis-time-boundary",
+      "status": "PASS"
+    },
+    {
+      "scenario": "seven-node-happy-finality",
+      "status": "PASS"
+    },
+    {
+      "scenario": "wrong-parent-rejected",
+      "status": "PASS"
+    },
+    {
+      "scenario": "height-skip-rejected",
+      "status": "PASS"
+    },
+    {
+      "scenario": "parent-state-root-rejected",
+      "status": "PASS"
+    },
+    {
+      "scenario": "wrong-proposer-rejected",
+      "status": "PASS"
+    },
+    {
+      "scenario": "future-clock-drift-rejected",
+      "status": "PASS"
+    },
+    {
+      "scenario": "safe-paused-signer-rejected",
+      "status": "PASS"
+    },
+    {
+      "scenario": "jailed-and-tombstoned-signers-rejected",
+      "status": "PASS"
+    },
+    {
+      "scenario": "strict-two-thirds-quorum-boundary",
+      "status": "PASS"
+    },
+    {
+      "scenario": "network-partition-no-minority-finality-then-heal",
+      "status": "PASS"
+    },
+    {
+      "scenario": "competing-blocks-and-double-vote-evidence",
+      "status": "PASS"
+    },
+    {
+      "scenario": "crash-restart-catchup-convergence",
+      "status": "PASS"
+    },
+    {
+      "scenario": "5000-randomized-byzantine-quorum-partitions",
+      "status": "PASS"
+    }
+  ]
+}
+Phase 7.2.16 Byzantine multi-node dress rehearsal PASS: 14 scenarios
+Dress rehearsal PASS

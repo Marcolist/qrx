@@ -1,0 +1,26 @@
+PASS: Bitcoin Core retarget vector: exact two weeks keeps difficulty
+PASS: Bitcoin Core retarget vector: 1/4 clamp
+PASS: Bitcoin Core retarget vector: 4x clamp
+PASS: Bitcoin Core retarget vector: pow-limit cap
+PASS: funding policy accepts first proof inside QRX deadline
+PASS: funding policy rejects proof after QRX deadline
+PASS: funding policy rejects already locked proof
+PASS: funding policy rejects replacement funding txid
+PASS: funding policy rejects terminal/non-awaiting session
+PASS: create isolated SPV QRXDB
+PASS: initialize QRXDB
+PASS: initialize embedded Bitcoin mainnet genesis
+PASS: load Bitcoin mainnet genesis
+PASS: Bitcoin Core chainparams genesis header/hash reference vector
+PASS: create isolated regtest SPV QRXDB
+PASS: initialize regtest QRXDB
+PASS: initialize Bitcoin regtest genesis
+PASS: load regtest genesis
+PASS: accept valid mined regtest child header
+PASS: reject wrong-length header
+PASS: reject non-hex header
+PASS: reject timestamp at/below MTP
+PASS: reject unexpected difficulty bits
+PASS: reject unknown-parent header
+PASS: 256 deterministic malformed header fuzz vectors rejected without crash
+PASS: Phase 7.1 Bitcoin SPV hardening vectors/retarget/malformed suite

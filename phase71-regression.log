@@ -1,0 +1,32 @@
+===== bash scripts/test_generals_phase63.sh =====
+PASS: Generals Phase 6.3 sandbox/network static regression
+===== bash scripts/test_generals_phase64.sh =====
+PASS phase6.4 persistent world / offline command execution wiring
+===== bash scripts/test_generals_phase65.sh =====
+PASS phase6.5 decentralized relay + autonomous world wiring
+===== bash scripts/test_generals_phase66.sh =====
+PASS phase6.6 mainnet release hardening + GUI production wiring
+===== bash scripts/test_phase7_markets.sh =====
+PASS: Phase 7 native markets/orderbook/trading view wiring
+===== bash qrx-core/tests/privacy_phase71_consensus_governance.sh /mnt/data/qrx71/qrx-core/build-phase71-final/qrx =====
+PASS: Phase 7.1 privacy governance 3-of-5 -> signed consensus tx -> QRXDB attester state -> V2 credential; replay/duplicate/tamper/cross-genesis rejected
+===== bash qrx-core/tests/privacy_phase71_consensus_transactions.sh /mnt/data/qrx71/qrx-core/build-phase71-final/qrx =====
+PASS: Phase 7.1 PRIVACY_SHIELD -> PRIVACY_TRANSFER -> PRIVACY_UNSHIELD authoritative QRXDB lifecycle; credential/nullifier/cross-genesis enforcement
+===== bash qrx-core/tests/privacy_phase2_stealth_hardening.sh /mnt/data/qrx71/qrx-core/build-phase71-final/qrx =====
+PASS: no public-address private-key fallback
+PASS: wallet-private X25519 scan/spend derivation
+PASS: stealth identity recoverable from wallet recovery pair
+PASS: recipient stealth address and raw shared secret are not persisted
+PASS: recipient discovers transfer using scan private key
+PASS: feature status accurately reports hardening/audit boundary
+QRX Privacy Layer Phase 2 Stealth Hardening: PASS
+===== bash qrx-core/tests/privacy_phase3_shielded_and_stealth_spend.sh /mnt/data/qrx71/qrx-core/build-phase71-final/qrx =====
+PASS: one-time address owner proof, partial spend, replay nonce and value conservation
+PASS: encrypted shielded payment + mandatory change + value conservation
+PASS: public state contains commitments/ciphertexts/proof hashes, not plaintext witnesses
+PASS: unshield preserves remainder with a shielded change note
+PASS: tampered public proof rejected
+PASS: privacy feature status exposes cryptographic design and release gate
+QRX Privacy Layer Phase 3 + One-Time Claim/Spend: PASS
+===== bash qrx-core/tests/privacy_phase4_verified_privacy.sh /mnt/data/qrx71/qrx-core/build-phase71-final/qrx =====
+missing key network_id

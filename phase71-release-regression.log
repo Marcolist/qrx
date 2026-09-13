@@ -1,0 +1,46 @@
+===== bash qrx-core/tests/privacy_phase71_consensus_governance.sh /mnt/data/qrx71/qrx-core/build-phase71-releasecheck/qrx =====
+PASS: Phase 7.1 privacy governance 3-of-5 -> signed consensus tx -> QRXDB attester state -> V2 credential; replay/duplicate/tamper/cross-genesis rejected
+===== bash qrx-core/tests/privacy_phase71_consensus_transactions.sh /mnt/data/qrx71/qrx-core/build-phase71-releasecheck/qrx =====
+PASS: Phase 7.1 PRIVACY_SHIELD -> PRIVACY_TRANSFER -> PRIVACY_UNSHIELD authoritative QRXDB lifecycle; credential/nullifier/cross-genesis enforcement
+===== bash qrx-core/tests/privacy_phase2_stealth_hardening.sh /mnt/data/qrx71/qrx-core/build-phase71-releasecheck/qrx =====
+PASS: no public-address private-key fallback
+PASS: wallet-private X25519 scan/spend derivation
+PASS: stealth identity recoverable from wallet recovery pair
+PASS: recipient stealth address and raw shared secret are not persisted
+PASS: recipient discovers transfer using scan private key
+PASS: feature status accurately reports hardening/audit boundary
+QRX Privacy Layer Phase 2 Stealth Hardening: PASS
+===== bash qrx-core/tests/privacy_phase3_shielded_and_stealth_spend.sh /mnt/data/qrx71/qrx-core/build-phase71-releasecheck/qrx =====
+PASS: one-time address owner proof, partial spend, replay nonce and value conservation
+PASS: encrypted shielded payment + mandatory change + value conservation
+PASS: public state contains commitments/ciphertexts/proof hashes, not plaintext witnesses
+PASS: unshield preserves remainder with a shielded change note
+PASS: tampered public proof rejected
+PASS: privacy feature status exposes cryptographic design and release gate
+QRX Privacy Layer Phase 3 + One-Time Claim/Spend: PASS
+===== bash qrx-core/tests/privacy_phase4_verified_privacy.sh /mnt/data/qrx71/qrx-core/build-phase71-releasecheck/qrx =====
+PASS: Privacy Phase 4 verified privacy credential, hidden balance gate, revocation, tamper rejection and no-PII chain state
+===== bash scripts/test_phase71_privacy_htlc.sh =====
+PASS: Phase 7.1 privacy/HTLC consensus + production GUI wiring
+===== bash qrx-core/scripts/test-qrxdb-atomic-batch.sh /mnt/data/qrx71/qrx-core/build-phase71-releasecheck =====
+PASS: multi-key WAL batch recovered atomically
+state_root=d267d8a02ca248ff55298b8004cd82922de9864667f0bf3a8a018a3b9932cb88d5d89ebbd31112591770e0c814cea486ecbf2e053b23a485bef30301da961854
+recovered_transactions=1
+===== bash qrx-core/scripts/audit-network-security.sh =====
+SECURITY AUDIT: PASS: Core RPC defaults to IPv4 loopback
+SECURITY AUDIT: PASS: Non-loopback RPC requires explicit opt-in plus credentials
+SECURITY AUDIT: PASS: GUI-managed qrxd explicitly binds RPC to loopback
+SECURITY AUDIT: PASS: BTC wallet sidecar is stdin/stdout only; no TCP server listener
+
+Live socket snapshot (Linux):
+SECURITY AUDIT: PASS: no live QRX RPC listener detected on 0.0.0.0
+
+Expected design:
+  Wallet/Core RPC: 127.0.0.1:37660-37663 only by default.
+  BTC Light sidecar: local stdin/stdout process, no inbound TCP listener.
+  QRX P2P: separate listener and may use 0.0.0.0 so peers can reach the node.
+
+Remote RPC is an advanced/manual server feature only. It requires:
+  --allow-remote-rpc --rpc-user <user> --rpc-password <strong-secret>
+and should still be protected by a host firewall/VPN. Do not expose it directly to the Internet.
+RELEASE_REGRESSION_PASS

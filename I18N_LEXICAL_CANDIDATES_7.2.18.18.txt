@@ -1,0 +1,153 @@
+de: 96 mixed-English candidates
+  wallet.auto.565bd3d33d27 [4] Deine Schlüssel bleiben lokal. Die Wallet kann als sichere Wallet für zu Hause, als passiver Delegator oder als fortgeschrittener Validator-Node betrieben werden. Der Core-Konsens bleibt klar, transparent und unabhängig.
+  wallet.auto.ac8945065f12 [3] Ich verstehe, dass QRX Wallet eine Non-Custodial-Software ist und ich meine Recovery Phrase selbst schützen muss.
+  wallet.auto.177b57db4b80 [19] Delegate an exact Betrag of QUB zu an existing Validator. You keep your Wallet und private Schlüssel. Your computer may be offline nach the Transaktion confirms. Delegation increases that Validator’s consensus power; it does nicht make your Wallet a Validator und it does nicht transfer ownership of your Wallet.
+  wallet.auto.f6d4f36a0f51 [4] I understand that Validator penalties can slash Validator power und may permanently affect Validator Status.
+  wallet.auto.dcd9d7fe19ac [11] Use Wallet Mode by default und Delegator Mode für passive participation. Validator Mode can run auf your M1 oder a server, but the host must stay awake, connected und synchronized. A fleet shares one node runtime; do nicht launch one daemon per Validator Wallet.
+  wallet.auto.4ed486d918bc [3] I got it: I will only enable Validator Mode if I accept uptime responsibility und slashing risk.
+  wallet.auto.741f54c14b5b [9] AURA local answers basic Wallet/CLI questions offline. Cloud AI will run through your Cloudflare backend mit a 30-day package paid in BTC oder QUB. History stays local und is sent only when continuing a cloud chat.
+  wallet.auto.5eb97c7c68ec [4] Erstelle a local Wallet, restore from
+  wallet.auto.6bf50fad2617 [4] , oder import an existing Wallet Ordner. QUB actions run locally through the bundled Core binaries.
+  wallet.auto.d03560eb3d00 [5] Erstelle a local Wallet proDatei und reveal the Recovery phrase once.
+  wallet.auto.cfc9c6582ec8 [3] Importieren an existing QUBITCOIN Wallet directory.
+  wallet.auto.2f5ed917b7ae [6] Optional alerts. Validator rewards, delegation rewards und trading settlements can be toggled separately. Repeated events are grouped instead of generating a popup für every reward.
+  wallet.auto.5b02bc51964b [3] Native QRX applications. Apps use your active Wallet identity; no separate account is erforderlich.
+  wallet.auto.02e08f2819a6 [5] Wähle which Wallet Adresse funds this Transaktion. Privacy optimized avoids unnecessarily reusing the primary Adresse.
+  wallet.auto.fda422ab3add [12] Enter a recipient und Betrag. The Wallet will check balance und whether the recipient belongs zu this Wallet.
+  wallet.auto.8e0aed54893c [3] Available balance is loaded von the active Wallet.
+  wallet.auto.60adf2beb184 [4] BTC uses the shared BDK light-Wallet service. Use tiny test Betrags first.
+  wallet.auto.cbb0a228ef11 [3] Use a fresh Adresse für every payment
+  wallet.auto.44f2d6cb1f9b [13] Creates a new recoverable QUB receive Adresse when you open a new payment request. This reduces Adresse reuse und makes it harder für outside observers zu associate separate payments mit the same Wallet.
+  wallet.auto.0f43a687458e [9] Rotated Adressees are included in the Wallet Recovery extension und restore mit the same Recovery phrase + Recovery.qrxseed.
+  wallet.auto.cbec545bfa61 [3] The primary Wallet identity always comes von Adresse.txt. Additional receive Adressees are shown separately.
+  wallet.auto.3bfe4e39bc3f [4] Open Receive zu load Adressees stored by this Wallet.
+  wallet.auto.d098df2ee578 [4] Lade the Wallet's existing receive Adresse…
+  wallet.auto.71686e581f1b [3] Enter the BTC Wallet password zu load descriptor Adressees.
+  wallet.auto.324027ae0a5e [12] You can delegate QUB und close the Wallet. Slashing/offline penalties apply zu Validators, nicht zu normal Wallet users. Self-staking makes this Wallet a Validator candidate und requires Validator Mode.
+  wallet.auto.938c70b60372 [4] Only self-stake if Validator Mode is aktiviert und this machine/server is intended zu run reliably. Minimum self-stake is 100 QUB.
+  wallet.auto.8ae40d40d8cf [6] your QUB stays attributed zu your Wallet but its staking power is assigned zu a Validator. You do
+  wallet.auto.f1250cf60c0e [6] need zu keep this Mac online und Delegator Mode does nicht turn your Wallet into a Validator.
+  wallet.auto.45ae7177b518 [5] Paste the Validator's qrx1… Adresse. Only Validators mit enough self-stake can accept delegation.
+  wallet.auto.fd1a5c20d18b [10] Only the Betrag you enter is delegated. The Wallet never delegates your whole balance automatically.
+  wallet.auto.e383ee928256 [6] The Validator operates the node. Rewards depend auf Validator performance und commission.
+  wallet.auto.3c1aa6ba997b [3] Undelegate starts the protocol unbonding period. Claim becomes possible nach that period matures.
+  wallet.auto.be67fb04e084 [9] Tip: copy this von Validator Set / the Validator operator. Delegation never gives the Validator your privater Schlüssel.
+  wallet.auto.557f1f658f46 [3] Example: entering 25 delegates exactly 25 QUB — nicht the rest of the Wallet.
+  wallet.auto.9da411cc4b62 [4] I understand that rewards depend auf the chosen Validator und that undelegation has an unbonding delay.
+  wallet.auto.85fc536a149d [4] Step 1 starts undelegation. Step 2 claims the matured Betrag nach the unbonding period. This is intentionally two-step so stake cannicht disappear von consensus instantly.
+  wallet.auto.e872442e54b0 [10] Delegators do nicht run a node und are nicht penalized für their own computer being offline. The selected Validator can still be slashed according zu consensus rules, which can affect delegated stake/rewards depending auf the protocol rule.
+  wallet.auto.d7d519245f28 [5] The daemon starts mit block production deaktiviert. This is safe für home Wallet usage.
+  wallet.auto.7c16e59f7ea9 [11] For planned downtime use Safe Pause: no new liveness rewards oder liveness slashes while paused; stake stays bonded. Historical slashable offences remain enforceable. Safe Resume still waits für full catch-up vor signing. Double-signing can slash 50% und tombstone the Validator.
+  wallet.auto.6d49997be050 [3] Home PC / safe. Send, receive, sync. Kein block production.
+  wallet.auto.10a198f737d3 [13] Manage many Validator identities through one QRX node. Selecting oder enabling an Adresse NEVER moves QUB. A normal Adresse becomes eligible zu validate only nach it has the erforderlich self-stake collateral. Bootstrap Adressees already have their 1,000 QUB Genesis self-stake, so enabling them can make them Validator-ready immediately if the key is unlocked und the node is online.
+  wallet.auto.73c5f70e6b3d [8] the Genesis principal stays staked/locked für 180 days. Validator rewards und QUB received later stay spendable. During the bootstrap lock, pure offline/liveness slashing is 0 QUB; double-signing is never exempt. After the lock ends, normal slashing applies.
+  wallet.auto.6b731bf07e4c [3] / P2P / QRXDB runtime und loads every Validator-Mode Wallet as a separate signer identity. It does
+  wallet.auto.77c20fd45de7 [10] start 50 daemons. Proposal signing rotates across usable identities und all usable fleet identities can vote auf the same proposal. Nothing is auto-staked. Fleet Wallets must be unlockable by the current Validator session Passphrase; a locked oder under-staked identity is skipped instead of stalling the whole node.
+  wallet.auto.892ba528c8a5 [4] History is read-only. Use filters zu inspect activity; CSV export never exports seeds, private Schlüssel oder Passphrases.
+  wallet.auto.8a3892539e18 [4] State-Root-verified accounting ledger mit tax-event classification. Rewards, stake/delegation movements, trades, swaps, Gebührs und internal transfers are separated. Fiat valuation fields show the price source oder remain visibly blank instead of inventing a tax value. The end date is inclusive.
+  wallet.auto.5d2891d64804 [7] create/restore an encrypted local BTC Wallet, generate receive Adressees, sync balance via Electrum fallback endpoints, und broadcast BTC Transaktions. Use tiny test Betrags first.
+  wallet.auto.d55cb32ce188 [5] BTC Light keeps the Wallet easy: no Bitcoin full-node download und no huge local Bitcoin chain. Phase 1 is Electrum/Esplora-ready; Phase 2 can add Neutrino/BIP157 compact-filter verification.
+  wallet.auto.f1eb2cadafdc [5] Used zu encrypt/decrypt the BTC mnemonic locally. Keep it safe; losing it can make BTC funds unrecoverable.
+  wallet.auto.911881f5865c [5] One endpoint per line. The Wallet tests entries in order und uses the first reachable endpoint.
+fr: 83 mixed-English candidates
+  wallet.auto.7215afbe23f7 [3] QRX is built as a quantum-ready, lightweight chain with local-first portefeuille control.
+  wallet.auto.565bd3d33d27 [11] Your keys stay local. The portefeuille can run as a safe home portefeuille, a passive delegator, or an advanced validator node. Core consensus stays clean, transparent and independent.
+  wallet.auto.40fbd70d2209 [4] Portefeuille keys and recovery stay on your machine.
+  wallet.auto.bfa9c784271f [4] Avancé users can run a daemon and secure the network.
+  wallet.auto.ac8945065f12 [4] I understand that QRX Portefeuille is non-custodial software and that I must protect my recovery phrase myself.
+  wallet.auto.82ca9eea265e [7] Envoyer, receive and keep a local portefeuille. You may run the daemon without producing blocks. No slashing risk.
+  wallet.auto.177b57db4b80 [23] Déléguer an exact amount of QUB to an existing validator. You keep your portefeuille and private keys. Your computer may be offline after the transaction confirms. Délégation increases that validator’s consensus power; it does not make your portefeuille a validator and it does not transfer ownership of your portefeuille.
+  wallet.auto.117f12e5650d [3] I understand that Portefeuille Mode and Delegator Mode can go offline, but Validateur Mode requires stable uptime.
+  wallet.auto.dcd9d7fe19ac [12] Use Portefeuille Mode by default and Delegator Mode for passive participation. Validateur Mode can run on your M1 or a server, but the host must stay awake, connected and synchronized. A fleet shares one node runtime; do not launch one daemon per validator portefeuille.
+  wallet.auto.4ed486d918bc [3] I got it: I will only enable Validateur Mode if I accept uptime responsibility and slashing risk.
+  wallet.auto.741f54c14b5b [10] AURA local answers basic portefeuille/CLI questions offline. Cloud AI will run through your Cloudflare backend with a 30-day package paid in BTC or QUB. Historique stays local and is sent only when continuing a cloud chat.
+  wallet.auto.5eb97c7c68ec [3] Créer a local portefeuille, restore from
+  wallet.auto.6bf50fad2617 [3] , or import an existing portefeuille folder. QUB actions run locally through the bundled Core binaries.
+  wallet.auto.d03560eb3d00 [5] Créer a local portefeuille profile and reveal the recovery phrase once.
+  wallet.auto.6ea56ac5503d [5] Press Enter or Déverrouiller. The passphrase is kept in memory only for this app session.
+  wallet.auto.cc64d5fb69a0 [6] Local consensus health from your QRX node. Full peer adressees stay local to this portefeuille.
+  wallet.auto.9298c904a2e8 [6] Connected/known peers reported by your local node. Domains and IP adressees are never uploaded by this view.
+  wallet.auto.2f5ed917b7ae [7] Optional alerts. Validateur rewards, delegation rewards and trading settlements can be toggled separately. Repeated events are grouped instead of generating a popup for every reward.
+  wallet.auto.02e08f2819a6 [6] Choose which portefeuille adresse funds this transaction. Confidentialité optimized avoids unnecessarily reusing the primary adresse.
+  wallet.auto.fda422ab3add [13] Enter a recipient and amount. The portefeuille will check balance and whether the recipient belongs to this portefeuille.
+  wallet.auto.8e0aed54893c [3] Disponible balance is loaded from the active portefeuille.
+  wallet.auto.b8aacd150943 [3] Enregistrer recipient after successful send
+  wallet.auto.60adf2beb184 [3] BTC uses the shared BDK light-portefeuille service. Use tiny test amounts first.
+  wallet.auto.cbb0a228ef11 [4] Use a fresh adresse for every payment
+  wallet.auto.44f2d6cb1f9b [14] Créers a new recoverable QUB receive adresse when you open a new payment request. This reduces adresse reuse and makes it harder for outside observers to associate separate payments with the same portefeuille.
+  wallet.auto.0f43a687458e [10] Rotated adressees are included in the portefeuille recovery extension and restore with the same recovery phrase + recovery.qrxseed.
+  wallet.auto.cbec545bfa61 [3] The primary portefeuille identity always comes from adresse.txt. Ajouteritional receive adressees are shown separately.
+  wallet.auto.d098df2ee578 [3] Chargement the portefeuille's existing receive adresse…
+  wallet.auto.324027ae0a5e [11] You can delegate QUB and close the portefeuille. Slashing/offline penalties apply to validators, not to normal portefeuille users. Self-staking makes this portefeuille a validator candidate and requires Validateur Mode.
+  wallet.auto.938c70b60372 [5] Only self-stake if Validateur Mode is enabled and this machine/server is intended to run reliably. Minimum self-stake is 100 QUB.
+  wallet.auto.8ae40d40d8cf [5] your QUB stays attributed to your portefeuille but its staking power is assigned to a validator. You do
+  wallet.auto.f1250cf60c0e [7] need to keep this Mac online and Delegator Mode does not turn your portefeuille into a validator.
+  wallet.auto.45ae7177b518 [6] Paste the validator's qrx1… adresse. Only validators with enough self-stake can accept delegation.
+  wallet.auto.fd1a5c20d18b [10] Only the amount you enter is delegated. The portefeuille never delegates your whole balance automatically.
+  wallet.auto.e383ee928256 [6] The validator operates the node. Récompenses depend on validator performance and commission.
+  wallet.auto.be67fb04e084 [9] Tip: copy this from Validateur Set / the validator operator. Délégation never gives the validator your private key.
+  wallet.auto.557f1f658f46 [3] Example: entering 25 delegates exactly 25 QUB — not the rest of the portefeuille.
+  wallet.auto.d7d519245f28 [7] The daemon starts with block production disabled. This is safe for home portefeuille usage.
+  wallet.auto.7c16e59f7ea9 [14] For planned downtime use Safe Mettre en pause: no new liveness rewards or liveness slashes while paused; stake stays bonded. Historical slashable offences remain enforceable. Safe Reprendre still waits for full catch-up before signing. Double-signing can slash 50% and tombstone the validator.
+  wallet.auto.10a198f737d3 [15] Manage many validator identities through one QRX node. Selecting or enabling an adresse NEVER moves QUB. A normal adresse becomes eligible to validate only after it has the required self-stake collateral. Bootstrap adressees already have their 1,000 QUB Genesis self-stake, so enabling them can make them validator-ready immediately if the key is unlocked and the node is online.
+  wallet.auto.73c5f70e6b3d [9] the Genesis principal stays staked/locked for 180 days. Validateur rewards and QUB received later stay spendable. During the bootstrap lock, pure offline/liveness slashing is 0 QUB; double-signing is never exempt. After the lock ends, normal slashing applies.
+  wallet.auto.77c20fd45de7 [11] start 50 daemons. Proposal signing rotates across usable identities and all usable fleet identities can vote on the same proposal. Nothing is auto-staked. Fleet portefeuilles must be unlockable by the current validator session passphrase; a locked or under-staked identity is skipped instead of stalling the whole node.
+  wallet.auto.892ba528c8a5 [5] Historique is read-only. Use filters to inspect activity; CSV export never exports seeds, private keys or passphrases.
+  wallet.auto.8a3892539e18 [5] State-Root-verified accounting ledger with tax-event classification. Récompenses, stake/delegation movements, trades, swaps, fees and internal transfers are separated. Fiat valuation fields show the price source or remain visibly blank instead of inventing a tax value. The end date is inclusive.
+  wallet.auto.5d2891d64804 [7] create/restore an encrypted local BTC portefeuille, generate receive adressees, sync balance via Electrum fallback endpoints, and broadcast BTC transactions. Use tiny test amounts first.
+  wallet.auto.d55cb32ce188 [5] BTC Light keeps the portefeuille easy: no Bitcoin full-node download and no huge local Bitcoin chain. Phase 1 is Electrum/Esplora-ready; Phase 2 can add Neutrino/BIP157 compact-filter verification.
+  wallet.auto.911881f5865c [5] One endpoint per line. The portefeuille tests entries in order and uses the first reachable endpoint.
+  wallet.auto.b72dbdaba697 [10] Sauvegarde your BTC recovery phrase immediately. Restaurer lets you import an existing BIP39 phrase and encrypt it with your local BTC password.
+  wallet.auto.ace559a1b0fb [7] Keep these words offline. Anyone with this phrase can spend the BTC portefeuille.
+  wallet.auto.e13268e8988c [8] The active QRX portefeuille acts as the delegated cross-chain agent. Enter the owner adresse that previously authorized this agent for TRADE_CROSSCHAIN.
+es: 83 mixed-English candidates
+  wallet.auto.7215afbe23f7 [3] QRX is built as a quantum-ready, lightweight chain with local-first cartera control.
+  wallet.auto.565bd3d33d27 [11] Your keys stay local. The cartera can run as a safe home cartera, a passive delegator, or an advanced validator node. Core consensus stays clean, transparent and independent.
+  wallet.auto.40fbd70d2209 [4] Cartera keys and recovery stay on your machine.
+  wallet.auto.bfa9c784271f [4] Avanzado users can run a daemon and secure the network.
+  wallet.auto.ac8945065f12 [4] I understand that QRX Cartera is non-custodial software and that I must protect my recovery phrase myself.
+  wallet.auto.82ca9eea265e [7] Enviar, receive and keep a local cartera. You may run the daemon without producing blocks. No slashing risk.
+  wallet.auto.177b57db4b80 [23] Delegar an exact amount of QUB to an existing validator. You keep your cartera and private keys. Your computer may be offline after the transaction confirms. Delegación increases that validator’s consensus power; it does not make your cartera a validator and it does not transfer ownership of your cartera.
+  wallet.auto.117f12e5650d [3] I understand that Cartera Modo and Delegator Modo can go offline, but Validador Modo requires stable uptime.
+  wallet.auto.dcd9d7fe19ac [12] Use Cartera Modo by default and Delegator Modo for passive participation. Validador Modo can run on your M1 or a server, but the host must stay awake, connected and synchronized. A fleet shares one node runtime; do not launch one daemon per validator cartera.
+  wallet.auto.4ed486d918bc [3] I got it: I will only enable Validador Modo if I accept uptime responsibility and slashing risk.
+  wallet.auto.741f54c14b5b [10] AURA local answers basic cartera/CLI questions offline. Cloud AI will run through your Cloudflare backend with a 30-day package paid in BTC or QUB. Historial stays local and is sent only when continuing a cloud chat.
+  wallet.auto.5eb97c7c68ec [3] Crear a local cartera, restore from
+  wallet.auto.6bf50fad2617 [3] , or import an existing cartera folder. QUB actions run locally through the bundled Core binaries.
+  wallet.auto.d03560eb3d00 [5] Crear a local cartera profile and reveal the recovery phrase once.
+  wallet.auto.6ea56ac5503d [5] Press Enter or Desbloquear. The passphrase is kept in memory only for this app session.
+  wallet.auto.cc64d5fb69a0 [6] Local consensus health from your QRX node. Full peer direcciónes stay local to this cartera.
+  wallet.auto.9298c904a2e8 [6] Connected/known peers reported by your local node. Domains and IP direcciónes are never uploaded by this view.
+  wallet.auto.2f5ed917b7ae [7] Optional alerts. Validador rewards, delegation rewards and trading settlements can be toggled separately. Repeated events are grouped instead of generating a popup for every reward.
+  wallet.auto.02e08f2819a6 [6] Choose which cartera dirección funds this transaction. Privacidad optimized avoids unnecessarily reusing the primary dirección.
+  wallet.auto.fda422ab3add [13] Enter a recipient and amount. The cartera will check balance and whether the recipient belongs to this cartera.
+  wallet.auto.8e0aed54893c [3] Disponible balance is loaded from the active cartera.
+  wallet.auto.b8aacd150943 [3] Guardar recipient after successful send
+  wallet.auto.60adf2beb184 [3] BTC uses the shared BDK light-cartera service. Use tiny test amounts first.
+  wallet.auto.cbb0a228ef11 [4] Use a fresh dirección for every payment
+  wallet.auto.44f2d6cb1f9b [14] Crears a new recoverable QUB receive dirección when you open a new payment request. This reduces dirección reuse and makes it harder for outside observers to associate separate payments with the same cartera.
+  wallet.auto.0f43a687458e [10] Rotated direcciónes are included in the cartera recovery extension and restore with the same recovery phrase + recovery.qrxseed.
+  wallet.auto.cbec545bfa61 [3] The primary cartera identity always comes from dirección.txt. Añadiritional receive direcciónes are shown separately.
+  wallet.auto.d098df2ee578 [3] Cargando the cartera's existing receive dirección…
+  wallet.auto.324027ae0a5e [11] You can delegate QUB and close the cartera. Slashing/offline penalties apply to validators, not to normal cartera users. Self-staking makes this cartera a validator candidate and requires Validador Modo.
+  wallet.auto.938c70b60372 [5] Only self-stake if Validador Modo is enabled and this machine/server is intended to run reliably. Minimum self-stake is 100 QUB.
+  wallet.auto.8ae40d40d8cf [5] your QUB stays attributed to your cartera but its staking power is assigned to a validator. You do
+  wallet.auto.f1250cf60c0e [7] need to keep this Mac online and Delegator Modo does not turn your cartera into a validator.
+  wallet.auto.45ae7177b518 [6] Paste the validator's qrx1… dirección. Only validators with enough self-stake can accept delegation.
+  wallet.auto.fd1a5c20d18b [10] Only the amount you enter is delegated. The cartera never delegates your whole balance automatically.
+  wallet.auto.e383ee928256 [6] The validator operates the node. Recompensas depend on validator performance and commission.
+  wallet.auto.be67fb04e084 [9] Tip: copy this from Validador Set / the validator operator. Delegación never gives the validator your private key.
+  wallet.auto.557f1f658f46 [3] Example: entering 25 delegates exactly 25 QUB — not the rest of the cartera.
+  wallet.auto.d7d519245f28 [7] The daemon starts with block production disabled. This is safe for home cartera usage.
+  wallet.auto.7c16e59f7ea9 [14] For planned downtime use Safe Pausar: no new liveness rewards or liveness slashes while paused; stake stays bonded. Historical slashable offences remain enforceable. Safe Reanudar still waits for full catch-up before signing. Double-signing can slash 50% and tombstone the validator.
+  wallet.auto.10a198f737d3 [15] Manage many validator identities through one QRX node. Selecting or enabling an dirección NEVER moves QUB. A normal dirección becomes eligible to validate only after it has the required self-stake collateral. Bootstrap direcciónes already have their 1,000 QUB Genesis self-stake, so enabling them can make them validator-ready immediately if the key is unlocked and the node is online.
+  wallet.auto.73c5f70e6b3d [9] the Genesis principal stays staked/locked for 180 days. Validador rewards and QUB received later stay spendable. During the bootstrap lock, pure offline/liveness slashing is 0 QUB; double-signing is never exempt. After the lock ends, normal slashing applies.
+  wallet.auto.77c20fd45de7 [11] start 50 daemons. Proposal signing rotates across usable identities and all usable fleet identities can vote on the same proposal. Nothing is auto-staked. Fleet carteras must be unlockable by the current validator session passphrase; a locked or under-staked identity is skipped instead of stalling the whole node.
+  wallet.auto.892ba528c8a5 [5] Historial is read-only. Use filters to inspect activity; CSV export never exports seeds, private keys or passphrases.
+  wallet.auto.8a3892539e18 [5] State-Root-verified accounting ledger with tax-event classification. Recompensas, stake/delegation movements, trades, swaps, fees and internal transfers are separated. Fiat valuation fields show the price source or remain visibly blank instead of inventing a tax value. The end date is inclusive.
+  wallet.auto.5d2891d64804 [7] create/restore an encrypted local BTC cartera, generate receive direcciónes, sync balance via Electrum fallback endpoints, and broadcast BTC transactions. Use tiny test amounts first.
+  wallet.auto.d55cb32ce188 [5] BTC Light keeps the cartera easy: no Bitcoin full-node download and no huge local Bitcoin chain. Phase 1 is Electrum/Esplora-ready; Phase 2 can add Neutrino/BIP157 compact-filter verification.
+  wallet.auto.911881f5865c [5] One endpoint per line. The cartera tests entries in order and uses the first reachable endpoint.
+  wallet.auto.b72dbdaba697 [10] Copia de seguridad your BTC recovery phrase immediately. Restaurar lets you import an existing BIP39 phrase and encrypt it with your local BTC password.
+  wallet.auto.ace559a1b0fb [7] Keep these words offline. Anyone with this phrase can spend the BTC cartera.
+  wallet.auto.e13268e8988c [8] The active QRX cartera acts as the delegated cross-chain agent. Enter the owner dirección that previously authorized this agent for TRADE_CROSSCHAIN.
