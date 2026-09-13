@@ -1,199 +1,140 @@
-# QRX 0.0.9 Final Source Snapshot
+# QRX Chain 0.0.9
 
-**Roadmap closeout:** 0.0.9.45-0.0.9.49 complete on 2026-09-11.  
-**Registered Core regression:** 108/108 PASS (including Genesis Freeze AURA real-model bootstrap).  
-**Canonical handbook:** `docs/QRX_A_TO_Z_0.0.9.md` (also HTML/PDF in the release).
+**The decentralized computer for value, storage, networking, AI and applications.**
 
-Highlights of the final 0.0.9 AURA block include zero-config model discovery/replication, autonomous expert placement and repair, provider supervision/relay failover, signed runtime packages and hardware auto-detection, model provenance/license governance, heterogeneous quality/cost/energy routing, release readiness gates and an automated GUI-to-documentation coverage gate.
+QRX is a from-scratch blockchain/network stack centered on **QUB (QUBITCOIN)**. Version 0.0.9 brings the Chain, GUI Wallet, QRX Drive, QRX-Net, AURA, native markets, privacy foundations and the QRX application layer into one platform.
 
-> Validation boundary: the 108/108 result is the registered C/Core regression suite. Native Tauri builds, platform code signing and notarization must still run on their target release hosts/CI and are not implied by the Linux C test result.
+> **Release status:** Genesis-era 0.0.9 source. Treat Mainnet and advanced privacy/compute features conservatively. Passing regression tests is not a substitute for an independent security audit.
 
----
+## The QRX stack
 
-# QRX 0.0.7.7 Phase 7.2.11
+- **QRX Chain / QUB** — BFT finality, staking, delegation, slashing, governance, native assets and tokenomics.
+- **VELOCITY** — parallel/MVCC execution, deterministic settlement, native markets and cross-chain foundations.
+- **QRX Drive** — encrypted decentralized storage, erasure coding, multi-provider retrieval, resume and repair.
+- **QRX-Net** — `.qrx` naming, decentralized site publishing, service discovery and the integrated secure browser foundation.
+- **AURA / Proof of Useful Compute** — local-first AI, distributed compute, signed runtimes/models, heterogeneous provider hardware and MoE scheduling.
+- **Privacy** — address rotation, stealth receiving, shielded QUB and hidden-balance/proof foundations with fail-closed activation boundaries.
+- **BTC Light + Quantum Swaps** — Bitcoin light-wallet/SPV integration and HTLC/VELOCITY cross-chain settlement.
+- **Markets & Agents** — QRX-native order book, trading automation, paper trading and explicitly authorized external gateway paths.
+- **QRX Apps** — sandboxed `.qrxapp` packages, App Registry, permissions and Mini JavaScript SDK.
+- **QRX Generals** — QRX-native persistent strategy game/application.
+- **QRX Upscaler** — local image/batch/video enhancement foundation, prepared for future distributed QRX Compute workloads.
 
-Wallet UX, Accounting Completion & Advanced Market Chart.
+## Post-quantum readiness
 
-# QRX RC6.4 Final Merge — Cleaned & Unified
+QRX is designed for **quantum resilience and cryptographic migration**, not around the claim that every dependency is already “quantum proof”. The wallet architecture includes hybrid **Ed25519 + ML-DSA-65** identity/signature work, SHA-3/content-addressed verification and explicit cryptographic trust boundaries.
 
-This repository is the cleaned, unified QRX working tree for a **public alpha / hobby network**.
+## QUB economy
 
-## VELOCITY Phase 4F.2
+Protocol emission is separated from paid network services.
 
-This snapshot includes cross-venue BTC/QUB → Kraken BTC/EUR opportunity analysis, paper trading, an explicit-confirmation `LIMIT IOC` hedge route and a seven-file complete CSV ledger. Live execution is opt-in, requires prefunded Kraken BTC and the separate `ARBITRAGE_CROSS_VENUE` agent permission. See `VELOCITY_007_PHASE4F2_CROSS_VENUE_ARBITRAGE_CSV.md`.
+- Initial block subsidy: **0.25 QUB**
+- Target block time: **~10 seconds**
+- Halving interval: **12,614,400 blocks (~4 years)**
+- Hard supply ceiling: **21,000,000 QUB**
+- Current subsidy schedule is below that ceiling; 21M is a maximum, not the issuance target of the current curve.
 
-The Phase 4F.2 parity correction adds the desktop **Complete Command Center**, the unified `qrx-wallet-cli.py`, a shared Rust BDK key-store service, and the atomic, wallet-filtered, State-Root-verified `QRX_COMPLETE_LEDGER_V3` with all-time, annual, quarterly and custom date periods. The unified native multi-target builder supports automatic `host` detection and produces Core, CLI, tools, BTC service and the dependent Tauri wallet for Linux x64/ARM64, Windows x64, macOS Intel and macOS Apple Silicon; see `BUILD_ALL_TARGETS.md`.
+Service rewards are funded by users/advertisers rather than creating a second inflation stream:
 
-## What this repo is
+| Layer | Distribution |
+|---|---|
+| QRX Drive | 97.5% provider · 2% resilience/repair · 0.5% development |
+| Compute FastTrack | 90% provider · 9.5% network · 0.5% development |
+| Advertising | 55% delivery · 25% publisher · 15% viewer · 4.5% network · 0.5% development |
 
-- **native C layout** with a shared core library
-- **`qrx`** backend binary
-- **`qrxd`** daemon frontend
-- **`qrx-cli`** control / wallet frontend
-- **built-in network profiles**
-- **auto-init** for datadir, chain, wallet and node state
-- **local control socket / JSON RPC-style responses**
-- **staking, delegation, slashing, penalty redistribution**
-- **experimental committee/finality/BFT flow** for alpha testing
+## AURA — local first, network when useful
 
-## What this repo is not
+AURA is the user-facing AI/useful-compute layer. Automatic mode discovers the host hardware, selects a compatible signed runtime, verifies it, selects compatible model/expert assets and can use QRX provider/Drive infrastructure when available.
 
-- not audited
-- not enterprise-grade
-- not a hardened production mainnet
+The runtime architecture covers x86-64 and ARM64 CPU paths, Apple Silicon/Metal and NVIDIA CUDA paths including Pascal/P40-class capability representation. Model bootstrap/catalog work includes Qwen, DeepSeek and Kimi families with governed provenance/license handling and content-addressed assets.
 
-Use it as **public alpha / hobby software on your own risk**.
+## GUI Wallet
 
-## Entry points
+The Tauri GUI and native Core share the QRX wallet/node architecture. Current 0.0.9 work includes:
 
-Only these binaries are the supported entry points:
+- Windows, Linux and macOS release targets; x64/ARM64 where supported
+- shared wallet management, Recovery Center and Safety Center
+- QUB + BTC Light workflows
+- QRX Drive, QRX-Net, AURA, Markets, Privacy and Apps views
+- integrated secure browser foundation
+- responsive full-width application workspaces
+- **55 locale catalogs** with complete current wallet key parity
 
-- `build/qrx`
-- `build/qrxd`
-- `build/qrx-cli`
+## Apps & Mini JS SDK
 
-Legacy Python wrapper scripts were removed from this cleaned tree to avoid confusion.
+0.0.9 establishes the local application foundation:
+
+- `.qrxapp` v1 package format
+- sandboxed App Host
+- explicit permission model
+- local App Registry and Developer Mode
+- Mini JS SDK
+- controlled identity/balance/network reads
+- app-scoped storage
+- wallet-mediated payment requests without exposing private keys
+
+Distributed publishing, signatures, QRX Drive/QRX-Net distribution and the broader app directory are part of the 0.0.10 direction.
+
+## Staged Mainnet protocols
+
+Resource protocols are **fail-closed** and are not activated merely because a date arrives. Activation requires readiness/soak criteria plus threshold-signed on-chain governance scheduling.
+
+| Protocol | Operational target |
+|---|---:|
+| `DRIVE_V1` | 2026-11-30 17:00 UTC |
+| `QRX_NET_V1` | 2026-12-07 17:00 UTC |
+| `ADVERTISING_V1` | 2026-12-15 17:00 UTC |
+| `COMPUTE_POUC_V1` | 2027-01-31 17:00 UTC |
 
 ## Build
 
+Core development build:
+
 ```bash
+cd qrx-core
 cmake -S . -B build
 cmake --build build -j
 ```
 
-## Quick start
-
-Terminal 1:
+Run the registered native regression suite:
 
 ```bash
-export QRX_PASSPHRASE=testpass
-./build/qrxd --network alpha --datadir ./data --wallet node1 --listen 127.0.0.1:26661
+cmake -S . -B build-tests -DQRX_BUILD_TESTS=ON
+cmake --build build-tests -j
+ctest --test-dir build-tests --output-on-failure
 ```
 
-Terminal 2:
+Unified host build:
 
 ```bash
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 getinfo
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 getwalletinfo
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 getnewaddress
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 tokenomics
+bash scripts/build-all-targets.sh --target host
 ```
 
-Start more nodes:
+Supported native entry points are `qrx`, `qrxd` and `qrx-cli`.
 
-```bash
-./build/qrxd --network alpha --datadir ./data2 --wallet node2 --listen 127.0.0.1:26662 --addnode 127.0.0.1:26661
-./build/qrxd --network alpha --datadir ./data3 --wallet node3 --listen 127.0.0.1:26663 --addnode 127.0.0.1:26661
-```
+## Documentation
 
-## Current high-level feature set
+Start with **`docs/QRX_A_TO_Z_0.0.9.md`**. It is the canonical offline A–Z handbook for the 0.0.9 platform and covers installation, wallet/recovery, staking, Drive, QRX-Net, AURA, privacy, BTC Light, Quantum Swaps, markets, agents, governance, CLI/RPC, Apps/SDK and troubleshooting.
 
-- fixed network profiles: `alpha`, `testnet`, `regtest`, `mainnet`
-- built-in genesis/profile defaults
-- peer bootstrap / peer discovery
-- local control socket
-- stable JSON RPC-style responses
-- send / receive / history
-- staking / delegation / validator set
-- slashing / penalty points / redistribution threshold
-- tokenomics counters and limits
-- experimental proposal / prevote / precommit / finalize flow
-- alpha ops / backup / restore docs and scripts
+## 0.0.10 — Ouroboros
 
-## JSON response format
+0.0.10 expands the 0.0.9 local application foundation toward the distributed QRX application ecosystem: developer signatures, QRX Drive publishing, QRX-Net distribution, app discovery/update/reputation, local/QRX Compute APIs and broader decentralized governance.
 
-Successful responses:
+The longer-term architecture connects **QRX Chain + QRX Drive + QRX-Net + AURA + QRX Compute + QRX Apps**. QRX Chain is evolving toward the decentralized computer; **QRX OS (`qrxos.com`)** is planned as its operating-system layer.
 
-```json
-{"ok":true,"method":"getinfo","result":{...}}
-```
+## Community & links
 
-Errors:
+- Website: https://qrxchain.org
+- Explorer: https://qrxscan.com
+- GitHub: https://github.com/phoenixkonsole/qrx
+- Discord: https://discord.gg/4G2Vyj9jYf
+- Bitcointalk: https://bitcointalk.org/index.php?topic=5580957.0
+- QRX OS: https://qrxos.com
 
-```json
-{"ok":false,"method":"getinfo","error":"..."}
-```
+## Security notice
 
-## Start reading here
+QRX 0.0.9 contains substantial internal hardening and regression coverage, but this repository must not present internal tests as an independent external audit. Keep backups, verify release hashes, test recovery, use advanced/privacy/provider functionality cautiously, and follow the release documentation for feature-gated Mainnet functionality.
 
-- `docs/START-HERE.md`
-- `docs/CORE-DAEMON.md`
-- `docs/CONTROL-SOCKET.md`
-- `docs/TOKENOMICS.md`
-- `docs/STAKING.md`
-- `docs/CONSENSUS-INTEGRATION.md`
-- `docs/BFT-EXPERIMENTAL.md`
-- `docs/ALPHA-MAINNET-GAPS.md`
+---
 
-## Notes
-
-This cleaned tree focuses on a single supported path:
-
-**native C daemon + native CLI + shared C core + alpha/testnet operation**.
-
-
-## Hybrid signature status
-
-QRX RC6.4 uses a concrete hybrid transaction signature path:
-
-- Ed25519
-- ML-DSA-65
-
-Quick check:
-
-```bash
-./build/qrx hybrid-status <wallet-dir>
-./tests/hybrid_signatures.sh ./build/qrx
-```
-
-
-## Quantum Swaps / HTLC MVP
-
-This patched tree includes a first QUBITCOIN-side HTLC preparation layer for Quantum Swaps.
-
-CLI examples:
-
-```bash
-SECRET="supersecret"
-HASHLOCK=$(printf "%s" "$SECRET" | shasum -a 256 | awk '{print $1}')
-
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 createswap <QUB_RECIPIENT> 1000 "$HASHLOCK" 86400 "BTC-QUB swap"
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 getswap <SWAP_ID>
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 redeemswap <SWAP_ID> "$SECRET"
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 refundswap <SWAP_ID>
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 listswaps
-```
-
-See `docs/QUANTUM-SWAPS-HTLC.md`.
-
-Important: this is an alpha state-level HTLC MVP for GUI/swap-flow integration. Before public mainnet usage it must be hardened into consensus-level signed HTLC transactions.
-
-
-## Shielded Pool Skeleton
-
-This tree includes a first developer skeleton for optional QUB shielded pool flows:
-
-```bash
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 shielded-address
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 shield <amount>
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 shielded-balance
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 shielded-send <zqub1...> <amount>
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 unshield <qrx...> <amount>
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 shielded-history
-```
-
-This is not audited zk privacy. It is a skeleton for GUI/Core integration before adding real proof verification.
-
-
-## Stealth Addresses
-
-This tree includes a developer skeleton for optional QUB stealth receiving:
-
-```bash
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 stealth-address
-./build/qrx-cli --network alpha --datadir ./data --wallet node2 stealth-send <squb1...> 1000
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 stealth-scan
-./build/qrx-cli --network alpha --datadir ./data --wallet node1 stealth-history
-```
-
-Policy: transparent QUB remains default and exchange-compatible. Stealth addresses are optional wallet-to-wallet privacy and should not be used as centralized exchange deposit addresses.
+**QRX — value, verification and digital sovereignty for the AI age.**

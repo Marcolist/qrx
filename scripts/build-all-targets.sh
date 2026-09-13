@@ -152,12 +152,12 @@ echo "[1/8] Building Core and native command-line tools"
 case "$TARGET" in
   linux-x64|linux-arm64)
     QRX_OPENSSL_PREFIX="${QRX_OPENSSL_PREFIX:-$BUILD_ROOT/deps/openssl-$TARGET}"
-    PREFIX="$QRX_OPENSSL_PREFIX" BUILD_DIR="$CORE_BUILD" JOBS="$JOBS" "$CORE/scripts/build-linux-static.sh"
+    PREFIX="$QRX_OPENSSL_PREFIX" BUILD_DIR="$CORE_BUILD" JOBS="$JOBS" bash "$CORE/scripts/build-linux-static.sh"
     ;;
   macos-x64|macos-arm64)
     arch="x86_64"; [[ "$TARGET" == "macos-arm64" ]] && arch="arm64"
     QRX_OPENSSL_PREFIX="${QRX_OPENSSL_PREFIX:-$BUILD_ROOT/deps/openssl-macos-$arch}"
-    PREFIX="$QRX_OPENSSL_PREFIX" BUILD_DIR="$CORE_BUILD" JOBS="$JOBS" "$CORE/scripts/build-macos-static.sh" "$arch"
+    PREFIX="$QRX_OPENSSL_PREFIX" BUILD_DIR="$CORE_BUILD" JOBS="$JOBS" bash "$CORE/scripts/build-macos-static.sh" "$arch"
     ;;
   windows-x64)
     vcpkg_root="${VCPKG_ROOT:-${VCPKG_INSTALLATION_ROOT:-C:\\vcpkg}}"
