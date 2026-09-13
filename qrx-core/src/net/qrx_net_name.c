@@ -1,0 +1,15 @@
+#include "net/qrx_net_name.h"
+#include "resource/qrx_resource.h"
+#include <openssl/evp.h>
+#include <openssl/x509.h>
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+static int mul_u64(uint64_t a,uint64_t b,uint64_t *o){if(b&&a>UINT64_MAX/b)return -1;*o=a*b;return 0;}
+int qrx_domain_normalize(const char *in,char out[QRX_DOMAIN_MAX_NAME+1]){if(!in||!out)return -1;size_t n=strlen(in);if(n<5||n>QRX_DOMAIN_MAX_NAME)return -1;for(size_t i=0;i<n;i++){unsigned char c=(unsigned char)in[i];if(c>127)return -1;out[i]=(char)tolower(c);}out[n]=0;if(strcmp(out+n-4,".qrx"))return -1;size_t label_start=0;for(size_t i=0;i<=n;i++){if(out[i]=='.'||out[i]==0){size_t len=i-label_start;if(!len||len>63||out[label_start]=='-'||out[i-1]=='-')return -1;for(size_t j=label_start;j<i;j++){char c=out[j];if(!(c>='a'&&c<='z')&&!(c>='0'&&c<='9')&&c!='-')return -1;}label_start=i+1;}}return 0;}
+int qrx_domain_name_hash(const char *name,uint8_t out[64]){char norm[QRX_DOMAIN_MAX_NAME+1];if(!out||qrx_domain_normalize(name,norm)!=0)return -1;static const char d[]="QRX-NAME-HASH-V1";EVP_MD_CTX *c=EVP_MD_CTX_new();unsigned int n=0;int rc=-1;if(c&&EVP_DigestInit_ex(c,EVP_sha3_512(),NULL)==1&&EVP_DigestUpdate(c,d,sizeof(d)-1)==1&&EVP_DigestUpdate(c,norm,strlen(norm))==1&&EVP_DigestFinal_ex(c,out,&n)==1&&n==64)rc=0;EVP_MD_CTX_free(c);return rc;}
+int qrx_domain_price(const char *name,uint64_t base,uint64_t owned,QrxDomainPrice *o){char n[QRX_DOMAIN_MAX_NAME+1];if(!o||!base||qrx_domain_normalize(name,n)!=0)return -1;memset(o,0,sizeof(*o));const char *dot=strchr(n,'.');size_t l=dot?(size_t)(dot-n):0;if(l<=2){o->mode=QRX_DOMAIN_PRICE_AUCTION_REQUIRED;o->annual_atoms=0;}else{o->mode=QRX_DOMAIN_PRICE_FIXED;uint64_t mult=l==3?100:(l==4?10:1);if(mul_u64(base,mult,&o->annual_atoms)!=0)return -1;}uint64_t tier=1+owned/10;if(tier>100)tier=100;if(mul_u64(base,tier,&o->reservation_bond_atoms)!=0)return -1;return 0;}
+int qrx_domain_fee_split(uint64_t atoms,QrxDomainFeeSplit *o){if(!o||!atoms)return -1;QrxStorageContractSplit sp;if(qrx_storage_split_contract_value(atoms,QRX_STORAGE_DEV_SHARE_BPS,0,&sp)!=0)return -1;o->development_atoms=sp.development_atoms;o->registry_atoms=sp.provider_budget_atoms;return 0;}
+int qrx_domain_is_active(const QrxDomainRecord *r,uint64_t h){return r&&r->name[0]&&h<=r->expiry_height;}
+int qrx_domain_in_grace(const QrxDomainRecord *r,uint64_t h){if(!r||!r->name[0]||h<=r->expiry_height)return 0;return h-r->expiry_height<=QRX_DOMAIN_GRACE_BLOCKS;}
+int qrx_domain_pubkey_commitment(EVP_PKEY *k,uint8_t out[64]){if(!k||!out)return -1;const char *tn=EVP_PKEY_get0_type_name(k);if(!tn||strcmp(tn,"ML-DSA-65"))return -1;int n=i2d_PUBKEY(k,NULL);if(n<=0)return -1;unsigned char *buf=malloc((size_t)n),*p=buf;if(!buf)return -1;if(i2d_PUBKEY(k,&p)!=n){free(buf);return -1;}static const char d[]="QRX-DOMAIN-PUBLISHING-KEY-V1";EVP_MD_CTX *c=EVP_MD_CTX_new();unsigned int z=0;int rc=-1;if(c&&EVP_DigestInit_ex(c,EVP_sha3_512(),NULL)==1&&EVP_DigestUpdate(c,d,sizeof(d)-1)==1&&EVP_DigestUpdate(c,buf,n)==1&&EVP_DigestFinal_ex(c,out,&z)==1&&z==64)rc=0;EVP_MD_CTX_free(c);free(buf);return rc;}

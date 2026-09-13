@@ -1,0 +1,5 @@
+#include "resource/qrx_storage_placement.h"
+#include <assert.h>
+#include <string.h>
+#include <stdio.h>
+int main(void){QrxStoragePlacementCandidate c[4];memset(c,0,sizeof(c));for(int i=0;i<4;i++){snprintf(c[i].provider_id,sizeof(c[i].provider_id),"p%d",i);snprintf(c[i].operator_id,sizeof(c[i].operator_id),"op%d",i);snprintf(c[i].asn,sizeof(c[i].asn),"AS%d",i);snprintf(c[i].region,sizeof(c[i].region),"r%d",i);c[i].proven_free_bytes=(uint64_t)(i+1)*1024*1024*1024;c[i].bond_atoms=1000;c[i].availability_bps=9900;c[i].proof_success_bps=9950;c[i].performance_bps=10000;c[i].active=1;c[i].failure_domain_attested=1;}uint8_t rnd[64]={1};size_t idx=99;assert(qrx_storage_select_provider(c,4,NULL,1,500,rnd,&idx)==0&&idx<4);const char *used[]={c[idx].provider_id};QrxStoragePlacementExclusions x={used,1,NULL,0,NULL,0,NULL,0};size_t idx2=99;assert(qrx_storage_select_provider(c,4,&x,1,500,rnd,&idx2)==0&&idx2!=idx);c[idx2].bond_atoms=0;const char *ops[]={c[idx].operator_id};QrxStoragePlacementExclusions y={NULL,0,ops,1,NULL,0,NULL,0};size_t idx3=99;assert(qrx_storage_select_provider(c,4,&y,1,500,rnd,&idx3)==0&&strcmp(c[idx3].operator_id,c[idx].operator_id));return 0;}

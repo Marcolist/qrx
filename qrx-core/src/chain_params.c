@@ -381,6 +381,11 @@ int qrx_chain_write_genesis(const char *chain_dir,
         delegator_reward_percent,
         network_pool_percent);
 
+    /* QRX 0.0.8 DRIVE_V1 is intentionally not embedded in Genesis.
+     * Mainnet storage is introduced later through the existing threshold-signed
+     * activation-height protocol-upgrade path. Keeping these bytes unchanged
+     * preserves the 0.0.7.7 Genesis contract. */
+
     /* Phase 7.2: Mainnet bootstrap validators and developer-governance roots
      * are part of the canonical Genesis bytes. Any change therefore changes
      * genesis_hash and chain_id on every node. */

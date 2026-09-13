@@ -1,0 +1,22 @@
+Internal ctest changing into directory: /mnt/data/qrx_phase_0_0_8_0/qrx-core-0.0.8.0-resource-foundation-work/qrx-core/build-0800
+Test project /mnt/data/qrx_phase_0_0_8_0/qrx-core-0.0.8.0-resource-foundation-work/qrx-core/build-0800
+    Start 1: velocity_phase4_engine
+1/8 Test #1: velocity_phase4_engine ..............   Passed    0.06 sec
+    Start 2: velocity_phase4b_mvcc
+2/8 Test #2: velocity_phase4b_mvcc ...............   Passed    0.11 sec
+    Start 3: velocity_phase4c_stateful_mvcc
+3/8 Test #3: velocity_phase4c_stateful_mvcc ......   Passed    0.05 sec
+    Start 4: velocity_phase4d_dynamic_mvcc
+4/8 Test #4: velocity_phase4d_dynamic_mvcc .......   Passed    0.18 sec
+    Start 5: velocity_phase4e_speculative_mvcc
+5/8 Test #5: velocity_phase4e_speculative_mvcc ...   Passed    0.18 sec
+    Start 6: velocity_phase4f_block_scheduler
+6/8 Test #6: velocity_phase4f_block_scheduler ....   Passed    0.02 sec
+    Start 7: bitcoin_spv_phase71_hardening
+7/8 Test #7: bitcoin_spv_phase71_hardening .......   Passed    0.10 sec
+    Start 8: resource_phase080_foundation
+8/8 Test #8: resource_phase080_foundation ........   Passed    0.02 sec
+
+100% tests passed, 0 tests failed out of 8
+
+Total Test time (real) =   0.73 sec

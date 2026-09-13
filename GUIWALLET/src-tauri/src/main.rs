@@ -50,6 +50,31 @@ struct KrakenCredentialPlain {
     api_secret: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct FamilySafetyPolicy {
+    version: u32,
+    profile: String,
+    max_age_rating: u32,
+    unrated_blocked: bool,
+    ads_blocked: bool,
+    viewer_rewards_blocked: bool,
+    dapp_allowed: bool,
+    payment_limit_atoms: u64,
+    session_minutes: u32,
+    allow_domains: Vec<String>,
+    block_domains: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct FamilySafetyVault {
+    version: u32,
+    kdf: String,
+    cipher: String,
+    kdf_salt: String,
+    nonce: String,
+    ciphertext: String,
+}
+
 #[derive(Debug, Serialize)]
 struct KrakenCredentialStatus {
     configured: bool,
@@ -3509,6 +3534,217 @@ fn open_generals_window(app: tauri::AppHandle, network: Option<String>, wallet: 
     Ok("QRX Generals opened in its own window.".to_string())
 }
 
+
+
+fn family_policy_path(network:&str,wallet:&str)->Result<PathBuf,String>{
+    let dir=wallet_dir(network,wallet).map_err(String::from)?; Ok(dir.join("family-safety.qrxvault"))
+}
+fn validate_family_policy(p:&FamilySafetyPolicy)->Result<(),String>{
+    if p.version!=1 || !matches!(p.profile.as_str(),"adult"|"teen"|"child") || p.max_age_rating>21 || p.session_minutes>1440 || p.allow_domains.len()>32 || p.block_domains.len()>32 {return Err("Invalid Family Safety policy".into());}
+    if (p.profile=="child"||p.profile=="teen") && (!p.ads_blocked || !p.viewer_rewards_blocked) {return Err("Youth profiles must keep sponsored ads and viewer rewards disabled".into());}
+    Ok(())
+}
+fn encrypt_family_policy(p:&FamilySafetyPolicy,pin:&str)->Result<FamilySafetyVault,String>{
+    if pin.len()<4{return Err("Guardian PIN must contain at least 4 characters".into());} validate_family_policy(p)?;
+    let bytes=serde_json::to_vec(p).map_err(|e|e.to_string())?; let mut salt=[0u8;16];rand::thread_rng().fill_bytes(&mut salt);let key=derive_secret_key(pin,&salt)?;let cipher=Aes256Gcm::new_from_slice(&key).map_err(|e|e.to_string())?;let mut nb=[0u8;12];rand::thread_rng().fill_bytes(&mut nb);let ct=cipher.encrypt(Nonce::from_slice(&nb),bytes.as_ref()).map_err(|e|e.to_string())?;
+    Ok(FamilySafetyVault{version:1,kdf:"argon2id-m65536-t3-p1".into(),cipher:"aes-256-gcm".into(),kdf_salt:general_purpose::STANDARD.encode(salt),nonce:general_purpose::STANDARD.encode(nb),ciphertext:general_purpose::STANDARD.encode(ct)})
+}
+fn decrypt_family_policy(v:&FamilySafetyVault,pin:&str)->Result<FamilySafetyPolicy,String>{
+    if v.version!=1||v.cipher!="aes-256-gcm"{return Err("Unsupported Family Safety vault".into());}let salt=general_purpose::STANDARD.decode(&v.kdf_salt).map_err(|e|e.to_string())?;let nb=general_purpose::STANDARD.decode(&v.nonce).map_err(|e|e.to_string())?;let ct=general_purpose::STANDARD.decode(&v.ciphertext).map_err(|e|e.to_string())?;if nb.len()!=12{return Err("Invalid Family Safety vault nonce".into());}let key=derive_secret_key(pin,&salt)?;let cipher=Aes256Gcm::new_from_slice(&key).map_err(|e|e.to_string())?;let mut pt=cipher.decrypt(Nonce::from_slice(&nb),ct.as_ref()).map_err(|_|"Guardian PIN incorrect or Family Safety vault was modified".to_string())?;let p:FamilySafetyPolicy=serde_json::from_slice(&pt).map_err(|e|e.to_string())?;pt.fill(0);validate_family_policy(&p)?;Ok(p)
+}
+#[tauri::command]
+fn qrx_family_policy_set(network:String,wallet:String,policy:FamilySafetyPolicy,guardian_pin:String)->Result<Value,String>{
+    let path=family_policy_path(&network,&wallet)?;if let Some(parent)=path.parent(){fs::create_dir_all(parent).map_err(|e|e.to_string())?;}let vault=encrypt_family_policy(&policy,&guardian_pin)?;let tmp=path.with_extension("tmp");fs::write(&tmp,serde_json::to_vec_pretty(&vault).map_err(|e|e.to_string())?).map_err(|e|e.to_string())?;protect_private_file(&tmp)?;fs::rename(&tmp,&path).map_err(|e|e.to_string())?;protect_private_file(&path)?;Ok(serde_json::json!({"saved":true,"encrypted_at_rest":true,"profile":policy.profile}))
+}
+#[tauri::command]
+fn qrx_family_policy_get(network:String,wallet:String,guardian_pin:String)->Result<Value,String>{
+    let path=family_policy_path(&network,&wallet)?;if !path.exists(){return Ok(serde_json::json!({"configured":false}));}let v:FamilySafetyVault=serde_json::from_slice(&fs::read(&path).map_err(|e|e.to_string())?).map_err(|e|e.to_string())?;let p=decrypt_family_policy(&v,&guardian_pin)?;Ok(serde_json::json!({"configured":true,"policy":p,"encrypted_at_rest":true}))
+}
+#[tauri::command]
+fn qrx_family_policy_status(network:String,wallet:String)->Result<Value,String>{let path=family_policy_path(&network,&wallet)?;Ok(serde_json::json!({"configured":path.exists(),"encrypted_at_rest":path.exists()}))}
+
+#[tauri::command]
+fn open_qrx_browser_window(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>) -> Result<String, String> {
+    if let Some(window) = app.get_window("qrx-browser") {
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok("QRX Browser focused.".to_string());
+    }
+    tauri::WindowBuilder::new(
+        &app,
+        "qrx-browser",
+        tauri::WindowUrl::App(format!("browser/index.html?network={}&wallet={}", network.unwrap_or_else(|| "alpha".into()), sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?).into()),
+    )
+    .title("QRX Browser")
+    .inner_size(1440.0, 900.0)
+    .min_inner_size(960.0, 640.0)
+    .resizable(true)
+    .center()
+    .build()
+    .map_err(|e| format!("Could not create QRX Browser window: {e}"))?;
+    Ok("QRX Browser opened in its own window.".to_string())
+}
+
+#[tauri::command]
+fn qrxnet_domain_preflight(app: tauri::AppHandle, network: String, wallet: String, name: String, years: Option<u64>) -> Result<Value, String> {
+    let y=years.unwrap_or(1).to_string(); run_cli(Some(&app), &network, &wallet, &["getdomainpreflight", name.as_str(), y.as_str()], None).map(|r| r.result).map_err(String::from)
+}
+#[tauri::command]
+fn qrxnet_register_domain(app: tauri::AppHandle, network: String, wallet: String, name: String, years: u64, qub_address: Option<String>) -> Result<Value, String> {
+    let y=years.to_string(); let q=qub_address.unwrap_or_default(); let args=if q.trim().is_empty(){vec!["registerdomain",name.as_str(),y.as_str()]}else{vec!["registerdomain",name.as_str(),y.as_str(),q.as_str()]}; run_cli(Some(&app), &network, &wallet, &args, None).map(|r| r.result).map_err(String::from)
+}
+#[tauri::command]
+fn qrxnet_renew_domain(app: tauri::AppHandle, network: String, wallet: String, name: String, years: u64) -> Result<Value, String> { let y=years.to_string(); run_cli(Some(&app),&network,&wallet,&["renewdomain",name.as_str(),y.as_str()],None).map(|r|r.result).map_err(String::from) }
+#[tauri::command]
+fn qrxnet_update_domain(app: tauri::AppHandle, network: String, wallet: String, name: String, qub_mode:String, qub_address:String, web_mode:String, web_manifest_root_hex:String, publishing_mode:String, publishing_commitment_hex:String) -> Result<Value,String>{ run_cli(Some(&app),&network,&wallet,&["updatedomain",name.as_str(),qub_mode.as_str(),qub_address.as_str(),web_mode.as_str(),web_manifest_root_hex.as_str(),publishing_mode.as_str(),publishing_commitment_hex.as_str()],None).map(|r|r.result).map_err(String::from) }
+#[tauri::command]
+fn qrxnet_transfer_domain(app: tauri::AppHandle, network:String, wallet:String, name:String, new_owner:String)->Result<Value,String>{run_cli(Some(&app),&network,&wallet,&["transferdomain",name.as_str(),new_owner.as_str()],None).map(|r|r.result).map_err(String::from)}
+#[tauri::command]
+fn qrxnet_list_domains(app: tauri::AppHandle, network:String, wallet:String)->Result<Value,String>{run_cli(Some(&app),&network,&wallet,&["listdomains"],None).map(|r|r.result).map_err(String::from)}
+#[tauri::command]
+fn qrxnet_domain_history(app: tauri::AppHandle, network:String, wallet:String, name:String)->Result<Value,String>{run_cli(Some(&app),&network,&wallet,&["getdomainhistory",name.as_str()],None).map(|r|r.result).map_err(String::from)}
+
+#[tauri::command]
+fn qrxnet_ad_policy(app: tauri::AppHandle, network:String, wallet:String)->Result<Value,String>{run_cli(Some(&app),&network,&wallet,&["getadpolicy"],None).map(|r|r.result).map_err(String::from)}
+#[tauri::command]
+fn qrxnet_ad_rewards(app: tauri::AppHandle, network:String, wallet:String)->Result<Value,String>{run_cli(Some(&app),&network,&wallet,&["getadrewards"],None).map(|r|r.result).map_err(String::from)}
+#[tauri::command]
+fn qrxnet_claim_ad_rewards(app: tauri::AppHandle, network:String, wallet:String)->Result<Value,String>{run_cli(Some(&app),&network,&wallet,&["claimadrewards"],None).map(|r|r.result).map_err(String::from)}
+#[tauri::command]
+fn qrxnet_create_ad_campaign(app: tauri::AppHandle, network:String, wallet:String, campaign_id:String, target_url:String, creative_root_hex:String, start_height:u64, end_height:u64, cost_per_impression_atoms:u64, budget_atoms:u64, category:Option<String>)->Result<Value,String>{let a=start_height.to_string();let b=end_height.to_string();let c=cost_per_impression_atoms.to_string();let d=budget_atoms.to_string();let cat=category.unwrap_or_else(||"general".to_string());run_cli(Some(&app),&network,&wallet,&["createadcampaign",campaign_id.as_str(),target_url.as_str(),creative_root_hex.as_str(),a.as_str(),b.as_str(),c.as_str(),d.as_str(),cat.as_str()],None).map(|r|r.result).map_err(String::from)}
+#[tauri::command]
+fn qrxnet_prepare_site(app: tauri::AppHandle, network:String, wallet:String, name:String, folder:String)->Result<Value,String>{run_cli(Some(&app),&network,&wallet,&["prepareqrxsite",name.as_str(),folder.as_str()],None).map(|r|r.result).map_err(String::from)}
+#[tauri::command]
+fn qrxnet_get_site_publish(app: tauri::AppHandle, network:String, wallet:String, name:String, version:u64)->Result<Value,String>{let v=version.to_string();run_cli(Some(&app),&network,&wallet,&["getqrxsitepublish",name.as_str(),v.as_str()],None).map(|r|r.result).map_err(String::from)}
+#[tauri::command]
+fn qrxnet_advance_site(app: tauri::AppHandle, network:String, wallet:String, name:String, version:u64)->Result<Value,String>{let v=version.to_string();run_cli(Some(&app),&network,&wallet,&["advanceqrxsite",name.as_str(),v.as_str()],None).map(|r|r.result).map_err(String::from)}
+#[tauri::command]
+fn qrxnet_site_versions(app: tauri::AppHandle, network:String, wallet:String, name:String)->Result<Value,String>{run_cli(Some(&app),&network,&wallet,&["listqrxsiteversions",name.as_str()],None).map(|r|r.result).map_err(String::from)}
+#[tauri::command]
+fn qrxnet_rollback_site(app: tauri::AppHandle, network:String, wallet:String, name:String, version:u64)->Result<Value,String>{let v=version.to_string();run_cli(Some(&app),&network,&wallet,&["rollbackqrxsite",name.as_str(),v.as_str()],None).map(|r|r.result).map_err(String::from)}
+
+#[tauri::command]
+fn qrxnet_browser_resolve(app: tauri::AppHandle, network:String, wallet:String, input:String)->Result<Value,String>{
+    run_cli(Some(&app),&network,&wallet,&["resolvebrowserinput",input.as_str()],None).map(|r|r.result).map_err(String::from)
+}
+fn qrxnet_mime(path:&str)->&'static str{
+    let p=path.to_ascii_lowercase();
+    if p.ends_with(".html")||p.ends_with(".htm"){"text/html;charset=utf-8"}
+    else if p.ends_with(".css"){"text/css;charset=utf-8"}
+    else if p.ends_with(".js")||p.ends_with(".mjs"){"text/javascript;charset=utf-8"}
+    else if p.ends_with(".json"){"application/json;charset=utf-8"}
+    else if p.ends_with(".svg"){"image/svg+xml"}
+    else if p.ends_with(".png"){"image/png"}
+    else if p.ends_with(".jpg")||p.ends_with(".jpeg"){"image/jpeg"}
+    else if p.ends_with(".webp"){"image/webp"}
+    else if p.ends_with(".gif"){"image/gif"}
+    else if p.ends_with(".woff2"){"font/woff2"}
+    else {"application/octet-stream"}
+}
+#[tauri::command]
+fn qrxnet_browser_fetch(app: tauri::AppHandle, network:String, wallet:String, domain:String, path:String)->Result<Value,String>{
+    let mut v=run_cli(Some(&app),&network,&wallet,&["fetchqrxsite",domain.as_str(),path.as_str()],None).map(|r|r.result).map_err(String::from)?;
+    let fp=v.get("file_cache_path").and_then(|x|x.as_str()).ok_or_else(||"verified QRX-Net file path missing".to_string())?.to_string();
+    let data=fs::read(&fp).map_err(|e|format!("could not read verified QRX-Net cache file: {e}"))?;
+    let mime=qrxnet_mime(&fp).to_string();
+    if let Some(o)=v.as_object_mut(){o.insert("mime".into(),Value::String(mime));o.insert("content_base64".into(),Value::String(general_purpose::STANDARD.encode(data)));}
+    Ok(v)
+}
+
+#[tauri::command]
+fn resource_dashboard_snapshot(app: tauri::AppHandle, network: String, wallet: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["getresourcedashboard"], None)
+        .map(|r| r.result)
+        .map_err(String::from)
+}
+
+#[tauri::command]
+fn resource_atlas_snapshot(app: tauri::AppHandle, network: String, wallet: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["getresourceatlas"], None)
+        .map(|r| r.result)
+        .map_err(String::from)
+}
+
+#[tauri::command]
+fn resource_hosting_missions(app: tauri::AppHandle, network: String, wallet: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["gethostingmissions"], None)
+        .map(|r| r.result)
+        .map_err(String::from)
+}
+
+#[tauri::command]
+fn drive_files_snapshot(app: tauri::AppHandle, network: String, wallet: String, owner: Option<String>) -> Result<Value, String> {
+    let owner_arg = owner.as_deref().filter(|s| !s.trim().is_empty()).unwrap_or("-");
+    run_cli(Some(&app), &network, &wallet, &["listdrivefiles", owner_arg], None)
+        .map(|r| r.result)
+        .map_err(String::from)
+}
+
+#[tauri::command]
+fn drive_file_health(app: tauri::AppHandle, network: String, wallet: String, contract_id: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["getdrivefilehealth", contract_id.as_str()], None)
+        .map(|r| r.result)
+        .map_err(String::from)
+}
+
+#[tauri::command]
+fn drive_shard_routes(app: tauri::AppHandle, network: String, wallet: String, contract_id: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["getdriveshardroutes", contract_id.as_str()], None)
+        .map(|r| r.result)
+        .map_err(String::from)
+}
+
+#[tauri::command]
+fn drive_pq_status(app: tauri::AppHandle, network: String, wallet: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["getdrivepqstatus"], None).map(|r| r.result).map_err(String::from)
+}
+
+#[tauri::command]
+fn drive_prepare_upload(app: tauri::AppHandle, network: String, wallet: String, source: String, profile: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["preparedriveupload", source.as_str(), profile.as_str()], None).map(|r| r.result).map_err(String::from)
+}
+
+#[tauri::command]
+fn drive_start_prepared_upload(app: tauri::AppHandle, network: String, wallet: String, contract_id: String, prepare_id: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["startpreparedriveupload", contract_id.as_str(), prepare_id.as_str()], None).map(|r| r.result).map_err(String::from)
+}
+
+#[tauri::command]
+fn drive_advance_prepared_upload(app: tauri::AppHandle, network: String, wallet: String, prepare_id: String, epochs: Option<u64>, rate_atoms_per_gib_epoch: Option<u64>) -> Result<Value, String> {
+    let e = epochs.unwrap_or(30).to_string();
+    let r = rate_atoms_per_gib_epoch.unwrap_or(10000).to_string();
+    run_cli(Some(&app), &network, &wallet, &["advancepreparedriveupload", prepare_id.as_str(), e.as_str(), r.as_str()], None).map(|x| x.result).map_err(String::from)
+}
+
+#[tauri::command]
+fn drive_decrypt_file(app: tauri::AppHandle, network: String, wallet: String, encrypted_container: String, destination: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["decryptdrivefile", encrypted_container.as_str(), destination.as_str()], None).map(|r| r.result).map_err(String::from)
+}
+
+fn drive_start_download(app: tauri::AppHandle, network: String, wallet: String, contract_id: String, destination: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["startdrivedownload", contract_id.as_str(), destination.as_str()], None).map(|r| r.result).map_err(String::from)
+}
+#[tauri::command]
+fn drive_start_upload(app: tauri::AppHandle, network: String, wallet: String, contract_id: String, source: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["startdriveupload", contract_id.as_str(), source.as_str()], None).map(|r| r.result).map_err(String::from)
+}
+#[tauri::command]
+fn drive_transfer(app: tauri::AppHandle, network: String, wallet: String, transfer_id: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["getdrivetransfer", transfer_id.as_str()], None).map(|r| r.result).map_err(String::from)
+}
+#[tauri::command]
+fn drive_transfer_pause(app: tauri::AppHandle, network: String, wallet: String, transfer_id: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["pausedrivetransfer", transfer_id.as_str()], None).map(|r| r.result).map_err(String::from)
+}
+#[tauri::command]
+fn drive_transfer_resume(app: tauri::AppHandle, network: String, wallet: String, transfer_id: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["resumedrivetransfer", transfer_id.as_str()], None).map(|r| r.result).map_err(String::from)
+}
+#[tauri::command]
+fn drive_transfer_cancel(app: tauri::AppHandle, network: String, wallet: String, transfer_id: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["canceldrivetransfer", transfer_id.as_str()], None).map(|r| r.result).map_err(String::from)
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(DaemonState {
@@ -3529,6 +3765,10 @@ fn main() {
             generals_snapshot,
             generals_submit_action,
             open_generals_window,
+            qrx_family_policy_set,
+            qrx_family_policy_get,
+            qrx_family_policy_status,
+            open_qrx_browser_window,
             generate_qr_svg,
             address_book_list,
             address_book_upsert,
@@ -3633,6 +3873,41 @@ fn main() {
             wallet_cli_capabilities,
             wallet_cli_execute,
             dashboard_snapshot,
+            qrxnet_domain_preflight,
+            qrxnet_register_domain,
+            qrxnet_renew_domain,
+            qrxnet_update_domain,
+            qrxnet_transfer_domain,
+            qrxnet_list_domains,
+            qrxnet_domain_history,
+            qrxnet_ad_policy,
+            qrxnet_ad_rewards,
+            qrxnet_claim_ad_rewards,
+            qrxnet_create_ad_campaign,
+            qrxnet_prepare_site,
+            qrxnet_get_site_publish,
+            qrxnet_advance_site,
+            qrxnet_site_versions,
+            qrxnet_rollback_site,
+            qrxnet_browser_resolve,
+            qrxnet_browser_fetch,
+            resource_dashboard_snapshot,
+            resource_atlas_snapshot,
+            resource_hosting_missions,
+            drive_files_snapshot,
+            drive_file_health,
+            drive_shard_routes,
+            drive_pq_status,
+            drive_prepare_upload,
+            drive_start_prepared_upload,
+            drive_advance_prepared_upload,
+            drive_decrypt_file,
+            drive_start_download,
+            drive_start_upload,
+            drive_transfer,
+            drive_transfer_pause,
+            drive_transfer_resume,
+            drive_transfer_cancel,
         ])
         .run(tauri::generate_context!())
         .expect("error while running QUBITCOIN Wallet");

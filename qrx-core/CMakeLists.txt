@@ -84,6 +84,48 @@ set(QRX_CORE_SOURCES
     src/consensus/qrx_slashing.c
     src/economics/qrx_economics.c
     src/treasury/qrx_dev_addresses.c
+    src/resource/qrx_resource.c
+    src/resource/qrx_storage_capacity.c
+    src/resource/qrx_capacity_proof.c
+    src/resource/qrx_storage_placement.c
+    src/resource/qrx_storage_market.c
+    src/resource/qrx_storage_repair.c
+    src/resource/qrx_storage_atlas.c
+    src/resource/qrx_resource_dashboard.c
+    src/resource/qrx_resource_live.c
+    src/resource/qrx_drive_live.c
+    src/resource/qrx_storage_consensus.c
+    src/storage/qrx_storage_fs.c
+    src/storage/qrx_merkle.c
+    src/storage/qrx_drive_crypto.c
+    src/storage/qrx_drive_manifest.c
+    src/storage/qrx_drive_object.c
+    src/storage/qrx_erasure.c
+    src/storage/qrx_postor.c
+    src/storage/qrx_storage_transport.c
+    src/storage/qrx_storage_network.c
+    src/storage/qrx_transfer_journal.c
+    src/storage/qrx_drive_runtime.c
+    src/storage/qrx_drive_private_pq.c
+    src/storage/qrx_drive_prepare.c
+    src/storage/qrx_drive_contract.c
+    src/storage/qrx_storage_p2p.c
+    src/storage/qrx_storage_activation.c
+    src/storage/qrx_storage_postor_runtime.c
+    src/storage/qrx_storage_repair_runtime.c
+    src/storage/qrx_storage_discovery.c
+    src/net/qrx_net_name.c
+    src/net/qrx_net_consensus.c
+    src/net/qrx_net_resolver.c
+    src/net/qrx_net_registry.c
+    src/net/qrx_net_site.c
+    src/net/qrx_net_publisher.c
+    src/net/qrx_net_browser.c
+    src/net/qrx_net_sandbox.c
+    src/net/qrx_net_permissions.c
+    src/net/qrx_net_dapp_bridge.c
+    src/net/qrx_net_ads.c
+    src/net/qrx_net_youth.c
     src/genesis/qrx_bootstrap_validators.c
     src/genesis/qrx_genesis_governance.c
 )
@@ -317,15 +359,185 @@ if(QRX_BUILD_TESTS)
     add_executable(qrx_velocity_block_scheduler_test tests/velocity_phase4f_scheduler.c)
     target_include_directories(qrx_velocity_block_scheduler_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
     target_link_libraries(qrx_velocity_block_scheduler_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
-    add_test(NAME velocity_phase4f_block_scheduler COMMAND qrx_velocity_block_scheduler_test qrx_btc_spv_hardening_test)
+    add_test(NAME velocity_phase4f_block_scheduler COMMAND qrx_velocity_block_scheduler_test)
 
     add_executable(qrx_btc_spv_hardening_test tests/qrx_btc_spv_hardening.c)
     target_include_directories(qrx_btc_spv_hardening_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
     target_link_libraries(qrx_btc_spv_hardening_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
     add_test(NAME bitcoin_spv_phase71_hardening COMMAND qrx_btc_spv_hardening_test)
 
+    add_executable(qrx_resource_foundation_test tests/resource_phase080_foundation.c)
+    target_include_directories(qrx_resource_foundation_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_resource_foundation_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME resource_phase080_foundation COMMAND qrx_resource_foundation_test)
+
+    add_executable(qrx_storage_filesystem_test tests/storage_phase081_filesystem.c)
+    target_include_directories(qrx_storage_filesystem_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_storage_filesystem_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase081_filesystem COMMAND qrx_storage_filesystem_test)
+
+    add_executable(qrx_storage_capacity_test tests/storage_phase082_capacity.c)
+    target_include_directories(qrx_storage_capacity_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_storage_capacity_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase082_capacity COMMAND qrx_storage_capacity_test)
+
+    add_executable(qrx_capacity_proof_test tests/storage_phase084_capacity_proof.c)
+    target_include_directories(qrx_capacity_proof_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_capacity_proof_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase084_capacity_proof COMMAND qrx_capacity_proof_test)
+
+    add_executable(qrx_drive_pq_crypto_test tests/storage_phase085_pq_crypto.c)
+    target_include_directories(qrx_drive_pq_crypto_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_drive_pq_crypto_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase085_pq_crypto COMMAND qrx_drive_pq_crypto_test)
+
+    add_executable(qrx_drive_manifest_test tests/storage_phase086_manifest.c)
+    target_include_directories(qrx_drive_manifest_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_drive_manifest_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase086_manifest COMMAND qrx_drive_manifest_test)
+
+    add_executable(qrx_erasure_test tests/storage_phase087_erasure.c)
+    target_include_directories(qrx_erasure_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_erasure_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase087_erasure COMMAND qrx_erasure_test)
+
+    add_executable(qrx_storage_placement_test tests/storage_phase088_placement.c)
+    target_include_directories(qrx_storage_placement_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_storage_placement_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase088_placement COMMAND qrx_storage_placement_test)
+
+    add_executable(qrx_postor_test tests/storage_phase089_postor.c)
+    target_include_directories(qrx_postor_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_postor_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase089_postor COMMAND qrx_postor_test)
+
+    add_executable(qrx_storage_market_test tests/storage_phase090_market.c)
+    target_include_directories(qrx_storage_market_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_storage_market_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase090_market COMMAND qrx_storage_market_test)
+
+    add_executable(qrx_storage_repair_test tests/storage_phase091_repair.c)
+    target_include_directories(qrx_storage_repair_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_storage_repair_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase091_repair COMMAND qrx_storage_repair_test)
+
+    add_executable(qrx_storage_atlas_test tests/storage_phase092_atlas.c)
+    target_include_directories(qrx_storage_atlas_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_storage_atlas_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase092_atlas COMMAND qrx_storage_atlas_test)
+
+    add_executable(qrx_storage_transport_test tests/storage_phase093_transport.c)
+    target_include_directories(qrx_storage_transport_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_storage_transport_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase093_transport COMMAND qrx_storage_transport_test)
+
+    add_executable(qrx_net_name_test tests/net_phase844_name.c)
+    target_include_directories(qrx_net_name_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_net_name_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME net_phase844_name COMMAND qrx_net_name_test)
+
+    add_executable(qrx_net_registry_test tests/net_phase844_registry.c)
+    target_include_directories(qrx_net_registry_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_net_registry_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME net_phase844_registry COMMAND qrx_net_registry_test)
+
+    add_executable(qrx_net_resolver_test tests/net_phase846_resolver.c)
+    target_include_directories(qrx_net_resolver_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_net_resolver_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME net_phase846_resolver COMMAND qrx_net_resolver_test)
+
+    add_executable(qrx_net_site_test tests/net_phase847_site.c)
+    target_include_directories(qrx_net_site_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_net_site_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME net_phase847_site COMMAND qrx_net_site_test)
+
+    add_executable(qrx_net_permissions_test tests/net_phase854_permissions.c)
+    target_include_directories(qrx_net_permissions_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_net_permissions_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME net_phase854_permissions COMMAND qrx_net_permissions_test)
+
+    add_executable(qrx_storage_consensus_test tests/storage_phase094_consensus.c)
+    target_include_directories(qrx_storage_consensus_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_storage_consensus_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase094_consensus COMMAND qrx_storage_consensus_test)
+
+    add_executable(qrx_net_consensus_test tests/net_phase855_consensus.c)
+    target_include_directories(qrx_net_consensus_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_net_consensus_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME net_phase855_consensus COMMAND qrx_net_consensus_test)
+
+    add_executable(qrx_storage_attestation_test tests/storage_phase095_attestation.c)
+    target_include_directories(qrx_storage_attestation_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_storage_attestation_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase095_attestation COMMAND qrx_storage_attestation_test)
+
+    add_executable(qrx_storage_p2p_test tests/storage_phase096_p2p.c)
+    target_include_directories(qrx_storage_p2p_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_storage_p2p_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase096_p2p COMMAND qrx_storage_p2p_test)
+
+    add_executable(qrx_storage_large_object_test tests/storage_phase097_large_object.c)
+    target_link_libraries(qrx_storage_large_object_test PRIVATE qrxcore ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase097_large_object COMMAND qrx_storage_large_object_test)
+
+
+    add_executable(qrx_storage_discovery_test tests/storage_phase099_discovery.c)
+    target_include_directories(qrx_storage_discovery_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_storage_discovery_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase099_discovery COMMAND qrx_storage_discovery_test)
+
+    add_executable(qrx_resource_dashboard_test tests/storage_phase100_dashboard.c)
+    target_include_directories(qrx_resource_dashboard_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_resource_dashboard_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase100_resource_dashboard COMMAND qrx_resource_dashboard_test)
+    add_executable(qrx_resource_live_test tests/storage_phase101_live_dashboard.c)
+    target_link_libraries(qrx_resource_live_test PRIVATE qrxcore)
+    add_test(NAME storage_phase101_live_dashboard COMMAND qrx_resource_live_test)
+    add_executable(qrx_drive_live_test tests/storage_phase102_drive_live.c)
+    target_link_libraries(qrx_drive_live_test PRIVATE qrxcore)
+    add_test(NAME storage_phase102_drive_live COMMAND qrx_drive_live_test)
+    add_executable(qrx_storage_network_transfer_test tests/storage_phase103_network_transfer.c)
+    target_link_libraries(qrx_storage_network_transfer_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase103_network_transfer COMMAND qrx_storage_network_transfer_test)
+
+    add_executable(qrx_drive_runtime_test tests/storage_phase104_drive_runtime.c)
+    target_link_libraries(qrx_drive_runtime_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase104_drive_runtime COMMAND qrx_drive_runtime_test)
+
+    add_executable(qrx_drive_recovery_test tests/storage_phase105_drive_recovery.c)
+    target_link_libraries(qrx_drive_recovery_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase105_drive_recovery COMMAND qrx_drive_recovery_test)
+
+    add_executable(qrx_storage_gossip_streaming_test tests/storage_phase106_gossip_streaming.c)
+    target_link_libraries(qrx_storage_gossip_streaming_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase106_gossip_streaming COMMAND qrx_storage_gossip_streaming_test)
+
+    add_executable(qrx_storage_identity_gossip_test tests/storage_phase107_identity_gossip.c)
+    target_link_libraries(qrx_storage_identity_gossip_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase107_identity_gossip COMMAND qrx_storage_identity_gossip_test)
+
+    add_executable(qrx_drive_private_pq_test tests/storage_phase108_private_pq.c)
+    target_link_libraries(qrx_drive_private_pq_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase108_private_pq COMMAND qrx_drive_private_pq_test)
+
+    add_executable(qrx_drive_prepare_test tests/storage_phase109_prepare.c)
+    target_link_libraries(qrx_drive_prepare_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase109_prepare COMMAND qrx_drive_prepare_test)
+    add_executable(qrx_drive_prepared_runtime_test tests/storage_phase110_prepared_runtime.c)
+    target_link_libraries(qrx_drive_prepared_runtime_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase110_prepared_runtime COMMAND qrx_drive_prepared_runtime_test)
+    add_executable(qrx_drive_contract_orchestration_test tests/storage_phase111_contract_orchestration.c)
+    target_link_libraries(qrx_drive_contract_orchestration_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase111_contract_orchestration COMMAND qrx_drive_contract_orchestration_test)
+
+    add_executable(qrx_storage_multifetch_test tests/storage_phase098_multifetch.c)
+    target_include_directories(qrx_storage_multifetch_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_storage_multifetch_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME storage_phase098_multifetch COMMAND qrx_storage_multifetch_test)
+
     if(NOT MSVC)
-        foreach(test_tgt qrx_velocity_engine_test qrx_velocity_mvcc_test qrx_velocity_stateful_mvcc_test qrx_velocity_dynamic_mvcc_test qrx_velocity_speculative_mvcc_test qrx_velocity_block_scheduler_test qrx_btc_spv_hardening_test)
+        foreach(test_tgt qrx_velocity_engine_test qrx_velocity_mvcc_test qrx_velocity_stateful_mvcc_test qrx_velocity_dynamic_mvcc_test qrx_velocity_speculative_mvcc_test qrx_velocity_block_scheduler_test qrx_btc_spv_hardening_test qrx_resource_foundation_test qrx_storage_filesystem_test qrx_storage_capacity_test qrx_capacity_proof_test qrx_drive_pq_crypto_test qrx_drive_manifest_test qrx_erasure_test qrx_storage_placement_test qrx_postor_test qrx_storage_market_test qrx_storage_repair_test qrx_storage_atlas_test qrx_storage_transport_test qrx_net_name_test qrx_net_registry_test qrx_net_resolver_test qrx_net_site_test qrx_net_permissions_test qrx_storage_consensus_test qrx_net_consensus_test qrx_storage_attestation_test qrx_storage_p2p_test qrx_storage_large_object_test qrx_storage_multifetch_test qrx_storage_discovery_test)
+            target_compile_options(${test_tgt} PRIVATE -UNDEBUG)
             if(QRX_ENABLE_ASAN)
                 target_link_options(${test_tgt} PRIVATE -fsanitize=address)
             endif()
@@ -334,4 +546,54 @@ if(QRX_BUILD_TESTS)
             endif()
         endforeach()
     endif()
+
+  add_executable(storage_phase112_provider_activation tests/storage_phase112_provider_activation.c)
+  target_link_libraries(storage_phase112_provider_activation PRIVATE qrxcore)
+  add_test(NAME storage_phase112_provider_activation COMMAND storage_phase112_provider_activation)
+  add_executable(storage_phase113_postor_runtime tests/storage_phase113_postor_runtime.c)
+  target_link_libraries(storage_phase113_postor_runtime PRIVATE qrxcore)
+  add_test(NAME storage_phase113_postor_runtime COMMAND storage_phase113_postor_runtime)
+  add_executable(storage_phase114_repair_runtime tests/storage_phase114_repair_runtime.c)
+  target_link_libraries(storage_phase114_repair_runtime PRIVATE qrxcore)
+  add_test(NAME storage_phase114_repair_runtime COMMAND storage_phase114_repair_runtime)
+  add_executable(net_phase115_domain_management tests/net_phase115_domain_management.c)
+  target_link_libraries(net_phase115_domain_management PRIVATE qrxcore)
+  add_test(NAME net_phase115_domain_management COMMAND net_phase115_domain_management)
+  add_executable(net_phase116_site_package tests/net_phase116_site_package.c)
+  target_link_libraries(net_phase116_site_package PRIVATE qrxcore)
+  add_test(NAME net_phase116_site_package COMMAND net_phase116_site_package)
+  add_executable(net_phase117_directory_publisher tests/net_phase117_directory_publisher.c)
+  target_link_libraries(net_phase117_directory_publisher PRIVATE qrxcore)
+  add_test(NAME net_phase117_directory_publisher COMMAND net_phase117_directory_publisher)
+  add_executable(net_phase118_hosting_activation tests/net_phase118_hosting_activation.c)
+  target_link_libraries(net_phase118_hosting_activation PRIVATE qrxcore)
+  add_test(NAME net_phase118_hosting_activation COMMAND net_phase118_hosting_activation)
+  add_executable(net_phase119_browser_fetch tests/net_phase119_browser_fetch.c)
+  target_link_libraries(net_phase119_browser_fetch PRIVATE qrxcore)
+  add_test(NAME net_phase119_browser_fetch COMMAND net_phase119_browser_fetch)
+  add_executable(net_phase120_browser_sandbox tests/net_phase120_browser_sandbox.c)
+  target_link_libraries(net_phase120_browser_sandbox PRIVATE qrxcore)
+  add_test(NAME net_phase120_browser_sandbox COMMAND net_phase120_browser_sandbox)
+  add_executable(net_phase121_dapp_bridge tests/net_phase121_dapp_bridge.c)
+  target_link_libraries(net_phase121_dapp_bridge PRIVATE qrxcore)
+  add_test(NAME net_phase121_dapp_bridge COMMAND net_phase121_dapp_bridge)
+  add_executable(net_phase122_ad_economy tests/net_phase122_ad_economy.c)
+  target_link_libraries(net_phase122_ad_economy PRIVATE qrxcore)
+  add_test(NAME net_phase122_ad_economy COMMAND net_phase122_ad_economy)
+  add_executable(net_phase123_youth_safety tests/net_phase123_youth_safety.c)
+  target_link_libraries(net_phase123_youth_safety PRIVATE qrxcore)
+  add_test(NAME net_phase123_youth_safety COMMAND net_phase123_youth_safety)
+  add_executable(net_phase124_hosting_missions tests/net_phase124_hosting_missions.c)
+  target_link_libraries(net_phase124_hosting_missions PRIVATE qrxcore)
+  add_test(NAME net_phase124_hosting_missions COMMAND net_phase124_hosting_missions)
+
+  add_executable(net_phase125_final_readiness tests/net_phase125_final_readiness.c)
+  target_link_libraries(net_phase125_final_readiness PRIVATE qrxcore)
+  add_test(NAME net_phase125_final_readiness COMMAND net_phase125_final_readiness)
+
+  if(NOT MSVC)
+    foreach(test_tgt qrx_resource_live_test qrx_drive_live_test qrx_storage_network_transfer_test qrx_drive_runtime_test qrx_drive_recovery_test qrx_storage_gossip_streaming_test qrx_storage_identity_gossip_test qrx_drive_private_pq_test qrx_drive_prepare_test qrx_drive_prepared_runtime_test qrx_drive_contract_orchestration_test storage_phase112_provider_activation storage_phase113_postor_runtime storage_phase114_repair_runtime net_phase115_domain_management net_phase116_site_package net_phase117_directory_publisher net_phase118_hosting_activation net_phase119_browser_fetch net_phase120_browser_sandbox net_phase121_dapp_bridge net_phase122_ad_economy net_phase123_youth_safety net_phase124_hosting_missions net_phase125_final_readiness)
+      target_compile_options(${test_tgt} PRIVATE -UNDEBUG)
+    endforeach()
+  endif()
 endif()

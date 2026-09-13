@@ -7,6 +7,18 @@
 #include "economics/qrx_economics.h"
 #include "genesis/qrx_bootstrap_validators.h"
 #include "genesis/qrx_genesis_governance.h"
+#include "resource/qrx_resource.h"
+#include "resource/qrx_storage_consensus.h"
+#include "net/qrx_net_consensus.h"
+#include "storage/qrx_storage_fs.h"
+#include "storage/qrx_storage_p2p.h"
+#include "storage/qrx_storage_network.h"
+#include "storage/qrx_storage_discovery.h"
+#include "storage/qrx_storage_activation.h"
+#include "storage/qrx_storage_postor_runtime.h"
+#include "storage/qrx_storage_repair_runtime.h"
+#include "resource/qrx_storage_repair.h"
+#include "storage/qrx_drive_crypto.h"
 
 #ifndef QRX_MAX_FUTURE_DRIFT_SECONDS
 #define QRX_MAX_FUTURE_DRIFT_SECONDS 300
@@ -146,9 +158,17 @@
    WAL is the crash-recovery source for proposer subprocesses and restarts. */
 static QrxVelocityMempool g_velocity_mempool;
 static int g_velocity_mempool_ready = 0;
+static QrxStorageFs *g_storage_fs = NULL;
+static int g_storage_ready = 0;
+static char g_storage_provider_id[129] = {0};
+static QrxStorageDiscoveryTable g_storage_discovery;
+static int g_storage_discovery_ready = 0;
+static char g_storage_discovery_cache_path[1024] = {0};
 
 
 static int connect_to(const char *host, int port);
+static int storage_discovery_push_to_peer(const char *node_dir,const char *wire_b64,const char *host,int port);
+static int storage_discovery_fanout(const char *node_dir,const char *wire_b64,const char *skip_host);
 static int build_hello_message(const char *node_dir, char **out_msg);
 static int send_framed(int fd, const char *msg);
 static char *recv_framed(int fd);
@@ -369,9 +389,9 @@ static void checked_add_ll(long long a, long long b, const char *what, long long
 static int gov_tx_version_allowed(const char*chain,const char*tx_version);
 
 static void usage(void) {
-    puts("qrx rc6.2-tokenomics\n"
+    puts("qrx 0.0.8.2-capacity-accounting\n"
          "Commands:\n"
-         "  keygen <wallet-dir>\n  seed-new <wallet-dir>\n  wallet-info <wallet-dir>\n  wallet-new-address <wallet-dir>\n  listaddresses <wallet-dir>\n  wallet-recover <wallet-dir> <recovery-file>\n"
+         "  keygen <wallet-dir>\n  seed-new <wallet-dir>\n  wallet-info <wallet-dir>\n  wallet-new-address <wallet-dir>\n  listaddresses <wallet-dir>\n  wallet-recover <wallet-dir> <recovery-file>\n  drive-pq-ensure <wallet-dir>\n"
          "  address <wallet-dir>\n  legacy-address <wallet-dir>\n  migrate-address <wallet-dir>\n  state-migrate-address <chain-dir> <old-address> <new-address>\n"
          "  init-chain <chain-dir>\n"
          "  faucet <chain-dir> <address> <amount>\n  getdevaddress <chain-dir>\n"
@@ -397,13 +417,14 @@ static void usage(void) {
          "  velocity-mvcc-execute <node-dir> [max_txs] [workers]\n"
          "  getnonce <chain-dir> <address> [lane]\n"
          "  getnoncelanes <chain-dir> <address>\n"
-         "  agent-status <chain-dir> <agent-address>\n  list-agents <chain-dir> [owner-address]\n  create-agent-register-raw-tx <chain-dir> <owner> <agent> <agent_ed_pub_hex> <agent_mldsa_pub_b64> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  create-agent-update-raw-tx <chain-dir> <owner> <agent> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  create-agent-revoke-raw-tx <chain-dir> <owner> <agent> <owner_ed_pub_hex> <owner_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  order-status <chain-dir> <order-id>\n  list-orders <chain-dir> [owner-or-agent] [status]\n  trade-status <chain-dir> <trade-id>\n  list-trades <chain-dir> [market] [limit]\n  orderbook <chain-dir> <market> [depth]\n  asset-balance <chain-dir> <asset> <address>\n  list-assets <chain-dir>\n  asset-register <chain-dir> <asset> <name>  (dev/regtest manual-mint networks only)\n  asset-credit <chain-dir> <asset> <address> <amount>  (dev/regtest only)\n  agent-limits <chain-dir> <agent-address>\n  trading-info <chain-dir>\n  create-order-raw-tx <chain-dir> <agent> <owner> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  create-external-order-raw-tx <chain-dir> <agent> <owner> <venue> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  create-order-cancel-raw-tx <chain-dir> <agent> <owner> <order_id> <agent_ed_pub_hex> <agent_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  create-order-replace-raw-tx <chain-dir> <agent> <owner> <order_id> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  velocity-info <chain-dir>\n"
+         "  agent-status <chain-dir> <agent-address>\n  list-agents <chain-dir> [owner-address]\n  create-agent-register-raw-tx <chain-dir> <owner> <agent> <agent_ed_pub_hex> <agent_mldsa_pub_b64> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  create-agent-update-raw-tx <chain-dir> <owner> <agent> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  create-agent-revoke-raw-tx <chain-dir> <owner> <agent> <owner_ed_pub_hex> <owner_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  order-status <chain-dir> <order-id>\n  list-orders <chain-dir> [owner-or-agent] [status]\n  trade-status <chain-dir> <trade-id>\n  list-trades <chain-dir> [market] [limit]\n  orderbook <chain-dir> <market> [depth]\n  asset-balance <chain-dir> <asset> <address>\n  list-assets <chain-dir>\n  asset-register <chain-dir> <asset> <name>  (dev/regtest manual-mint networks only)\n  asset-credit <chain-dir> <asset> <address> <amount>  (dev/regtest only)\n  agent-limits <chain-dir> <agent-address>\n  trading-info <chain-dir>\n  create-order-raw-tx <chain-dir> <agent> <owner> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  create-external-order-raw-tx <chain-dir> <agent> <owner> <venue> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  create-order-cancel-raw-tx <chain-dir> <agent> <owner> <order_id> <agent_ed_pub_hex> <agent_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  create-order-replace-raw-tx <chain-dir> <agent> <owner> <order_id> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]\n  velocity-info <chain-dir>\n  resource-info <chain-dir> [height]\n  storage-split <contract-atoms>\n  storage-fs-init <storage-root> <max-usage-bytes> <min-free-space-bytes>\n  storage-fs-info <storage-root>\n  storage-fs-put <storage-root> <source-file>\n  storage-fs-get <storage-root> <object-id> <destination-file>\n  storage-fs-delete <storage-root> <object-id>\n  storage-fs-recover <storage-root>\n"
          "  create-velocity-raw-tx <chain-dir> <from> <to> <amount> <ed_pub_hex> <mldsa_pub_b64> <tx_type> <lane_id> <expiry_height> <payload> [fee] [nonce]\n"
          "  decay-bans <node-dir> [points]\n  state-check <chain-dir>\n  snapshot-state <chain-dir> [label]\n  reindex-state <chain-dir>\n  stake <chain-dir> <wallet-dir> <amount>\n  unstake <chain-dir> <wallet-dir> <amount> [unbonding-secs]\n  claim-unbonded <chain-dir> <wallet-dir>\n  delegate <chain-dir> <delegator-wallet-dir> <validator-address> <amount>\n  undelegate <chain-dir> <delegator-wallet-dir> <validator-address> <amount> [unbonding-secs]\n  claim-undelegated <chain-dir> <delegator-wallet-dir> <validator-address>\n  staking-status <chain-dir> [address]\n  validator-set <chain-dir>\n  reward-epoch <chain-dir> <reward-amount> [validator-commission-bps]\n  bootstrap-validator-status <chain-dir> <validator-address>\n  slash <chain-dir> <validator-address> <amount> <reason>\n");
     puts("Phase 4F.2: create-arbitrage-hedge-raw-tx <chain-dir> <agent> <owner> <matched-crosschain-buy-order> <arbitrage-id> <quantity-sats> <limit-price-atoms> <order-expiry> <agent-ed-pub> <agent-mldsa-pub> <lane> <tx-expiry> [fee] [nonce]");
     puts("QRX 0.0.7.6 governance: governance-keygen <out-dir> <DEV_GOV_N> | privacy-attester-keygen <out-dir> <issuer> | governance-genesis-init <chain-dir> <threshold> <pubdesc...> | governance-attester-propose <proposal-file> <ATTESTER_ADD|ATTESTER_DISABLE|ATTESTER_ROTATE_KEY> <issuer> <attester-pubdesc|-> <capabilities> <activation-height> | governance-protocol-propose <proposal-file> <protocol-version> <activation-height> <minimum-tx-version> <minimum-privacy-version> <feature-flags> | governance-sign <gov-key-dir> <proposal-file> <signature-file> | governance-apply <chain-dir> <proposal-file> <signature-files...> | protocol-info <chain-dir> [height]");
     puts("QRX 0.0.7.7 Phase 7.2 KYC: kyc-provider-keygen <out-dir> <provider-id> | kyc-provider-propose-v2 <chain-dir> <proposal-file> <KYC_PROVIDER_ADD|KYC_PROVIDER_DISABLE|KYC_PROVIDER_ROTATE_KEY|KYC_PROVIDER_UPDATE> <provider-id> <authority-qrx-address|-> <provider-public-key-hex|-> <capabilities|-> <activation-height> | kyc-provider-info <chain-dir> <provider-id>");
     puts("QRX 0.0.7.6 assets: signed consensus tx types ASSET_ISSUE, ASSET_REISSUE, ASSET_TRANSFER, ASSET_TAG, ASSET_UNTAG, ASSET_FREEZE_ADDRESS, ASSET_UNFREEZE_ADDRESS, ASSET_GLOBAL_FREEZE, ASSET_GLOBAL_UNFREEZE, ASSET_BROADCAST, ASSET_REVOKE, ASSET_FORCED_TRANSFER; create with create-velocity-raw-tx then signrawtransactionwithwallet + sendtx/applytx");
+    puts("QRX 0.0.8.2: DRIVE_V1 is a post-Genesis mandatory protocol-9 upgrade. Mainnet has no hardcoded Storage activation height until the threshold-signed upgrade is scheduled; planned target is around 2026-11-30. Filesystem is the reference backend; SeaweedFS is optional only.");
     puts("QRX Generals 0.0.7.7 Phase 3: deterministic world, starter units, commit/reveal movement orders, seasons/energy/clans/treasury. Wallet = account; state is authoritative QRXDB/WAL consensus state.");
 }
 
@@ -689,11 +710,52 @@ static EVP_PKEY *privkey_from_pem_string(const char *pem) {
     BIO *mem = BIO_new_mem_buf(pem, -1); if (!mem) return NULL;
     EVP_PKEY *p = PEM_read_bio_PrivateKey(mem, NULL, NULL, NULL); BIO_free(mem); return p;
 }
+static int append_dyn(char **buf, size_t *len, size_t *cap, const char *text);
+static int derive_address_recovery_key(EVP_PKEY *ed_priv, unsigned char out[32]);
+
+static int drive_pq_key_paths(const char *dir,char *priv,size_t psz,char *pub,size_t usz){
+    if(!dir||!priv||!pub)return -1;
+    snprintf(priv,psz,"%s/drive_mlkem768_priv.pem",dir);
+    snprintf(pub,usz,"%s/drive_mlkem768_pub.pem",dir);
+    return 0;
+}
+static int drive_pq_storage_password(EVP_PKEY *ed,char out[65]){unsigned char k[32];if(derive_address_recovery_key(ed,k))return -1;static const char*x="0123456789abcdef";for(int i=0;i<32;i++){out[i*2]=x[k[i]>>4];out[i*2+1]=x[k[i]&15];}out[64]=0;OPENSSL_cleanse(k,32);return 0;}
+static int drive_pq_ensure_keys(const char *dir,const char *passphrase,EVP_PKEY **pub_out){
+    char priv[1024],pub[1024],edp[1024],dp[65];drive_pq_key_paths(dir,priv,sizeof(priv),pub,sizeof(pub));snprintf(edp,sizeof(edp),"%s/ed25519_priv.pem",dir);EVP_PKEY*ed=load_priv_pem(edp,passphrase);if(!ed||drive_pq_storage_password(ed,dp)){EVP_PKEY_free(ed);return -1;}EVP_PKEY_free(ed);
+    if(access_qrx(priv,F_OK)==0&&access_qrx(pub,F_OK)==0){EVP_PKEY*k=load_priv_pem(priv,dp),*u=load_pub_pem(pub);OPENSSL_cleanse(dp,sizeof(dp));if(!k||!u){EVP_PKEY_free(k);EVP_PKEY_free(u);return -1;}const char*n=EVP_PKEY_get0_type_name(k);if(!n||(strcmp(n,"ML-KEM-768")&&strcmp(n,"MLKEM768"))){EVP_PKEY_free(k);EVP_PKEY_free(u);return -1;}EVP_PKEY_free(k);if(pub_out)*pub_out=u;else EVP_PKEY_free(u);return 0;}
+    EVP_PKEY_CTX*ctx=EVP_PKEY_CTX_new_from_name(NULL,"ML-KEM-768",NULL);EVP_PKEY*k=NULL;if(!ctx||EVP_PKEY_keygen_init(ctx)!=1||EVP_PKEY_generate(ctx,&k)!=1){EVP_PKEY_CTX_free(ctx);EVP_PKEY_free(k);OPENSSL_cleanse(dp,sizeof(dp));return -1;}EVP_PKEY_CTX_free(ctx);int bad=save_priv_pem(priv,k,dp)||save_pub_pem(pub,k);OPENSSL_cleanse(dp,sizeof(dp));if(bad){EVP_PKEY_free(k);return -1;}if(pub_out){*pub_out=load_pub_pem(pub);if(!*pub_out){EVP_PKEY_free(k);return -1;}}EVP_PKEY_free(k);return 0;
+}
+static char *strip_drive_pq_recovery_extension(const char *rf){
+    if(!rf)return NULL; size_t cap=strlen(rf)+64,len=0; char*out=calloc(1,cap); if(!out)return NULL;
+    const char*p=rf; while(*p){const char*e=strchr(p,'\n');size_t l=e?(size_t)(e-p)+1:strlen(p);
+        if(strncmp(p,"drive_pq_ext_format=",20)&&strncmp(p,"drive_pq_ext_iv_b64=",20)&&strncmp(p,"drive_pq_ext_tag_b64=",21)&&strncmp(p,"drive_pq_ext_ct_b64=",20)){
+            char*line=malloc(l+1);if(!line){free(out);return NULL;}memcpy(line,p,l);line[l]=0;if(append_dyn(&out,&len,&cap,line)){free(line);free(out);return NULL;}free(line);
+        } if(!e)break;p=e+1;
+    } return out;
+}
+static int update_recovery_drive_pq_extension(const char *dir,const char *passphrase){
+    char seed[1024],edp[1024],kp[1024],ku[1024];snprintf(seed,sizeof(seed),"%s/recovery.qrxseed",dir);if(access_qrx(seed,F_OK)!=0)return 0;
+    snprintf(edp,sizeof(edp),"%s/ed25519_priv.pem",dir);EVP_PKEY*ed=load_priv_pem(edp,passphrase);if(!ed)return -1;
+    if(drive_pq_ensure_keys(dir,passphrase,NULL)){EVP_PKEY_free(ed);return -1;}drive_pq_key_paths(dir,kp,sizeof(kp),ku,sizeof(ku));char dp[65];if(drive_pq_storage_password(ed,dp)){EVP_PKEY_free(ed);return -1;}EVP_PKEY*kem=load_priv_pem(kp,dp);OPENSSL_cleanse(dp,sizeof(dp));if(!kem){EVP_PKEY_free(ed);return -1;}
+    unsigned char key[32];if(derive_address_recovery_key(ed,key)){EVP_PKEY_free(ed);EVP_PKEY_free(kem);return -1;}EVP_PKEY_free(ed);
+    char*pem=privkey_to_unencrypted_pem_string(kem);EVP_PKEY_free(kem);if(!pem){OPENSSL_cleanse(key,32);return -1;}
+    unsigned char*ct=NULL,iv[12],tag[16];size_t cn=0;if(aes256gcm_encrypt(key,(unsigned char*)pem,strlen(pem),&ct,&cn,iv,tag)){OPENSSL_cleanse(key,32);OPENSSL_cleanse(pem,strlen(pem));free(pem);return -1;}
+    char*ivb=base64_encode(iv,12),*tb=base64_encode(tag,16),*cb=base64_encode(ct,cn),*rf=read_file(seed,NULL),*base=strip_drive_pq_recovery_extension(rf);int rc=-1;
+    if(ivb&&tb&&cb&&base){size_t need=strlen(base)+strlen(ivb)+strlen(tb)+strlen(cb)+256;char*out=malloc(need);if(out){snprintf(out,need,"%sdrive_pq_ext_format=qrx-drive-pq-recovery-v1\ndrive_pq_ext_iv_b64=%s\ndrive_pq_ext_tag_b64=%s\ndrive_pq_ext_ct_b64=%s\n",base,ivb,tb,cb);rc=write_text(seed,out);free(out);}}
+    OPENSSL_cleanse(key,32);OPENSSL_cleanse(pem,strlen(pem));OPENSSL_cleanse(ct,cn);free(pem);free(ct);free(ivb);free(tb);free(cb);free(rf);free(base);return rc;
+}
+static int restore_recovery_drive_pq_extension(const char *dir,const char *rf,EVP_PKEY *ed,const char *new_passphrase){
+    char*ivb=cfg_get(rf,"drive_pq_ext_iv_b64"),*tb=cfg_get(rf,"drive_pq_ext_tag_b64"),*cb=cfg_get(rf,"drive_pq_ext_ct_b64");if(!ivb&&!tb&&!cb)return 0;if(!ivb||!tb||!cb)return -1;
+    unsigned char key[32];if(derive_address_recovery_key(ed,key)){free(ivb);free(tb);free(cb);return -1;}size_t in=0,tn=0,cn=0;unsigned char*iv=base64_decode(ivb,&in),*tag=base64_decode(tb,&tn),*ct=base64_decode(cb,&cn),*pt=NULL;size_t pn=0;int rc=-1;
+    if(iv&&tag&&ct&&in==12&&tn==16&&!aes256gcm_decrypt(key,ct,cn,iv,tag,&pt,&pn)){EVP_PKEY*kem=privkey_from_pem_string((char*)pt);if(kem){const char*n=EVP_PKEY_get0_type_name(kem);if(n&&(!strcmp(n,"ML-KEM-768")||!strcmp(n,"MLKEM768"))){char kp[1024],ku[1024],dp[65];drive_pq_key_paths(dir,kp,sizeof(kp),ku,sizeof(ku));if(!drive_pq_storage_password(ed,dp)){if(!save_priv_pem(kp,kem,dp)&&!save_pub_pem(ku,kem))rc=0;OPENSSL_cleanse(dp,sizeof(dp));}}EVP_PKEY_free(kem);}}
+    OPENSSL_cleanse(key,32);if(pt){OPENSSL_cleanse(pt,pn);free(pt);}free(iv);free(tag);free(ct);free(ivb);free(tb);free(cb);return rc;
+}
+
 static int write_wallet_manifest(const char *dir, const char *address, int has_recovery) {
     char path[1024], manifest[4096];
     snprintf(manifest, sizeof(manifest),
         "{\n"
-        "  \"wallet_version\": 12,\n"
+        "  \"wallet_version\": 13,\n"
         "  \"address\": \"%s\",\n"
         "  \"signature_scheme\": \"ed25519+mldsa65\",\n"
         "  \"recovery_scheme\": \"%s\",\n"
@@ -910,6 +972,7 @@ static int wallet_seed_new(const char *dir) {
     unsigned char entropy[16]; if (RAND_bytes(entropy, sizeof(entropy)) != 1) die("entropy failed");
     char *mn = mnemonic_from_entropy(entropy, sizeof(entropy)); if (!mn) die("mnemonic failed");
     if (write_recovery_blob(dir, addr, mn, ed, ml) != 0) die("recovery blob failed");
+    if (drive_pq_ensure_keys(dir, pass1, NULL) != 0 || update_recovery_drive_pq_extension(dir, pass1) != 0) die("Drive PRIVATE_PQ key/recovery setup failed");
     if (write_wallet_manifest(dir, addr, 1) != 0) die("wallet manifest failed");
     printf("address=%s\n", addr);
     printf("recovery_phrase=%s\n", mn);
@@ -930,6 +993,7 @@ static int wallet_recovery_refresh_cmd(const char *dir) {
     char *mn = mnemonic_from_entropy(entropy, sizeof(entropy)); if (!mn) die("mnemonic failed");
     if (write_recovery_blob(dir, addr, mn, ed, ml) != 0) die("recovery blob failed");
     if (update_recovery_address_extension(dir, pass) != 0) die("recovery address extension refresh failed");
+    if (drive_pq_ensure_keys(dir, pass, NULL) != 0 || update_recovery_drive_pq_extension(dir, pass) != 0) die("Drive PRIVATE_PQ recovery extension refresh failed");
     if (write_wallet_manifest(dir, addr, 1) != 0) die("wallet manifest update failed");
     printf("address=%s\n", addr);
     printf("recovery_phrase=%s\n", mn);
@@ -939,6 +1003,7 @@ static int wallet_recovery_refresh_cmd(const char *dir) {
     free(mn); free(addr); EVP_PKEY_free(ed); EVP_PKEY_free(ml); return 0;
 }
 
+static int drive_pq_ensure_cmd(const char *dir){char pass[256];if(get_passphrase(pass,sizeof(pass),"Wallet passphrase: "))die("passphrase failed");if(drive_pq_ensure_keys(dir,pass,NULL)||update_recovery_drive_pq_extension(dir,pass))die("Drive PRIVATE_PQ key setup failed");OPENSSL_cleanse(pass,sizeof(pass));puts("drive_private_pq=ready\nkem=ML-KEM-768\nrecovery_bound=true");return 0;}
 static int wallet_info_cmd(const char *dir) {
     char path[1024]; snprintf(path, sizeof(path), "%s/wallet.json", dir); char *manifest = read_file(path, NULL); if (!manifest) die("missing wallet.json");
     char *addr = wallet_address(dir); if (!addr) die("missing address");
@@ -946,6 +1011,7 @@ static int wallet_info_cmd(const char *dir) {
     printf("address=%s\n", addr);
     printf("manifest=%s\n", manifest ? "present" : "missing");
     printf("recovery_file=%s\n", access_qrx(path, F_OK) == 0 ? "present" : "missing");
+    { char kp[1024],ku[1024]; drive_pq_key_paths(dir,kp,sizeof(kp),ku,sizeof(ku)); printf("drive_private_pq_key=%s\n", access_qrx(kp,F_OK)==0&&access_qrx(ku,F_OK)==0?"present":"missing"); }
     free(manifest); free(addr); return 0;
 }
 static int wallet_recover_cmd(const char *dir, const char *recovery_file) {
@@ -980,6 +1046,8 @@ static int wallet_recover_cmd(const char *dir, const char *recovery_file) {
     snprintf(path, sizeof(path), "%s/address.txt", dir); write_text(path, new_address);
     snprintf(path, sizeof(path), "%s/recovery.qrxseed", dir); write_text(path, rf);
     if (restore_recovery_address_extension(dir, rf, ed, pass1) != 0) die("rotated receive address recovery failed");
+    if (restore_recovery_drive_pq_extension(dir, rf, ed, pass1) != 0) die("Drive PRIVATE_PQ recovery extension failed");
+    if (drive_pq_ensure_keys(dir, pass1, NULL) != 0) die("Drive PRIVATE_PQ key setup failed");
     if (write_wallet_manifest(dir, new_address, 1) != 0) die("wallet manifest failed");
     printf("address=%s\n", new_address);
     puts("wallet recovered");
@@ -2028,7 +2096,13 @@ static int velocity_tx_type_supported(const char *tx_type) {
         "ASSET_ISSUE", "ASSET_REISSUE", "ASSET_TRANSFER", "ASSET_TAG", "ASSET_UNTAG",
         "ASSET_FREEZE_ADDRESS", "ASSET_UNFREEZE_ADDRESS", "ASSET_GLOBAL_FREEZE", "ASSET_GLOBAL_UNFREEZE",
         "ASSET_BROADCAST", "ASSET_REVOKE", "ASSET_FORCED_TRANSFER",
-        "GAME_JOIN", "GAME_CLAN_CREATE", "GAME_TREASURY_FUND", "GAME_SEASON_JOIN", "GAME_ENERGY_SPEND", "GAME_CLAN_INVITE", "GAME_CLAN_INVITE_REVOKE", "GAME_CLAN_JOIN", "GAME_CLAN_LEAVE", "GAME_CLAN_OFFICER_SET", "GAME_CLAN_DIRECTIVE", "GAME_CLAN_LEADER_TRANSFER", "GAME_ORDER_COMMIT", "GAME_ORDER_REVEAL", "GAME_MARCH_ADVANCE", "GAME_TURN_RESOLVE", "GAME_INFRA_BUILD", "GAME_PRODUCE_UNIT", "GAME_SUPPLY_TRANSFER", "GAME_REPAIR_UNIT", "GAME_REARM_UNIT", "GAME_INFRA_ATTACK", "GAME_ROAD_REPAIR", "GAME_UNIT_RESUPPLY", "GAME_RECON_SCAN", "GAME_EW_JAM", "GAME_AIR_MISSION", "GAME_RADAR_SCAN", "GAME_SAM_INTERCEPT", "GAME_MISSILE_LAUNCH", "GAME_STRIKE_RESOLVE", "GAME_CAP_MISSION", "GAME_ESCORT_MISSION", "GAME_AIR_INTERCEPT", "GAME_AIR_COMBAT_RESOLVE", "GAME_AIR_FORMATION", "GAME_CAP_AUTO_INTERCEPT", "GAME_AIR_RTB", "GAME_SEAD_MISSION", "GAME_NAVAL_DEPLOY", "GAME_NAVAL_MOVE", "GAME_NAVAL_ATTACK", "GAME_AMPHIBIOUS_LOAD", "GAME_AMPHIBIOUS_LAND", "GAME_SEA_SUPPLY", "GAME_FLEET_CREATE", "GAME_NAVAL_COMBAT_RESOLVE", "GAME_CARRIER_AIR_WING", "GAME_NAVAL_BLOCKADE", "GAME_STRATEGIC_CLAIM", "GAME_ECONOMY_COLLECT", "GAME_CITY_DEVELOP", "GAME_INDUSTRY_INVEST", "GAME_RESEARCH_START", "GAME_RESEARCH_ACCELERATE", "GAME_RESEARCH_COMPLETE", "GAME_DOCTRINE_SELECT", "GAME_TECH_RECON", "GAME_RESEARCH_DISRUPT", "GAME_COUNTERINTEL_ACTIVATE", "GAME_SEASON_FINALIZE", "GAME_REWARD_CLAIM", NULL
+        "GAME_JOIN", "GAME_CLAN_CREATE", "GAME_TREASURY_FUND", "GAME_SEASON_JOIN", "GAME_ENERGY_SPEND", "GAME_CLAN_INVITE", "GAME_CLAN_INVITE_REVOKE", "GAME_CLAN_JOIN", "GAME_CLAN_LEAVE", "GAME_CLAN_OFFICER_SET", "GAME_CLAN_DIRECTIVE", "GAME_CLAN_LEADER_TRANSFER", "GAME_ORDER_COMMIT", "GAME_ORDER_REVEAL", "GAME_MARCH_ADVANCE", "GAME_TURN_RESOLVE", "GAME_INFRA_BUILD", "GAME_PRODUCE_UNIT", "GAME_SUPPLY_TRANSFER", "GAME_REPAIR_UNIT", "GAME_REARM_UNIT", "GAME_INFRA_ATTACK", "GAME_ROAD_REPAIR", "GAME_UNIT_RESUPPLY", "GAME_RECON_SCAN", "GAME_EW_JAM", "GAME_AIR_MISSION", "GAME_RADAR_SCAN", "GAME_SAM_INTERCEPT", "GAME_MISSILE_LAUNCH", "GAME_STRIKE_RESOLVE", "GAME_CAP_MISSION", "GAME_ESCORT_MISSION", "GAME_AIR_INTERCEPT", "GAME_AIR_COMBAT_RESOLVE", "GAME_AIR_FORMATION", "GAME_CAP_AUTO_INTERCEPT", "GAME_AIR_RTB", "GAME_SEAD_MISSION", "GAME_NAVAL_DEPLOY", "GAME_NAVAL_MOVE", "GAME_NAVAL_ATTACK", "GAME_AMPHIBIOUS_LOAD", "GAME_AMPHIBIOUS_LAND", "GAME_SEA_SUPPLY", "GAME_FLEET_CREATE", "GAME_NAVAL_COMBAT_RESOLVE", "GAME_CARRIER_AIR_WING", "GAME_NAVAL_BLOCKADE", "GAME_STRATEGIC_CLAIM", "GAME_ECONOMY_COLLECT", "GAME_CITY_DEVELOP", "GAME_INDUSTRY_INVEST", "GAME_RESEARCH_START", "GAME_RESEARCH_ACCELERATE", "GAME_RESEARCH_COMPLETE", "GAME_DOCTRINE_SELECT", "GAME_TECH_RECON", "GAME_RESEARCH_DISRUPT", "GAME_COUNTERINTEL_ACTIVATE", "GAME_SEASON_FINALIZE", "GAME_REWARD_CLAIM",
+        "STORAGE_CAPACITY_COMMIT", "STORAGE_CAPACITY_PROVE", "STORAGE_PROVIDER_BOND", "STORAGE_PROVIDER_ACTIVATE",
+        "STORAGE_PROVIDER_EXIT", "STORAGE_PROVIDER_WITHDRAW", "STORAGE_CONTRACT_CREATE", "STORAGE_CONTRACT_COMPLETE",
+        "STORAGE_CONTRACT_REFUND", "STORAGE_ASSIGN", "STORAGE_ASSIGN_ACCEPT", "STORAGE_POSTOR", "STORAGE_SETTLE_EPOCH",
+        "STORAGE_EGRESS_PAY", "STORAGE_ATTEST", "STORAGE_REPAIR_START", "STORAGE_REPAIR_ACCEPT", "STORAGE_REPAIR_COMPLETE",
+        "DOMAIN_REGISTER", "DOMAIN_RENEW", "DOMAIN_UPDATE", "DOMAIN_TRANSFER", "DOMAIN_RELEASE",
+        "AD_CAMPAIGN_CREATE", "AD_DELIVERY_RECEIPT", "AD_IMPRESSION_SETTLE", "AD_REWARD_CLAIM", "AD_CAMPAIGN_CLOSE", NULL
     };
     if (!tx_type || !*tx_type) return 0;
     for (size_t i = 0; types[i]; ++i) if (!strcmp(types[i], tx_type)) return 1;
@@ -2064,6 +2138,161 @@ static char *canonical_velocity_tx_body(const char *network_id, const char *gene
         QRX_VELOCITY_TX_VERSION, network_id, genesis_hash, protocol_version, tx_type, from, to, amount, fee,
         lane_id, nonce, timestamp, expiry_height, payload, ed_pub_hex, mldsa_pub_b64);
     return buf;
+}
+
+static int resource_info_cmd(const char *chain_dir, long long requested_height) {
+    long long current = current_height_from_chain(chain_dir);
+    long long height = requested_height >= 0 ? requested_height : current;
+    long long activation = qrx_resource_activation_height(chain_dir);
+    long long target_time = qrx_resource_target_time(chain_dir);
+    long long dev_bps = qrx_chain_get_ll_or_default(chain_dir, "storage_dev_share_bps", (long long)QRX_STORAGE_DEV_SHARE_BPS);
+    long long reserve_bps = qrx_chain_get_ll_or_default(chain_dir, "storage_resilience_reserve_bps", (long long)QRX_STORAGE_RESILIENCE_RESERVE_BPS);
+    long long perf_cap = qrx_chain_get_ll_or_default(chain_dir, "storage_performance_bonus_cap_bps", (long long)QRX_STORAGE_PERFORMANCE_BONUS_CAP_BPS);
+    char network_id[128] = {0};
+    qrx_chain_get_value(chain_dir, "network_id", network_id, sizeof(network_id));
+    printf("software_track=0.0.8.2-capacity-accounting\n");
+    printf("resource_protocol_version=%d\n", QRX_RESOURCE_PROTOCOL_VERSION);
+    printf("drive_v1_required_protocol=%lld\n", (long long)QRX_DRIVE_V1_MIN_PROTOCOL_VERSION);
+    printf("drive_v1_feature_flag=%s\n", QRX_DRIVE_V1_FEATURE_FLAG);
+    printf("network_id=%s\n", network_id[0] ? network_id : "unknown");
+    printf("chain_height=%lld\n", current);
+    printf("query_height=%lld\n", height);
+    printf("activation_scheduled=%s\n", qrx_resource_drive_v1_scheduled(chain_dir) ? "true" : "false");
+    printf("activation_height=%lld\n", activation);
+    printf("planned_target_unix=%lld\n", target_time);
+    printf("planned_target_is_consensus=false\n");
+    printf("resource_protocol_active=%s\n", qrx_resource_protocol_enabled_at_height(chain_dir, height) ? "true" : "false");
+    printf("storage_protocol_active=%s\n", qrx_storage_protocol_enabled_at_height(chain_dir, height) ? "true" : "false");
+    printf("reference_backend=filesystem\n");
+    printf("seaweedfs_optional=true\n");
+    printf("storage_affects_validator_block_chance=false\n");
+    printf("storage_dev_share_bps=%lld\n", dev_bps);
+    printf("storage_resilience_reserve_bps=%lld\n", reserve_bps);
+    printf("storage_performance_bonus_cap_bps=%lld\n", perf_cap);
+    printf("redundancy_fast=3x-full-replica\n");
+    printf("redundancy_standard=%d+%d\n", QRX_STORAGE_STANDARD_DATA_SHARDS, QRX_STORAGE_STANDARD_PARITY_SHARDS);
+    printf("redundancy_archive=%d+%d\n", QRX_STORAGE_ARCHIVE_DATA_SHARDS, QRX_STORAGE_ARCHIVE_PARITY_SHARDS);
+    printf("compute_resource_type_reserved=true\n");
+    return 0;
+}
+
+static int storage_split_cmd(const char *atoms_s) {
+    if (!atoms_s || !*atoms_s) die("missing contract atoms");
+    char *end = NULL;
+    unsigned long long value = strtoull(atoms_s, &end, 10);
+    if (!end || *end) die("invalid contract atoms");
+    QrxStorageContractSplit split;
+    if (qrx_storage_split_contract_value((uint64_t)value, QRX_STORAGE_DEV_SHARE_BPS, QRX_STORAGE_RESILIENCE_RESERVE_BPS, &split) != 0)
+        die("cannot split storage contract value");
+    printf("contract_atoms=%llu\n", value);
+    printf("development_atoms=%llu\n", (unsigned long long)split.development_atoms);
+    printf("resilience_atoms=%llu\n", (unsigned long long)split.resilience_atoms);
+    printf("provider_budget_atoms=%llu\n", (unsigned long long)split.provider_budget_atoms);
+    return 0;
+}
+
+
+static int storage_fs_parse_u64(const char *s, uint64_t *out) {
+    if (!s || !*s || !out || *s == '-') return -1;
+    errno = 0;
+    char *end = NULL;
+    unsigned long long v = strtoull(s, &end, 10);
+    if (errno || !end || *end) return -1;
+    *out = (uint64_t)v;
+    return 0;
+}
+
+static int storage_fs_config_path(const char *root, char out[1024]) {
+    if (!root || !*root) return -1;
+    return snprintf(out, 1024, "%s/storage.backend.conf", root) < 1024 ? 0 : -1;
+}
+
+static int storage_fs_load_config(const char *root, uint64_t *max_usage, uint64_t *min_free) {
+    char path[1024];
+    if (storage_fs_config_path(root, path) != 0) return -1;
+    char *txt = read_file(path, NULL);
+    if (!txt) return -1;
+    char *fmt = cfg_get(txt, "format");
+    char *backend = cfg_get(txt, "backend");
+    char *maxs = cfg_get(txt, "max_usage_bytes");
+    char *mins = cfg_get(txt, "min_free_space_bytes");
+    int rc = -1;
+    if (fmt && !strcmp(fmt, "qrx-storage-backend-v1") && backend && !strcmp(backend, "filesystem") &&
+        maxs && mins && storage_fs_parse_u64(maxs, max_usage) == 0 && storage_fs_parse_u64(mins, min_free) == 0)
+        rc = 0;
+    free(fmt); free(backend); free(maxs); free(mins); free(txt);
+    return rc;
+}
+
+static int storage_fs_init_cmd(const char *root, const char *maxs, const char *mins) {
+    uint64_t max_usage = 0, min_free = 0;
+    if (storage_fs_parse_u64(maxs, &max_usage) != 0 || max_usage == 0) die("max-usage-bytes must be > 0");
+    if (storage_fs_parse_u64(mins, &min_free) != 0) die("invalid min-free-space-bytes");
+    mkdir_p(root);
+    char path[1024], cfg[1024];
+    if (storage_fs_config_path(root, path) != 0) die("storage root path too long");
+    snprintf(cfg, sizeof(cfg),
+             "format=qrx-storage-backend-v1\nbackend=filesystem\nmax_usage_bytes=%llu\nmin_free_space_bytes=%llu\n",
+             (unsigned long long)max_usage, (unsigned long long)min_free);
+    write_text(path, cfg);
+    QrxStorageFs *fs = NULL;
+    if (qrx_storage_fs_open(root, max_usage, min_free, &fs) != 0) die("cannot initialize filesystem storage backend");
+    QrxStorageFsStats st; qrx_storage_fs_stats(fs, &st); qrx_storage_fs_close(fs);
+    printf("status=initialized\nbackend=filesystem\nroot=%s\nmax_usage_bytes=%llu\nmin_free_space_bytes=%llu\nused_bytes=%llu\n",
+           root, (unsigned long long)max_usage, (unsigned long long)min_free, (unsigned long long)st.used_bytes);
+    return 0;
+}
+
+static QrxStorageFs *storage_fs_open_configured(const char *root) {
+    uint64_t max_usage = 0, min_free = 0;
+    if (storage_fs_load_config(root, &max_usage, &min_free) != 0) die("storage backend not initialized or config invalid; run storage-fs-init first");
+    QrxStorageFs *fs = NULL;
+    if (qrx_storage_fs_open(root, max_usage, min_free, &fs) != 0) die("cannot open filesystem storage backend");
+    return fs;
+}
+
+static int storage_fs_info_cmd(const char *root) {
+    QrxStorageFs *fs = storage_fs_open_configured(root); QrxStorageFsStats st;
+    if (qrx_storage_fs_stats(fs, &st) != 0) { qrx_storage_fs_close(fs); die("storage stats failed"); }
+    printf("backend=%s\nroot=%s\nmax_usage_bytes=%llu\nmin_free_space_bytes=%llu\nused_bytes=%llu\nreserved_bytes=%llu\nquota_available_bytes=%llu\nfilesystem_free_bytes=%llu\nobject_count=%llu\n",
+           qrx_storage_fs_backend_name(), root,
+           (unsigned long long)st.max_usage_bytes, (unsigned long long)st.min_free_space_bytes,
+           (unsigned long long)st.used_bytes, (unsigned long long)st.reserved_bytes,
+           (unsigned long long)st.quota_available_bytes, (unsigned long long)st.filesystem_free_bytes,
+           (unsigned long long)st.object_count);
+    qrx_storage_fs_close(fs); return 0;
+}
+
+static int storage_fs_put_cmd(const char *root, const char *source) {
+    QrxStorageFs *fs = storage_fs_open_configured(root); char id[65];
+    int rc = qrx_storage_fs_put_file(fs, source, id);
+    qrx_storage_fs_close(fs);
+    if (rc == -2) die("storage max_usage quota exceeded");
+    if (rc == -3) die("storage min_free_space reserve would be violated");
+    if (rc != 0) die("storage put failed");
+    printf("status=stored\nobject_id=%s\nhash=SHA3-256\n", id); return 0;
+}
+
+static int storage_fs_get_cmd(const char *root, const char *id, const char *dst) {
+    QrxStorageFs *fs = storage_fs_open_configured(root);
+    int rc = qrx_storage_fs_get_file(fs, id, dst); qrx_storage_fs_close(fs);
+    if (rc != 0) die("storage get failed");
+    printf("status=retrieved\nobject_id=%s\ndestination=%s\n", id, dst); return 0;
+}
+
+static int storage_fs_delete_cmd(const char *root, const char *id) {
+    QrxStorageFs *fs = storage_fs_open_configured(root);
+    int rc = qrx_storage_fs_delete(fs, id); qrx_storage_fs_close(fs);
+    if (rc != 0) die("storage delete failed");
+    printf("status=deleted\nobject_id=%s\n", id); return 0;
+}
+
+static int storage_fs_recover_cmd(const char *root) {
+    QrxStorageFs *fs = storage_fs_open_configured(root);
+    if (qrx_storage_fs_recover(fs) != 0) { qrx_storage_fs_close(fs); die("storage recovery failed"); }
+    QrxStorageFsStats st; qrx_storage_fs_stats(fs, &st); qrx_storage_fs_close(fs);
+    printf("status=recovered\nused_bytes=%llu\nobject_count=%llu\n", (unsigned long long)st.used_bytes, (unsigned long long)st.object_count);
+    return 0;
 }
 
 static int velocity_info_cmd(const char *chain_dir) {
@@ -3438,6 +3667,16 @@ static int verify_tx_text(const char *chain_dir, const char *tx) {
     else if (is_velocity && tx_type && !strncmp(tx_type,"PRIVACY_",8)) { if(validate_privacy_consensus_tx(chain_dir,tx_type,from,to,amount,payload)!=0) die("privacy consensus validation failed"); }
     else if (is_velocity && tx_type && !strncmp(tx_type,"GAME_",5)) { /* deterministic Generals validation occurs in atomic WAL staging */ }
     else if (is_velocity && tx_type && (!strncmp(tx_type,"STAKE_",6) || !strncmp(tx_type,"DELEGATE_",9))) { /* deterministic staking/delegation validation occurs in atomic WAL staging */ }
+    else if (is_velocity && tx_type && !strncmp(tx_type,"STORAGE_",8)) {
+        long long ah=current_height_from_chain(chain_dir)+1; QrxServiceEconomicEffect eff={0};
+        if(!qrx_storage_protocol_enabled_at_height(chain_dir,ah)) die("DRIVE_V1 mandatory protocol upgrade not active");
+        if(qrx_storage_consensus_prepare(chain_dir,tx_type,from,to,(uint64_t)amt_check,payload,applied_key,(uint64_t)ah,&eff)!=0) die("storage consensus validation failed");
+    }
+    else if (is_velocity && tx_type && (!strncmp(tx_type,"DOMAIN_",7) || !strncmp(tx_type,"AD_",3))) {
+        long long ah=current_height_from_chain(chain_dir)+1; QrxServiceEconomicEffect eff={0};
+        if(!qrx_net_protocol_enabled_at_height(chain_dir,ah)) die("QRX_NET_V1 mandatory protocol upgrade not active");
+        if(qrx_net_consensus_prepare(chain_dir,tx_type,from,to,(uint64_t)amt_check,payload,applied_key,(uint64_t)ah,&eff)!=0) die("QRX-Net consensus validation failed");
+    }
     else if (is_velocity && strcmp(tx_type, "TRANSFER_FAST") != 0) die("velocity tx schema reserved: execution not active for this tx_type");
     if(tx_version) free(tx_version); free(network_id); free(genesis_hash); free(protocol_version); free(from); free(to); free(amount); free(fee); free(nonce); free(timestamp); if(memo) free(memo); if(tx_type) free(tx_type); if(lane_id) free(lane_id); if(expiry_height) free(expiry_height); if(payload) free(payload); free(ed_pub_hex); free(ml_pub_b64); if(body_hash_algo) free(body_hash_algo); if(body_hash_sha3) free(body_hash_sha3); if(body_hash_sha256_legacy) free(body_hash_sha256_legacy); if(body_hash_legacy) free(body_hash_legacy); free(sig1_hex); free(sig2_hex); free(exp_net); free(exp_gen); free(exp_ver); free(body); free(mlpem); free(mlpemstr); free(sig1); free(sig2); EVP_PKEY_free(ed_pub); EVP_PKEY_free(ml_pub);
     return 0;
@@ -4205,17 +4444,22 @@ static int applytx_cmd(const char *chain_dir, const char *tx_file) {
     int is_privacy_unshield = is_privacy_tx && !strcmp(tx_type,"PRIVACY_UNSHIELD");
     int is_generals_tx = is_velocity && tx_type && (!strncmp(tx_type,"GAME_",5));
     int is_staking_tx = is_velocity && tx_type && (!strncmp(tx_type,"STAKE_",6) || !strncmp(tx_type,"DELEGATE_",9) || !strncmp(tx_type,"VALIDATOR_",10));
-    int is_transfer = !is_agent_tx && !is_trade_tx && !is_gateway_tx && !is_execution_report && !is_crosschain_order && !is_crosschain_action && !is_btc_spv_header && !is_btc_spv_proof && !is_asset76_tx && !is_privacy_tx && !is_generals_tx && !is_staking_tx;
-    if (is_velocity && !is_agent_tx && !is_trade_tx && !is_gateway_tx && !is_execution_report && !is_crosschain_order && !is_crosschain_action && !is_btc_spv_header && !is_btc_spv_proof && !is_asset76_tx && !is_privacy_tx && !is_generals_tx && !is_staking_tx && (!tx_type || strcmp(tx_type, "TRANSFER_FAST") != 0)) die("velocity execution not active for this tx_type");
+    int is_storage_tx = is_velocity && tx_type && !strncmp(tx_type,"STORAGE_",8);
+    int is_qrxnet_tx = is_velocity && tx_type && (!strncmp(tx_type,"DOMAIN_",7) || !strncmp(tx_type,"AD_",3));
+    int is_transfer = !is_agent_tx && !is_trade_tx && !is_gateway_tx && !is_execution_report && !is_crosschain_order && !is_crosschain_action && !is_btc_spv_header && !is_btc_spv_proof && !is_asset76_tx && !is_privacy_tx && !is_generals_tx && !is_staking_tx && !is_storage_tx && !is_qrxnet_tx;
+    if (is_velocity && !is_agent_tx && !is_trade_tx && !is_gateway_tx && !is_execution_report && !is_crosschain_order && !is_crosschain_action && !is_btc_spv_header && !is_btc_spv_proof && !is_asset76_tx && !is_privacy_tx && !is_generals_tx && !is_staking_tx && !is_storage_tx && !is_qrxnet_tx && (!tx_type || strcmp(tx_type, "TRANSFER_FAST") != 0)) die("velocity execution not active for this tx_type");
     if (!from || !*from || !to || !*to || !body_hash || !*body_hash) die("invalid tx addresses/hash");
     if((is_trade_tx || is_crosschain_order) && !strcmp(from,to)) die("trading agent must use a distinct delegated address from the owner wallet");
 
     long long amt = is_transfer ? parse_positive_ll_strict(amount, "amount") : parse_nonnegative_ll_strict(amount, "amount");
     long long fee = fee_s ? parse_nonnegative_ll_strict(fee_s, "fee") : 0; long long n = parse_positive_ll_strict(nonce, "nonce");
     long long height=current_height_from_chain(chain_dir);
+    QrxServiceEconomicEffect service_effect={0};
+    if(is_storage_tx){if(!qrx_storage_protocol_enabled_at_height(chain_dir,height+1))die("DRIVE_V1 mandatory protocol upgrade not active");if(qrx_storage_consensus_prepare(chain_dir,tx_type,from,to,(uint64_t)amt,payload_apply,body_hash,(uint64_t)(height+1),&service_effect)!=0)die("storage consensus prepare failed");}
+    if(is_qrxnet_tx){if(!qrx_net_protocol_enabled_at_height(chain_dir,height+1))die("QRX_NET_V1 mandatory protocol upgrade not active");if(qrx_net_consensus_prepare(chain_dir,tx_type,from,to,(uint64_t)amt,payload_apply,body_hash,(uint64_t)(height+1),&service_effect)!=0)die("QRX-Net consensus prepare failed");}
     long long asset_burn=is_asset76_tx?a76_operation_burn(chain_dir,tx_type,payload_apply,height+1):0;if(asset_burn<0)die("invalid asset burn fee");
     long long generals_cost=is_generals_tx?generals_operation_cost(chain_dir,tx_type,payload_apply,height+1,amt):0;if(is_generals_tx&&generals_cost<0)die("invalid Generals operation cost");
-    long long debit = 0,tmp_debit=0,tmp_debit2=0; checked_add_ll((is_transfer || is_privacy_shield || (is_staking_tx && tx_type && (!strcmp(tx_type,"STAKE_BOND") || !strcmp(tx_type,"DELEGATE_BOND")))) ? amt : 0, fee, "amount plus fee", &tmp_debit);checked_add_ll(tmp_debit,asset_burn,"amount plus fee plus asset burn",&tmp_debit2);checked_add_ll(tmp_debit2,generals_cost,"amount plus fee plus asset burn plus Generals treasury contribution",&debit);
+    long long debit = 0,tmp_debit=0,tmp_debit2=0,tmp_debit3=0; checked_add_ll((is_transfer || is_privacy_shield || (is_staking_tx && tx_type && (!strcmp(tx_type,"STAKE_BOND") || !strcmp(tx_type,"DELEGATE_BOND")))) ? amt : 0, fee, "amount plus fee", &tmp_debit);checked_add_ll(tmp_debit,asset_burn,"amount plus fee plus asset burn",&tmp_debit2);checked_add_ll(tmp_debit2,generals_cost,"amount plus fee plus asset burn plus Generals treasury contribution",&tmp_debit3);checked_add_ll(tmp_debit3,(long long)service_effect.debit_atoms,"service debit",&debit);
     long long current_nonce = velocity_get_lane_nonce(chain_dir, from, lane); if (current_nonce == LLONG_MAX) die("nonce overflow"); if (n != current_nonce + 1) die("invalid nonce: expected lane nonce + 1");
 
     long long frombal=qrx_balance_get_authoritative(chain_dir,from),tobal=qrx_balance_get_authoritative(chain_dir,to),new_frombal=0,new_tobal=tobal;
@@ -4249,12 +4493,30 @@ static int applytx_cmd(const char *chain_dir, const char *tx_file) {
         if(locked<=0)die("cross-chain session has no locked QUB");
         checked_add_ll(new_frombal,locked,"cross-chain QUB release",&new_frombal);
     }
-    long long fee_pending=fee_pool_pending(chain_dir),new_fee_pending=0;checked_add_ll(fee_pending,fee,"fee pool",&new_fee_pending);
+    /* Service credits are staged in the same WAL batch as the service state. */
+    long long svc_rec_new=0,svc_dev_new=0; int svc_rec_stage=0,svc_dev_stage=0,svc_to_stage=0; char *svc_dev_addr=NULL;
+    if(service_effect.self_credit_atoms) checked_add_ll(new_frombal,(long long)service_effect.self_credit_atoms,"service self credit",&new_frombal);
+    if(service_effect.recipient_credit_atoms){
+        if(!service_effect.recipient[0])die("service recipient missing");
+        if(!strcmp(service_effect.recipient,from)) checked_add_ll(new_frombal,(long long)service_effect.recipient_credit_atoms,"service recipient credit",&new_frombal);
+        else if(!strcmp(service_effect.recipient,to)){checked_add_ll(new_tobal,(long long)service_effect.recipient_credit_atoms,"service recipient credit",&new_tobal);svc_to_stage=1;}
+        else {long long b=qrx_balance_get_authoritative(chain_dir,service_effect.recipient);checked_add_ll(b,(long long)service_effect.recipient_credit_atoms,"service recipient credit",&svc_rec_new);svc_rec_stage=1;}
+    }
+    if(service_effect.development_credit_atoms){
+        svc_dev_addr=chain_cfg_value(chain_dir,"dev_address"); if(!svc_dev_addr||!*svc_dev_addr)die("development address missing");
+        if(!strcmp(svc_dev_addr,from)) checked_add_ll(new_frombal,(long long)service_effect.development_credit_atoms,"development credit",&new_frombal);
+        else if(!strcmp(svc_dev_addr,to)){checked_add_ll(new_tobal,(long long)service_effect.development_credit_atoms,"development credit",&new_tobal);svc_to_stage=1;}
+        else if(svc_rec_stage && !strcmp(svc_dev_addr,service_effect.recipient)){checked_add_ll(svc_rec_new,(long long)service_effect.development_credit_atoms,"development credit",&svc_rec_new);}
+        else {long long b=qrx_balance_get_authoritative(chain_dir,svc_dev_addr);checked_add_ll(b,(long long)service_effect.development_credit_atoms,"development credit",&svc_dev_new);svc_dev_stage=1;}
+    }
+    long long fee_pending=fee_pool_pending(chain_dir),new_fee_pending=0,service_fee_total=0;checked_add_ll(fee,(long long)service_effect.protocol_fee_atoms,"fee plus protocol service fee",&service_fee_total);checked_add_ll(fee_pending,service_fee_total,"fee pool",&new_fee_pending);
 
     QrxDB db;QrxDBBatch batch;if(qrxdb_init(&db,chain_dir)!=0)die("QRXDB init failed");if(qrxdb_batch_begin(&db,&batch)!=0){qrxdb_close(&db);die("QRXDB batch begin failed");}
     int brc=0;
     brc|=atomic_batch_put_balance(&batch,from,new_frombal);
-    if((is_transfer || is_privacy_unshield) && strcmp(from,to)) brc|=atomic_batch_put_balance(&batch,to,new_tobal);
+    if(((is_transfer || is_privacy_unshield) && strcmp(from,to)) || (svc_to_stage && strcmp(from,to))) brc|=atomic_batch_put_balance(&batch,to,new_tobal);
+    if(svc_rec_stage) brc|=atomic_batch_put_balance(&batch,service_effect.recipient,svc_rec_new);
+    if(svc_dev_stage) brc|=atomic_batch_put_balance(&batch,svc_dev_addr,svc_dev_new);
     if(is_agent_tx) brc|=atomic_stage_agent(&batch,from,to,tx_type,payload_apply,body_hash,height);
     if(is_trade_tx) brc|=atomic_stage_trade(&batch,chain_dir,from,to,tx_type,payload_apply,body_hash,height);
     if(is_crosschain_order) brc|=crosschain_stage_order(&batch,chain_dir,from,to,payload_apply,body_hash,height);
@@ -4266,12 +4528,14 @@ static int applytx_cmd(const char *chain_dir, const char *tx_file) {
     if(is_privacy_tx) brc|=atomic_stage_privacy(&batch,chain_dir,from,to,tx_type,payload_apply,body_hash,height,amt);
     if(is_generals_tx) brc|=atomic_stage_generals(&batch,chain_dir,from,tx_type,payload_apply,body_hash,height,generals_cost);
     if(is_staking_tx) brc|=atomic_stage_staking(&batch,chain_dir,from,to,tx_type,payload_apply,body_hash,height,amt);
+    if(is_storage_tx) brc|=qrx_storage_consensus_stage(&db,&batch,chain_dir,tx_type,from,to,(uint64_t)amt,payload_apply,body_hash,(uint64_t)(height+1));
+    if(is_qrxnet_tx) brc|=qrx_net_consensus_stage(&db,&batch,chain_dir,tx_type,from,to,(uint64_t)amt,payload_apply,body_hash,(uint64_t)(height+1));
     if(is_execution_report) brc|=atomic_stage_execution_report(&batch,from,to,payload_apply,body_hash,height);
     brc|=velocity_batch_put_ll(&batch,"consensus:fee_pool:pending",new_fee_pending);
     if(asset_burn>0){long long oldburn=0,newburn=0;QrxDB tdb;if(qrxdb_init(&tdb,chain_dir)==0){char bb[128];if(qrxdb_get(&tdb,"consensus:asset76:burned_qub_atoms",bb,sizeof(bb))==0)oldburn=atoll(bb);qrxdb_close(&tdb);}checked_add_ll(oldburn,asset_burn,"asset burn accumulator",&newburn);brc|=velocity_batch_put_ll(&batch,"consensus:asset76:burned_qub_atoms",newburn);}
     brc|=atomic_batch_put_nonce(&batch,from,lane,n);
     brc|=atomic_batch_put_applied(&batch,body_hash,height);
-    const char *kind=is_agent_tx?"velocity-agent":is_crosschain_order?"velocity-crosschain-order":is_crosschain_action?"velocity-crosschain-settlement":is_btc_spv_header?"velocity-btc-spv-header":is_btc_spv_proof?"velocity-btc-spv-funding-proof":is_trade_tx?"velocity-trading-intent":is_gateway_tx?"velocity-gateway":is_execution_report?"velocity-execution-report":is_asset76_tx?"native-asset-consensus":is_privacy_tx?"privacy-consensus":is_generals_tx?"generals-consensus":is_staking_tx?"staking-consensus":(is_velocity?"velocity-transfer-fast":"mempool-or-direct-apply");
+    const char *kind=is_agent_tx?"velocity-agent":is_crosschain_order?"velocity-crosschain-order":is_crosschain_action?"velocity-crosschain-settlement":is_btc_spv_header?"velocity-btc-spv-header":is_btc_spv_proof?"velocity-btc-spv-funding-proof":is_trade_tx?"velocity-trading-intent":is_gateway_tx?"velocity-gateway":is_execution_report?"velocity-execution-report":is_asset76_tx?"native-asset-consensus":is_privacy_tx?"privacy-consensus":is_generals_tx?"generals-consensus":is_staking_tx?"staking-consensus":is_storage_tx?"storage-consensus":is_qrxnet_tx?"qrxnet-consensus":(is_velocity?"velocity-transfer-fast":"mempool-or-direct-apply");
     brc|=atomic_batch_put_tx_index(&batch,body_hash,kind,height,tx);
     if(brc){qrxdb_batch_abort(&batch);qrxdb_close(&db);die("atomic state staging failed");}
     if(qrxdb_batch_commit(&batch)!=0){qrxdb_batch_abort(&batch);qrxdb_close(&db);die("atomic WAL commit failed");}
@@ -4290,7 +4554,7 @@ static int applytx_cmd(const char *chain_dir, const char *tx_file) {
 
     journal_append(chain_dir, "applytx_atomic generation=%llu state_root=%s height=%lld timestamp=%s tx_version=%s tx_type=%s from=%s to=%s amount=%lld fee=%lld asset_burn=%lld generals_treasury_cost=%lld lane=%lld nonce=%s body_hash=%s", generation,state_root,height,timestamp?timestamp:"0",tx_version?tx_version:"2", tx_type?tx_type:"LEGACY_TRANSFER", from, to, amt, fee, asset_burn, generals_cost, lane, nonce, body_hash);
     printf("APPLIED\nstate_root=%s\nqrxdb_generation=%llu\n",state_root,generation);
-    free(tx); if(tx_version) free(tx_version); if(tx_type) free(tx_type); if(lane_id) free(lane_id); if(payload_apply) free(payload_apply); free(from); free(to); free(amount); if (fee_s) free(fee_s); free(nonce); if(timestamp) free(timestamp); if (body_hash_sha3) free(body_hash_sha3); if (body_hash_legacy) free(body_hash_legacy); return 0;
+    if(svc_dev_addr)free(svc_dev_addr); free(tx); if(tx_version) free(tx_version); if(tx_type) free(tx_type); if(lane_id) free(lane_id); if(payload_apply) free(payload_apply); free(from); free(to); free(amount); if (fee_s) free(fee_s); free(nonce); if(timestamp) free(timestamp); if (body_hash_sha3) free(body_hash_sha3); if (body_hash_legacy) free(body_hash_legacy); return 0;
 }
 
 static int node_init_cmd(const char *node_dir, const char *chain_dir, const char *wallet_dir, const char *host, const char *port) {
@@ -4304,9 +4568,10 @@ static int node_init_cmd(const char *node_dir, const char *chain_dir, const char
     char *network_id = chain_cfg_value(chain_dir, "network_id"); char *genesis_hash = chain_cfg_value(chain_dir, "genesis_hash"); char *protocol_version = chain_cfg_value(chain_dir, "protocol_version"); char *consensus_version = chain_cfg_value(chain_dir, "consensus_version"); char *chain_id = chain_cfg_value(chain_dir, "chain_id"); char *chain_magic = chain_cfg_value(chain_dir, "magic");
     char *address = wallet_address(wallet_dir); if (!address) die("wallet address missing"); address[strcspn(address, "\r\n")]=0;
     const char *magic = (chain_magic && *chain_magic) ? chain_magic : QRX_MAGIC;
-    char cfg[4096]; snprintf(cfg, sizeof(cfg),
-        "chain_dir=%s\nwallet_dir=%s\nhost=%s\nport=%s\nexternal_host=%s\nexternal_port=%s\nnetwork_id=%s\ngenesis_hash=%s\nprotocol_version=%s\nconsensus_version=%s\nchain_id=%s\nmagic=%s\naddress=%s\n",
-        chain_dir, wallet_dir, host, port, host, port, network_id, genesis_hash, protocol_version, consensus_version, chain_id, magic, address);
+    char storage_path[1024]; snprintf(storage_path,sizeof(storage_path),"%s/qrx-drive",node_dir);
+    char cfg[6144]; snprintf(cfg, sizeof(cfg),
+        "chain_dir=%s\nwallet_dir=%s\nhost=%s\nport=%s\nexternal_host=%s\nexternal_port=%s\nnetwork_id=%s\ngenesis_hash=%s\nprotocol_version=%s\nconsensus_version=%s\nchain_id=%s\nmagic=%s\naddress=%s\nstorage_enabled=0\nstorage_provider_id=%s\nstorage_path=%s\nstorage_max_usage_bytes=0\nstorage_min_free_space_bytes=10737418240\n",
+        chain_dir, wallet_dir, host, port, host, port, network_id, genesis_hash, protocol_version, consensus_version, chain_id, magic, address, address, storage_path);
     snprintf(p, sizeof(p), "%s/node.conf", node_dir); write_text(p, cfg);
     snprintf(p, sizeof(p), "%s/peers.txt", node_dir); write_text(p, "");
     snprintf(p, sizeof(p), "%s/seednodes.txt", node_dir); write_text(p, "");
@@ -4636,6 +4901,60 @@ static int generals_relay_store(const char *node_dir,const char *envelope){
     long long h=current_height_from_chain(chain); if(h>=nb&&h<=exp&&node_store_mempool_tx(node_dir,tx)==0){char done[1450];snprintf(done,sizeof(done),"%s.relayed",path);rename(path,done);}
     free(chain);free(cfg);free(tmp);return 0;
 }
+
+static int storage_accept_marker_waiting(const char *node_dir,const char *cid,uint32_t shard,long long h){
+    char d[1200],p[1500];snprintf(d,sizeof(d),"%s/storage_accept_pending",node_dir);mkdir_p(d);snprintf(p,sizeof(p),"%s/%s-%010u.state",d,cid,shard);char*t=read_file(p,NULL);if(!t)return 0;long long sent=atoll(t);free(t);return h<=sent+12;
+}
+static void storage_accept_marker_write(const char *node_dir,const char *cid,uint32_t shard,long long h){char d[1200],p[1500],b[64];snprintf(d,sizeof(d),"%s/storage_accept_pending",node_dir);mkdir_p(d);snprintf(p,sizeof(p),"%s/%s-%010u.state",d,cid,shard);snprintf(b,sizeof(b),"%lld\n",h);write_text(p,b);}
+static int storage_provider_make_accept_tx(const char *chain_dir,const char *wallet_dir,const char *provider,const char *cid,uint32_t shard,char **tx_out){
+    if(!chain_dir||!wallet_dir||!provider||!cid||!tx_out)return-1;*tx_out=NULL;const char*pass=getenv("QRX_PASSPHRASE");if(!pass)return-1;
+    char p[1536];snprintf(p,sizeof(p),"%s/ed25519_priv.pem",wallet_dir);EVP_PKEY*ed=load_priv_pem(p,pass);snprintf(p,sizeof(p),"%s/mldsa65_priv.pem",wallet_dir);EVP_PKEY*ml=load_priv_pem(p,pass);snprintf(p,sizeof(p),"%s/ed25519_pub.pem",wallet_dir);EVP_PKEY*ep=load_pub_pem(p);snprintf(p,sizeof(p),"%s/mldsa65_pub.pem",wallet_dir);EVP_PKEY*mp=load_pub_pem(p);if(!ed||!ml||!ep||!mp){EVP_PKEY_free(ed);EVP_PKEY_free(ml);EVP_PKEY_free(ep);EVP_PKEY_free(mp);return-1;}
+    unsigned char eraw[32];size_t en=sizeof(eraw);if(EVP_PKEY_get_raw_public_key(ep,eraw,&en)!=1||en!=32){EVP_PKEY_free(ed);EVP_PKEY_free(ml);EVP_PKEY_free(ep);EVP_PKEY_free(mp);return-1;}char*edhex=bytes_to_hex(eraw,32),*mlpem=pubkey_to_pem_string(mp),*mlb64=mlpem?base64_encode((unsigned char*)mlpem,strlen(mlpem)):NULL;
+    char*net=chain_cfg_value(chain_dir,"network_id"),*gen=chain_cfg_value(chain_dir,"genesis_hash"),*proto=chain_cfg_value(chain_dir,"protocol_version");long long h=current_height_from_chain(chain_dir);long long fee=qrx_chain_get_ll_at_height_or_default(chain_dir,h+1,"tx_fee_atoms",1000LL);if(fee<0)fee=0;char fees[32],lane[32],nonce[32],ts[32],exp[32],payload[512];snprintf(fees,sizeof(fees),"%lld",fee);snprintf(lane,sizeof(lane),"%u",(unsigned)(shard+1));snprintf(nonce,sizeof(nonce),"%lld",velocity_get_lane_nonce(chain_dir,provider,(long long)shard+1)+1);snprintf(ts,sizeof(ts),"%lld",(long long)time(NULL));snprintf(exp,sizeof(exp),"%lld",h+64);snprintf(payload,sizeof(payload),"contract_id=%s;shard_index=%u",cid,shard);
+    char*body=(edhex&&mlb64&&net&&gen&&proto)?canonical_velocity_tx_body(net,gen,proto,"STORAGE_ASSIGN_ACCEPT",provider,provider,"0",fees,lane,nonce,ts,exp,payload,edhex,mlb64):NULL;unsigned char*s1=NULL,*s2=NULL;size_t n1=0,n2=0;char*h1=NULL,*h2=NULL;int rc=-1;if(body&&sign_oneshot(ed,(unsigned char*)body,strlen(body),&s1,&n1)==0&&sign_oneshot(ml,(unsigned char*)body,strlen(body),&s2,&n2)==0){h1=bytes_to_hex(s1,n1);h2=bytes_to_hex(s2,n2);char bh3[129],bh2[65];hash_primary_hex((unsigned char*)body,strlen(body),bh3);hash_legacy_hex((unsigned char*)body,strlen(body),bh2);size_t cap=strlen(body)+strlen(h1)+strlen(h2)+512;char*out=malloc(cap);if(out){snprintf(out,cap,"%sbody_hash_algo=sha3-512\nbody_hash_sha3_512=%s\nbody_hash_sha256_legacy=%s\nsig_ed25519_hex=%s\nsig_mldsa65_hex=%s\nsigned=true\n",body,bh3,bh2,h1,h2);*tx_out=out;rc=0;}}
+    free(edhex);free(mlpem);free(mlb64);free(net);free(gen);free(proto);free(body);free(s1);free(s2);free(h1);free(h2);EVP_PKEY_free(ed);EVP_PKEY_free(ml);EVP_PKEY_free(ep);EVP_PKEY_free(mp);return rc;
+}
+static int storage_provider_auto_accept(const char *node_dir,const char *cfg){
+    if(!g_storage_ready||!g_storage_fs||!g_storage_provider_id[0]||!cfg)return 0;char*cd=cfg_get(cfg,"chain_dir"),*wd=cfg_get(cfg,"wallet_dir");if(!cd||!wd){free(cd);free(wd);return-1;}QrxDB db;if(qrxdb_init(&db,cd)){free(cd);free(wd);return-1;}QrxStorageReadyAssignment ready[QRX_STORAGE_ACTIVATION_MAX_READY];size_t n=0;int rc=qrx_storage_collect_ready_assignments(&db,g_storage_fs,g_storage_provider_id,ready,QRX_STORAGE_ACTIVATION_MAX_READY,&n);qrxdb_close(&db);long long h=current_height_from_chain(cd);int submitted=0;if(!rc)for(size_t i=0;i<n;i++){if(storage_accept_marker_waiting(node_dir,ready[i].contract_id,ready[i].shard_index,h))continue;char*tx=NULL;if(!storage_provider_make_accept_tx(cd,wd,g_storage_provider_id,ready[i].contract_id,ready[i].shard_index,&tx)&&tx){if(node_store_mempool_tx(node_dir,tx)==0){storage_accept_marker_write(node_dir,ready[i].contract_id,ready[i].shard_index,h);submitted++;}OPENSSL_cleanse(tx,strlen(tx));free(tx);}}
+    free(cd);free(wd);return submitted;
+}
+
+
+static int storage_postor_marker_waiting(const char *node_dir,const char *cid,uint32_t shard,uint64_t epoch,long long h){
+    char d[1200],p[1500];snprintf(d,sizeof(d),"%s/storage_postor_pending",node_dir);mkdir_p(d);snprintf(p,sizeof(p),"%s/%s-%010u-%020llu.state",d,cid,shard,(unsigned long long)epoch);char*t=read_file(p,NULL);if(!t)return 0;long long sent=atoll(t);free(t);return h<=sent+12;
+}
+static void storage_postor_marker_write(const char *node_dir,const char *cid,uint32_t shard,uint64_t epoch,long long h){char d[1200],p[1500],b[64];snprintf(d,sizeof(d),"%s/storage_postor_pending",node_dir);mkdir_p(d);snprintf(p,sizeof(p),"%s/%s-%010u-%020llu.state",d,cid,shard,(unsigned long long)epoch);snprintf(b,sizeof(b),"%lld\n",h);write_text(p,b);}
+static int storage_provider_make_postor_tx(const char *chain_dir,const char *wallet_dir,const char *provider,const QrxPoStorDueAssignment *due,const char *payload,char **tx_out){
+    if(!chain_dir||!wallet_dir||!provider||!due||!payload||!tx_out)return-1;*tx_out=NULL;const char*pass=getenv("QRX_PASSPHRASE");if(!pass)return-1;
+    char pth[1536];snprintf(pth,sizeof(pth),"%s/ed25519_priv.pem",wallet_dir);EVP_PKEY*ed=load_priv_pem(pth,pass);snprintf(pth,sizeof(pth),"%s/mldsa65_priv.pem",wallet_dir);EVP_PKEY*ml=load_priv_pem(pth,pass);snprintf(pth,sizeof(pth),"%s/ed25519_pub.pem",wallet_dir);EVP_PKEY*ep=load_pub_pem(pth);snprintf(pth,sizeof(pth),"%s/mldsa65_pub.pem",wallet_dir);EVP_PKEY*mp=load_pub_pem(pth);if(!ed||!ml||!ep||!mp){EVP_PKEY_free(ed);EVP_PKEY_free(ml);EVP_PKEY_free(ep);EVP_PKEY_free(mp);return-1;}
+    unsigned char eraw[32];size_t en=sizeof(eraw);if(EVP_PKEY_get_raw_public_key(ep,eraw,&en)!=1||en!=32){EVP_PKEY_free(ed);EVP_PKEY_free(ml);EVP_PKEY_free(ep);EVP_PKEY_free(mp);return-1;}char*edhex=bytes_to_hex(eraw,32),*mlpem=pubkey_to_pem_string(mp),*mlb64=mlpem?base64_encode((unsigned char*)mlpem,strlen(mlpem)):NULL;
+    char*net=chain_cfg_value(chain_dir,"network_id"),*gen=chain_cfg_value(chain_dir,"genesis_hash"),*proto=chain_cfg_value(chain_dir,"protocol_version");long long h=current_height_from_chain(chain_dir);long long fee=qrx_chain_get_ll_at_height_or_default(chain_dir,h+1,"tx_fee_atoms",1000LL);if(fee<0)fee=0;char fees[32],lane[32],nonce[32],ts[32],exp[32];unsigned lane_id=(unsigned)(due->shard_index+1001u);snprintf(fees,sizeof(fees),"%lld",fee);snprintf(lane,sizeof(lane),"%u",lane_id);snprintf(nonce,sizeof(nonce),"%lld",velocity_get_lane_nonce(chain_dir,provider,(long long)lane_id)+1);snprintf(ts,sizeof(ts),"%lld",(long long)time(NULL));snprintf(exp,sizeof(exp),"%lld",h+64);
+    char*body=(edhex&&mlb64&&net&&gen&&proto)?canonical_velocity_tx_body(net,gen,proto,"STORAGE_POSTOR",provider,provider,"0",fees,lane,nonce,ts,exp,payload,edhex,mlb64):NULL;unsigned char*s1=NULL,*s2=NULL;size_t n1=0,n2=0;char*h1=NULL,*h2=NULL;int rc=-1;if(body&&sign_oneshot(ed,(unsigned char*)body,strlen(body),&s1,&n1)==0&&sign_oneshot(ml,(unsigned char*)body,strlen(body),&s2,&n2)==0){h1=bytes_to_hex(s1,n1);h2=bytes_to_hex(s2,n2);char bh3[129],bh2[65];hash_primary_hex((unsigned char*)body,strlen(body),bh3);hash_legacy_hex((unsigned char*)body,strlen(body),bh2);size_t cap=strlen(body)+strlen(h1)+strlen(h2)+512;char*out=malloc(cap);if(out){snprintf(out,cap,"%sbody_hash_algo=sha3-512\nbody_hash_sha3_512=%s\nbody_hash_sha256_legacy=%s\nsig_ed25519_hex=%s\nsig_mldsa65_hex=%s\nsigned=true\n",body,bh3,bh2,h1,h2);*tx_out=out;rc=0;}}
+    free(edhex);free(mlpem);free(mlb64);free(net);free(gen);free(proto);free(body);free(s1);free(s2);free(h1);free(h2);EVP_PKEY_free(ed);EVP_PKEY_free(ml);EVP_PKEY_free(ep);EVP_PKEY_free(mp);return rc;
+}
+static int storage_provider_auto_postor(const char *node_dir,const char *cfg){
+    if(!g_storage_ready||!g_storage_fs||!g_storage_provider_id[0]||!cfg)return 0;char*cd=cfg_get(cfg,"chain_dir"),*wd=cfg_get(cfg,"wallet_dir");if(!cd||!wd){free(cd);free(wd);return-1;}QrxDB db;if(qrxdb_init(&db,cd)){free(cd);free(wd);return-1;}long long h=current_height_from_chain(cd);QrxPoStorDueAssignment due[64];size_t n=0;int rc=qrx_storage_postor_collect(&db,g_storage_provider_id,(uint64_t)(h<0?0:h),due,64,&n),submitted=0;if(!rc)for(size_t i=0;i<n;i++){if(due[i].health==QRX_POSTOR_HEALTH_ACTIVE||due[i].health==QRX_POSTOR_HEALTH_REPAIRING)continue;if(storage_postor_marker_waiting(node_dir,due[i].contract_id,due[i].shard_index,due[i].epoch,h))continue;unsigned char*leaf=NULL;size_t leafn=0;QrxMerkleProof proof;char*payload=NULL,*tx=NULL;if(!qrx_storage_postor_build_local(&db,g_storage_fs,g_storage_provider_id,&due[i],&leaf,&leafn,&proof)&&!qrx_storage_postor_payload(&due[i],leaf,leafn,&proof,&payload)&&!storage_provider_make_postor_tx(cd,wd,g_storage_provider_id,&due[i],payload,&tx)&&tx&&node_store_mempool_tx(node_dir,tx)==0){storage_postor_marker_write(node_dir,due[i].contract_id,due[i].shard_index,due[i].epoch,h);submitted++;}if(leaf){OPENSSL_cleanse(leaf,leafn);free(leaf);}if(payload){OPENSSL_cleanse(payload,strlen(payload));free(payload);}if(tx){OPENSSL_cleanse(tx,strlen(tx));free(tx);}}
+    qrxdb_close(&db);free(cd);free(wd);return submitted;
+}
+
+
+static int storage_repair_marker_waiting(const char*node_dir,const char*kind,const char*cid,uint32_t shard,long long h){char d[1200],p[1500];snprintf(d,sizeof(d),"%s/storage_repair_pending",node_dir);mkdir_p(d);snprintf(p,sizeof(p),"%s/%s-%s-%010u.state",d,kind,cid,shard);char*t=read_file(p,NULL);if(!t)return 0;long long sent=atoll(t);free(t);return h<=sent+12;}
+static void storage_repair_marker_write(const char*node_dir,const char*kind,const char*cid,uint32_t shard,long long h){char d[1200],p[1500],b[64];snprintf(d,sizeof(d),"%s/storage_repair_pending",node_dir);mkdir_p(d);snprintf(p,sizeof(p),"%s/%s-%s-%010u.state",d,kind,cid,shard);snprintf(b,sizeof(b),"%lld\n",h);write_text(p,b);}
+static int storage_provider_make_repair_tx(const char*chain_dir,const char*wallet_dir,const char*provider,const char*type,uint32_t lane_id,const char*payload,char**tx_out){
+    if(!chain_dir||!wallet_dir||!provider||!type||!payload||!tx_out)return-1;*tx_out=NULL;const char*pass=getenv("QRX_PASSPHRASE");if(!pass)return-1;char pth[1536];snprintf(pth,sizeof(pth),"%s/ed25519_priv.pem",wallet_dir);EVP_PKEY*ed=load_priv_pem(pth,pass);snprintf(pth,sizeof(pth),"%s/mldsa65_priv.pem",wallet_dir);EVP_PKEY*ml=load_priv_pem(pth,pass);snprintf(pth,sizeof(pth),"%s/ed25519_pub.pem",wallet_dir);EVP_PKEY*ep=load_pub_pem(pth);snprintf(pth,sizeof(pth),"%s/mldsa65_pub.pem",wallet_dir);EVP_PKEY*mp=load_pub_pem(pth);if(!ed||!ml||!ep||!mp){EVP_PKEY_free(ed);EVP_PKEY_free(ml);EVP_PKEY_free(ep);EVP_PKEY_free(mp);return-1;}
+    unsigned char eraw[32];size_t en=sizeof(eraw);if(EVP_PKEY_get_raw_public_key(ep,eraw,&en)!=1||en!=32){EVP_PKEY_free(ed);EVP_PKEY_free(ml);EVP_PKEY_free(ep);EVP_PKEY_free(mp);return-1;}char*edhex=bytes_to_hex(eraw,32),*mlpem=pubkey_to_pem_string(mp),*mlb64=mlpem?base64_encode((unsigned char*)mlpem,strlen(mlpem)):NULL;char*net=chain_cfg_value(chain_dir,"network_id"),*gen=chain_cfg_value(chain_dir,"genesis_hash"),*proto=chain_cfg_value(chain_dir,"protocol_version");long long h=current_height_from_chain(chain_dir),fee=qrx_chain_get_ll_at_height_or_default(chain_dir,h+1,"tx_fee_atoms",1000LL);if(fee<0)fee=0;char fees[32],lane[32],nonce[32],ts[32],exp[32];snprintf(fees,sizeof(fees),"%lld",fee);snprintf(lane,sizeof(lane),"%u",lane_id);snprintf(nonce,sizeof(nonce),"%lld",velocity_get_lane_nonce(chain_dir,provider,(long long)lane_id)+1);snprintf(ts,sizeof(ts),"%lld",(long long)time(NULL));snprintf(exp,sizeof(exp),"%lld",h+64);char*body=(edhex&&mlb64&&net&&gen&&proto)?canonical_velocity_tx_body(net,gen,proto,type,provider,provider,"0",fees,lane,nonce,ts,exp,payload,edhex,mlb64):NULL;unsigned char*s1=NULL,*s2=NULL;size_t n1=0,n2=0;char*h1=NULL,*h2=NULL;int rc=-1;if(body&&!sign_oneshot(ed,(unsigned char*)body,strlen(body),&s1,&n1)&&!sign_oneshot(ml,(unsigned char*)body,strlen(body),&s2,&n2)){h1=bytes_to_hex(s1,n1);h2=bytes_to_hex(s2,n2);char bh3[129],bh2[65];hash_primary_hex((unsigned char*)body,strlen(body),bh3);hash_legacy_hex((unsigned char*)body,strlen(body),bh2);size_t cap=strlen(body)+strlen(h1)+strlen(h2)+512;char*out=malloc(cap);if(out){snprintf(out,cap,"%sbody_hash_algo=sha3-512\nbody_hash_sha3_512=%s\nbody_hash_sha256_legacy=%s\nsig_ed25519_hex=%s\nsig_mldsa65_hex=%s\nsigned=true\n",body,bh3,bh2,h1,h2);*tx_out=out;rc=0;}}free(edhex);free(mlpem);free(mlb64);free(net);free(gen);free(proto);free(body);free(s1);free(s2);free(h1);free(h2);EVP_PKEY_free(ed);EVP_PKEY_free(ml);EVP_PKEY_free(ep);EVP_PKEY_free(mp);return rc;
+}
+static int storage_provider_auto_repair(const char*node_dir,const char*cfg){
+    if(!g_storage_ready||!g_storage_fs||!g_storage_provider_id[0]||!cfg)return 0;char*cd=cfg_get(cfg,"chain_dir"),*wd=cfg_get(cfg,"wallet_dir");if(!cd||!wd){free(cd);free(wd);return-1;}QrxDB db;if(qrxdb_init(&db,cd)){free(cd);free(wd);return-1;}long long h=current_height_from_chain(cd);int submitted=0;
+    QrxStorageRepairStartCandidate starts[QRX_STORAGE_REPAIR_MAX];size_t sn=0;if(!qrx_storage_repair_collect_starts(&db,(uint64_t)(h<0?0:h),starts,QRX_STORAGE_REPAIR_MAX,&sn))for(size_t i=0;i<sn&&submitted<1;i++){if(storage_repair_marker_waiting(node_dir,"start",starts[i].contract_id,starts[i].shard_index,h))continue;char*pl=NULL,*tx=NULL;if(!qrx_storage_repair_start_payload(&starts[i],&pl)&&!storage_provider_make_repair_tx(cd,wd,g_storage_provider_id,"STORAGE_REPAIR_START",2001u+starts[i].shard_index,pl,&tx)&&tx&&node_store_mempool_tx(node_dir,tx)==0){storage_repair_marker_write(node_dir,"start",starts[i].contract_id,starts[i].shard_index,h);submitted++;}free(pl);if(tx){OPENSSL_cleanse(tx,strlen(tx));free(tx);}}
+    QrxStorageReplacementWork work[QRX_STORAGE_REPAIR_MAX];size_t wn=0;if(!qrx_storage_repair_collect_replacement(&db,g_storage_provider_id,(uint64_t)(h<0?0:h),g_storage_fs,work,QRX_STORAGE_REPAIR_MAX,&wn))for(size_t i=0;i<wn;i++){
+        QrxStorageReplacementWork*w=&work[i];if(w->needs_reconstruction&&g_storage_discovery_ready){QrxStorageContractState c;if(!qrx_storage_contract_get(&db,w->contract_id,&c)){const QrxStorageRedundancyProfile*rp=qrx_storage_profile_by_name(c.profile);if(rp&&!rp->full_replicas&&rp->data_shards&&rp->parity_shards){QrxShardProviderSource src[QRX_STORAGE_MAX_FETCH_SOURCES];size_t n=0;if(!qrx_storage_discovery_sources_for_contract(&g_storage_discovery,&db,w->contract_id,c.shard_count,(uint64_t)h,src,QRX_STORAGE_MAX_FETCH_SOURCES,&n)&&n>=rp->data_shards){char rd[1200],tmp[1500],got[65];snprintf(rd,sizeof(rd),"%s/storage_repair_tmp",node_dir);mkdir_p(rd);snprintf(tmp,sizeof(tmp),"%s/%s-%010u.part",rd,w->contract_id,w->shard_index);QrxStorageNetworkFetchCtx fc={w->contract_id,5000,10000};if(!qrx_storage_stream_reconstruct_shard_to_file(src,n,(size_t)w->repair.physical_bytes,rp->data_shards,rp->parity_shards,w->shard_index,QRX_STORAGE_DEFAULT_FETCH_RANGE,qrx_storage_network_fetch_range,&fc,w->repair.object_id,tmp,NULL)){if(!qrx_storage_fs_put_file(g_storage_fs,tmp,got)&&!strcmp(got,w->repair.object_id)){}remove(tmp);}}}}}
+        if(w->needs_accept||(!w->needs_reconstruction&&w->repair.state==QRX_ASSIGN_REPAIRING)){if(storage_repair_marker_waiting(node_dir,"accept",w->contract_id,w->shard_index,h))continue;char*pl=NULL,*tx=NULL;if(!qrx_storage_repair_accept_payload(w,&pl)&&!storage_provider_make_repair_tx(cd,wd,g_storage_provider_id,"STORAGE_REPAIR_ACCEPT",3001u+w->shard_index,pl,&tx)&&tx&&node_store_mempool_tx(node_dir,tx)==0){storage_repair_marker_write(node_dir,"accept",w->contract_id,w->shard_index,h);submitted++;}free(pl);if(tx){OPENSSL_cleanse(tx,strlen(tx));free(tx);}continue;}
+        if(w->proof_due&&w->repair.state==QRX_ASSIGN_ACTIVE&&!storage_repair_marker_waiting(node_dir,"complete",w->contract_id,w->shard_index,h)){unsigned char*leaf=NULL;size_t leafn=0;QrxMerkleProof mp;char*pl=NULL,*tx=NULL;if(!qrx_storage_repair_build_complete_proof(&db,g_storage_fs,w,&leaf,&leafn,&mp)&&!qrx_storage_repair_complete_payload(w,leaf,leafn,&mp,&pl)&&!storage_provider_make_repair_tx(cd,wd,g_storage_provider_id,"STORAGE_REPAIR_COMPLETE",4001u+w->shard_index,pl,&tx)&&tx&&node_store_mempool_tx(node_dir,tx)==0){storage_repair_marker_write(node_dir,"complete",w->contract_id,w->shard_index,h);submitted++;}if(leaf){OPENSSL_cleanse(leaf,leafn);free(leaf);}free(pl);if(tx){OPENSSL_cleanse(tx,strlen(tx));free(tx);}}
+    }
+    qrxdb_close(&db);free(cd);free(wd);return submitted;
+}
+
 static int generals_relay_process_node(const char *node_dir){
     char cp[1024];snprintf(cp,sizeof(cp),"%s/node.conf",node_dir);char*cfg=read_file(cp,NULL);if(!cfg)return -1;char*chain=cfg_get(cfg,"chain_dir");if(!chain){free(cfg);return -1;}long long h=current_height_from_chain(chain);free(chain);free(cfg);
     char dir[1024];snprintf(dir,sizeof(dir),"%s/generals-relay",node_dir);mkdir_p(dir);int relayed=0;
@@ -4677,6 +4996,28 @@ static void node_handle_client(int fd, const char *node_dir) {
         char *b64=cfg_get(msg,"data_b64"); size_t n=0; unsigned char *raw=b64?base64_decode(b64,&n):NULL;
         if(!raw){peer_add_score(node_dir,ip,10);send_framed(fd,"status=ERR\nreason=bad_relay\n");}
         else {char *env=malloc(n+1);memcpy(env,raw,n);env[n]=0;if(generals_relay_store(node_dir,env)==0)send_framed(fd,"status=OK\nkind=generals_relay\n");else{peer_add_score(node_dir,ip,20);send_framed(fd,"status=ERR\nreason=invalid_relay\n");}free(env);free(raw);} free(b64);
+    } else if (strstr(msg, "type=STORAGE_DISCOVERY_PUSH\n") == msg) {
+        char *wb=cfg_get(msg,"wire_b64"), *chain_dir=cfg_get(node_cfg,"chain_dir"); size_t wn=0; unsigned char *wire=wb?base64_decode(wb,&wn):NULL; int accepted=0;
+        if(g_storage_discovery_ready&&wire&&chain_dir){QrxStorageProviderAnnouncement a;uint8_t*sig=NULL;size_t sl=0;QrxDB db;long long hh=current_height_from_chain(chain_dir);
+            if(!qrx_storage_discovery_wire_decode(wire,wn,&a,&sig,&sl)&&!qrxdb_init(&db,chain_dir)){accepted=qrx_storage_discovery_ingest(&g_storage_discovery,&db,&a,sig,sl,(uint64_t)(hh<0?0:hh),qrx_storage_provider_discovery_key_lookup,&db)==0;qrxdb_close(&db);}
+            free(sig); if(accepted&&g_storage_discovery_cache_path[0])qrx_storage_discovery_cache_save(&g_storage_discovery,g_storage_discovery_cache_path);
+        }
+        if(accepted){send_framed(fd,"status=OK\nkind=storage_discovery\n");storage_discovery_fanout(node_dir,wb,ip);}else{peer_add_score(node_dir,ip,5);send_framed(fd,"status=ERR\nreason=invalid_storage_discovery\n");}
+        free(wire);free(wb);free(chain_dir);
+    } else if (strstr(msg, "type=STORAGE_DISCOVERY_PULL\n") == msg) {
+        if(!g_storage_discovery_ready){send_framed(fd,"status=ERR\nreason=storage_discovery_disabled\n");}
+        else {size_t cap=64;for(size_t i=0;i<g_storage_discovery.count;i++)cap+=g_storage_discovery.entries[i].signature_len*2+2048;char *resp=malloc(cap);if(!resp)send_framed(fd,"status=ERR\nreason=oom\n");else{size_t o=(size_t)snprintf(resp,cap,"status=OK\nkind=storage_discovery_pull\ncount=%llu\n",(unsigned long long)g_storage_discovery.count);for(size_t i=0;i<g_storage_discovery.count&&o+32<cap;i++){uint8_t*w=NULL;size_t wn=0;if(!qrx_storage_discovery_wire_encode(&g_storage_discovery.entries[i].announcement,g_storage_discovery.entries[i].signature,g_storage_discovery.entries[i].signature_len,&w,&wn)){char*b=base64_encode(w,wn);o+=(size_t)snprintf(resp+o,cap-o,"entry%llu_b64=%s\n",(unsigned long long)i,b);free(b);free(w);}}send_framed(fd,resp);free(resp);}}
+    } else if (strstr(msg, "type=STORAGE_GET\n") == msg) {
+        char *cid=cfg_get(msg,"contract_id"), *sh=cfg_get(msg,"shard_index"), *oid=cfg_get(msg,"object_id"), *off=cfg_get(msg,"offset"), *ln=cfg_get(msg,"length");
+        char *chain_dir=cfg_get(node_cfg,"chain_dir");
+        uint32_t shard=sh?(uint32_t)strtoul(sh,NULL,10):UINT32_MAX; uint64_t offset=off?strtoull(off,NULL,10):UINT64_MAX; unsigned long req=ln?strtoul(ln,NULL,10):0;
+        unsigned char *data=NULL; size_t data_len=0; int ok=-1;
+        if(g_storage_ready && cid&&*cid&&oid&&strlen(oid)==64&&sh&&off&&ln&&req<=QRX_STORAGE_P2P_MAX_RANGE&&chain_dir){
+            QrxDB sdb; if(qrxdb_init(&sdb,chain_dir)==0){ok=qrx_storage_p2p_read_authorized(&sdb,g_storage_fs,g_storage_provider_id,cid,shard,oid,offset,(size_t)req,&data,&data_len);qrxdb_close(&sdb);}
+        }
+        if(ok==0){char *b64=base64_encode(data,data_len); size_t cap=strlen(b64)+256; char *resp=malloc(cap); if(resp){snprintf(resp,cap,"status=OK\nkind=storage_range\noffset=%llu\nbytes=%llu\ndata_b64=%s\n",(unsigned long long)offset,(unsigned long long)data_len,b64);send_framed(fd,resp);free(resp);} else send_framed(fd,"status=ERR\nreason=oom\n"); free(b64);free(data);}
+        else {peer_add_score(node_dir,ip,5);send_framed(fd,g_storage_ready?"status=ERR\nreason=storage_denied\n":"status=ERR\nreason=storage_disabled\n");}
+        free(cid);free(sh);free(oid);free(off);free(ln);free(chain_dir);
     } else if (strstr(msg, "type=GETPEERS\n") == msg) {
         char peers_path[1024], known_path[1024]; snprintf(peers_path, sizeof(peers_path), "%s/peers.txt", node_dir); snprintf(known_path, sizeof(known_path), "%s/known_peers.txt", node_dir);
         char *peers_txt = read_file(peers_path, NULL); char *known_txt = read_file(known_path, NULL);
@@ -4702,6 +5043,13 @@ static int connect_to(const char *host, int port) {
     return fd;
 }
 
+static int storage_discovery_push_to_peer(const char *node_dir,const char *wire_b64,const char *host,int port){
+    int fd=connect_to(host,port);if(fd<0)return -1;char*hello=NULL;build_hello_message(node_dir,&hello);if(send_framed(fd,hello)){free(hello);qrx_close_socket(fd);return -1;}free(hello);char*r=recv_framed(fd);if(!r||!strstr(r,"status=OK")){free(r);qrx_close_socket(fd);return -1;}free(r);size_t n=strlen(wire_b64)+64;char*m=malloc(n);if(!m){qrx_close_socket(fd);return -1;}snprintf(m,n,"type=STORAGE_DISCOVERY_PUSH\nwire_b64=%s\n",wire_b64);int rc=send_framed(fd,m);free(m);if(!rc){r=recv_framed(fd);rc=r&&strstr(r,"status=OK")?0:-1;free(r);}qrx_close_socket(fd);return rc;
+}
+static int storage_discovery_fanout(const char *node_dir,const char *wire_b64,const char *skip_host){
+    char p[1024];snprintf(p,sizeof(p),"%s/known_peers.txt",node_dir);char*peers=read_file(p,NULL);if(!peers){snprintf(p,sizeof(p),"%s/peers.txt",node_dir);peers=read_file(p,NULL);}if(!peers)return 0;int sent=0;char*save=NULL;for(char*ln=strtok_r(peers,"\n",&save);ln&&sent<4;ln=strtok_r(NULL,"\n",&save)){char*colon=strrchr(ln,':');if(!colon)continue;*colon=0;if(skip_host&&!*skip_host?0:(skip_host&&!strcmp(skip_host,ln)))continue;int port=atoi(colon+1);if(port>0&&peer_rep_score(node_dir,ln)>PEER_REP_MIN&&!storage_discovery_push_to_peer(node_dir,wire_b64,ln,port))sent++;}free(peers);return sent;
+}
+
 static int sendtx_to_peer(const char *node_dir, const char *tx_text, const char *host, int port) {
     int fd = connect_to(host, port); if (fd < 0) return -1;
     char *hello = NULL; build_hello_message(node_dir, &hello); if (send_framed(fd, hello) != 0) { free(hello); qrx_close_socket(fd); return -1; } free(hello);
@@ -4718,6 +5066,18 @@ static int node_run_cmd(const char *node_dir) {
     g_velocity_mempool_ready=1;
     char p[1024]; snprintf(p, sizeof(p), "%s/node.conf", node_dir); char *cfg = read_file(p, NULL); if (!cfg) die("missing node.conf");
     char *host = cfg_get(cfg, "host"), *port_s = cfg_get(cfg, "port"); int port = atoi(port_s);
+    qrx_storage_discovery_init(&g_storage_discovery);g_storage_discovery_ready=1;
+    {char *cd=cfg_get(cfg,"chain_dir");if(cd){snprintf(g_storage_discovery_cache_path,sizeof(g_storage_discovery_cache_path),"%s/storage-discovery.cache",cd);QrxDB db;if(!qrxdb_init(&db,cd)){long long hh=current_height_from_chain(cd);qrx_storage_discovery_cache_load(&g_storage_discovery,&db,g_storage_discovery_cache_path,(uint64_t)(hh<0?0:hh),qrx_storage_provider_discovery_key_lookup,&db);qrx_storage_discovery_prune(&g_storage_discovery,(uint64_t)(hh<0?0:hh));qrxdb_close(&db);}free(cd);}}
+    char *storage_enabled=cfg_get(cfg,"storage_enabled");
+    if(storage_enabled && atoi(storage_enabled)!=0){
+        char *sp=cfg_get(cfg,"storage_path"), *pid=cfg_get(cfg,"storage_provider_id"), *mx=cfg_get(cfg,"storage_max_usage_bytes"), *mf=cfg_get(cfg,"storage_min_free_space_bytes");
+        uint64_t maxu=mx?strtoull(mx,NULL,10):0, minf=mf?strtoull(mf,NULL,10):0;
+        if(!sp||!*sp||!pid||!*pid||strlen(pid)>=sizeof(g_storage_provider_id)||qrx_storage_fs_open(sp,maxu,minf,&g_storage_fs)!=0) die("storage provider configuration/init failed");
+        snprintf(g_storage_provider_id,sizeof(g_storage_provider_id),"%s",pid);g_storage_ready=1;
+        printf("storage provider enabled id=%s backend=%s path=%s\n",g_storage_provider_id,qrx_storage_fs_backend_name(),sp);
+        free(sp);free(pid);free(mx);free(mf);
+    }
+    free(storage_enabled);
     int s = socket(AF_INET, SOCK_STREAM, 0); if (s < 0) die("socket failed");
     int one=1; setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char *)&one, sizeof(one));
     qrx_set_socket_timeout(s, SOCKET_IO_TIMEOUT_SECS);
@@ -4727,12 +5087,28 @@ static int node_run_cmd(const char *node_dir) {
     printf("node listening on %s:%d\n", host, port);
     while (!g_stop) {
         generals_relay_process_node(node_dir);
+        storage_provider_auto_accept(node_dir,cfg);
+        storage_provider_auto_postor(node_dir,cfg);
+        storage_provider_auto_repair(node_dir,cfg);
         struct sockaddr_in cli; socklen_t clilen = sizeof(cli); int fd = accept(s, (struct sockaddr*)&cli, &clilen);
         if (fd < 0) { if (errno == EINTR) break; continue; }
-        node_handle_client(fd, node_dir); qrx_close_socket(fd);
+        char storage_magic[8]={0}; int storage_conn=0;
+#ifdef _WIN32
+        int pk=recv(fd,storage_magic,7,MSG_PEEK);
+#else
+        ssize_t pk=recv(fd,storage_magic,7,MSG_PEEK);
+#endif
+        if(pk==7 && !memcmp(storage_magic,"QRXSTOR",7) && g_storage_ready){
+            char *chain_dir=cfg_get(cfg,"chain_dir"); QrxDB sdb;
+            if(chain_dir && qrxdb_init(&sdb,chain_dir)==0){ qrx_storage_qrxp2p_serve_fd(fd,&sdb,g_storage_fs,g_storage_provider_id); qrxdb_close(&sdb); storage_conn=1; storage_provider_auto_accept(node_dir,cfg); storage_provider_auto_postor(node_dir,cfg); storage_provider_auto_repair(node_dir,cfg); }
+            free(chain_dir);
+        }
+        if(!storage_conn){ node_handle_client(fd, node_dir); qrx_close_socket(fd); }
     }
     qrx_close_socket(s); free(cfg); free(host); free(port_s);
     if(g_velocity_mempool_ready){qrx_velocity_mempool_checkpoint(&g_velocity_mempool);qrx_velocity_mempool_close(&g_velocity_mempool);g_velocity_mempool_ready=0;}
+    if(g_storage_ready){qrx_storage_fs_close(g_storage_fs);g_storage_fs=NULL;g_storage_ready=0;OPENSSL_cleanse(g_storage_provider_id,sizeof(g_storage_provider_id));}
+    if(g_storage_discovery_ready){if(g_storage_discovery_cache_path[0])qrx_storage_discovery_cache_save(&g_storage_discovery,g_storage_discovery_cache_path);qrx_storage_discovery_free(&g_storage_discovery);g_storage_discovery_ready=0;g_storage_discovery_cache_path[0]=0;}
     return 0;
 }
 
@@ -5515,7 +5891,7 @@ static int verified_unshield_cmd(const char*c,const char*w,const char*to,long lo
    a threshold of unique root signatures over an immutable proposal file. */
 #define QRX_GOV_PROPOSAL_FORMAT "qrx-governance-proposal-v1"
 #define QRX_GOV_SIGNATURE_FORMAT "qrx-governance-signature-v1"
-#define QRX_GOV_SUPPORTED_PROTOCOL 8
+#define QRX_GOV_SUPPORTED_PROTOCOL 9
 #define QRX_GOV_SUPPORTED_PRIVACY 4
 
 static void gov_paths(const char *chain_dir,char *conf,size_t csz,char *roots,size_t rsz,char *log,size_t lsz,char *upg,size_t usz){
@@ -6712,7 +7088,9 @@ static int supply_inv_cb(const char*k,const char*v,uint32_t vl,void*ctx){(void)v
     if(!strncmp(k,"acct:balance:",13)) return supply_inv_add(&a->balances,x);
     if(!strncmp(k,"staking:self:",13)||!strncmp(k,"staking:delegation:",19)) return supply_inv_add(&a->bonded,x);
     if(!strncmp(k,"staking:unbonding:",18)||!strncmp(k,"staking:undelegating:",21)) return supply_inv_add(&a->unbonding,x);
-    if(!strncmp(k,"consensus:fee_pool:",19)||strstr(k,"treasury")||strstr(k,"prize_pool_atoms")) return supply_inv_add(&a->protocol,x); return 0;}
+    if(!strncmp(k,"consensus:fee_pool:",19)||strstr(k,"treasury")||strstr(k,"prize_pool_atoms")||
+       !strcmp(k,"consensus:storage:provider_bonds")||!strcmp(k,"consensus:storage:provider_escrow")||
+       !strcmp(k,"consensus:storage:resilience")||!strcmp(k,"consensus:qrxnet:domain_bonds")) return supply_inv_add(&a->protocol,x); return 0;}
 static int supply_invariant_cmd(const char*c){QrxDB db;if(qrxdb_init(&db,c))die("QRXDB init failed");SupplyInvariantAcc a={0};if(qrxdb_scan_prefix(&db,"",supply_inv_cb,&a)){qrxdb_close(&db);die("supply invariant scan failed");}qrxdb_close(&db);
  long long accounted=0,t=0;checked_add_ll(a.balances,a.bonded,"supply accounted",&t);checked_add_ll(t,a.unbonding,"supply accounted",&accounted);checked_add_ll(accounted,a.protocol,"supply accounted",&accounted);
  long long minted=supply_get(c,"minted_supply"),burned=supply_get(c,"burned_supply"),expected=minted-burned;
@@ -6732,6 +7110,7 @@ int qrx_backend_main(int argc, char **argv) {
     if (!strcmp(argv[1], "keygen") && argc == 3) return wallet_keygen(argv[2]);
     if (!strcmp(argv[1], "seed-new") && argc == 3) return wallet_seed_new(argv[2]);
     if (!strcmp(argv[1], "wallet-info") && argc == 3) return wallet_info_cmd(argv[2]);
+    if (!strcmp(argv[1], "drive-pq-ensure") && argc == 3) return drive_pq_ensure_cmd(argv[2]);
     if (!strcmp(argv[1], "wallet-recovery-refresh") && argc == 3) return wallet_recovery_refresh_cmd(argv[2]);
     if (!strcmp(argv[1], "wallet-new-address") && argc == 3) return wallet_new_address_cmd(argv[2]);
     if (!strcmp(argv[1], "listaddresses") && argc == 3) return wallet_list_addresses_cmd(argv[2]);
@@ -6888,6 +7267,14 @@ int qrx_backend_main(int argc, char **argv) {
     if (!strcmp(argv[1], "create-crosschain-redeem-raw-tx") && (argc == 10 || argc == 11 || argc == 12)) return create_crosschain_redeem_raw_tx_cmd(argv[2],argv[3],argv[4],argv[5],argv[6],argv[7],argv[8],argv[9],argc>=11?argv[10]:NULL,argc==12?argv[11]:NULL);
     if (!strcmp(argv[1], "create-crosschain-refund-raw-tx") && (argc == 9 || argc == 10 || argc == 11)) return create_crosschain_refund_raw_tx_cmd(argv[2],argv[3],argv[4],argv[5],argv[6],argv[7],argv[8],argc>=10?argv[9]:NULL,argc==11?argv[10]:NULL);
     if (!strcmp(argv[1], "velocity-info") && argc == 3) return velocity_info_cmd(argv[2]);
+    if (!strcmp(argv[1], "resource-info") && (argc == 3 || argc == 4)) return resource_info_cmd(argv[2], argc == 4 ? atoll(argv[3]) : -1);
+    if (!strcmp(argv[1], "storage-split") && argc == 3) return storage_split_cmd(argv[2]);
+    if (!strcmp(argv[1], "storage-fs-init") && argc == 5) return storage_fs_init_cmd(argv[2], argv[3], argv[4]);
+    if (!strcmp(argv[1], "storage-fs-info") && argc == 3) return storage_fs_info_cmd(argv[2]);
+    if (!strcmp(argv[1], "storage-fs-put") && argc == 4) return storage_fs_put_cmd(argv[2], argv[3]);
+    if (!strcmp(argv[1], "storage-fs-get") && argc == 5) return storage_fs_get_cmd(argv[2], argv[3], argv[4]);
+    if (!strcmp(argv[1], "storage-fs-delete") && argc == 4) return storage_fs_delete_cmd(argv[2], argv[3]);
+    if (!strcmp(argv[1], "storage-fs-recover") && argc == 3) return storage_fs_recover_cmd(argv[2]);
     if (!strcmp(argv[1], "create-velocity-raw-tx") && (argc == 12 || argc == 13 || argc == 14)) return create_velocity_raw_tx_cmd(argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8], argv[9], argv[10], argv[11], argc >= 13 ? argv[12] : NULL, argc == 14 ? argv[13] : NULL);
     if (!strcmp(argv[1], "create-raw-tx") && (argc >= 8 && argc <= 12)) return create_raw_tx_cmd(argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argc >= 9 ? argv[8] : NULL, argc >= 10 ? argv[9] : NULL, argc >= 11 ? argv[10] : NULL, argc >= 12 ? argv[11] : NULL);
     if (!strcmp(argv[1], "signrawtransactionwithwallet") && argc == 6) return signrawtransactionwithwallet_cmd(argv[2], argv[3], argv[4], argv[5]);
