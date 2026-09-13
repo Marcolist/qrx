@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <openssl/crypto.h>
+#include <openssl/rand.h>
 
 #ifdef _WIN32
   #ifndef WIN32_LEAN_AND_MEAN
@@ -146,10 +147,14 @@ static long long g_commission_bps = 1000;
 static int g_blocktime_override_set = 0;
 static int g_commission_override_set = 0;
 static int g_block_producer_enabled = 1;
+#define QRX_MAX_VALIDATOR_FLEET 4096
+static char g_validator_wallet_names[QRX_MAX_VALIDATOR_FLEET][128];
+static int g_validator_wallet_count = 0;
 static char g_backend_path[PATH_MAX];
 static char g_network[64];
 static char g_base[PATH_MAX], g_cdir[PATH_MAX], g_wdir[PATH_MAX], g_ndir[PATH_MAX], g_sock[PATH_MAX];
 static char g_rpc_bind[128] = "127.0.0.1";
+static int g_allow_remote_rpc = 0;
 static int g_rpc_port = 0;
 #ifdef _WIN32
 static qrx_socket_t g_rpc_listen_fd = INVALID_SOCKET;
@@ -158,9 +163,19 @@ static qrx_socket_t g_rpc_listen_fd = -1;
 #endif
 static char g_rpc_user[128] = "";
 static char g_rpc_password[256] = "";
+static char g_rpc_token[129] = "";
+typedef struct { char wallet[128]; char secret[256]; int unlocked; } QrxSignerSession;
+static QrxSignerSession g_signer_sessions[QRX_MAX_VALIDATOR_FLEET]; static int g_signer_session_count=0;
+static QrxSignerSession* signer_session(const char*w,int create);
 static char g_wallet_passphrase[256] = "";
 static int g_wallet_passphrase_default_disabled = 0;
 static time_t g_start_time = 0;
+/* Phase 7.2.13: validator signing is fail-closed while the node is catching up.
+   This is runtime safety state only; consensus still decides canonical blocks. */
+static volatile int g_validator_signing_paused = 1;
+static long long g_validator_blocks_behind = 0;
+static time_t g_validator_sync_safe_since = 0;
+static char g_validator_pause_reason[96] = "startup_sync_check";
 
 typedef struct {
     const char *node_dir;
@@ -181,7 +196,7 @@ static void stop_node_process(void) {
 }
 
 static void usage(void){
-    puts("qrxd [--network <alpha|testnet|regtest|mainnet>] [--datadir PATH] [--wallet NAME] [--listen host:port] [--addnode host:port]... [--seednode host:port]... [--rpc-bind host:port] [--rpc-user USER] [--rpc-password PASS] [--wallet-passphrase PASS] [--no-wallet-passphrase-default] [--blocktime SECONDS] [--commission-bps BPS] [--no-block-producer]\nJSON-RPC is served over HTTP on --rpc-bind. Default: 127.0.0.1:3766x based on network. Auth is enabled when --rpc-user and --rpc-password are provided. For validator/block-producer signing, set QRX_PASSPHRASE or pass --wallet-passphrase. Alpha/testnet/regtest keep backward compatibility with the auto-generated default passphrase unless --no-wallet-passphrase-default is used.");
+    puts("qrxd [--network <alpha|testnet|regtest|mainnet>] [--datadir PATH] [--wallet NAME] [--listen host:port] [--addnode host:port]... [--seednode host:port]... [--rpc-bind host:port] [--allow-remote-rpc] [--rpc-user USER] [--rpc-password PASS] [--wallet-passphrase PASS] [--no-wallet-passphrase-default] [--blocktime SECONDS] [--commission-bps BPS] [--no-block-producer] [--validator-wallet NAME]...\nJSON-RPC is local-only by default on 127.0.0.1:3766x. Binding RPC outside IPv4 loopback is rejected unless --allow-remote-rpc is explicitly supplied AND both --rpc-user and --rpc-password are non-empty. P2P --listen is separate from wallet RPC and may be public. For validator/block-producer signing, set QRX_PASSPHRASE or pass --wallet-passphrase. Alpha/testnet/regtest keep backward compatibility with the auto-generated default passphrase unless --no-wallet-passphrase-default is used.");
 }
 
 static void qrx_close_rpc_listener(void) {
@@ -382,6 +397,13 @@ static int run_capture(char *const argv[], char *out, size_t out_sz){
 }
 
 
+static int run_capture_signer(char *const argv[],const char*wallet_name,char*out,size_t out_sz){QrxSignerSession*ss=signer_session(wallet_name,0);if(!ss||!ss->unlocked)return -1;
+#ifndef _WIN32
+ int pfd[2];if(pipe(pfd))return -1;pid_t pid=fork();if(pid<0){close(pfd[0]);close(pfd[1]);return -1;}if(pid==0){dup2(pfd[1],STDOUT_FILENO);dup2(pfd[1],STDERR_FILENO);close(pfd[0]);close(pfd[1]);setenv("QRX_PASSPHRASE",ss->secret,1);execv(g_backend_path,argv);_exit(127);}close(pfd[1]);size_t off=0;ssize_t n;while((n=read(pfd[0],out+off,out_sz>off?out_sz-off-1:0))>0){off+=(size_t)n;if(off+1>=out_sz)break;}out[off]=0;close(pfd[0]);int st=0;waitpid(pid,&st,0);return WIFEXITED(st)&&WEXITSTATUS(st)==0?0:-1;
+#else
+ SetEnvironmentVariableA("QRX_PASSPHRASE",ss->secret);int rc=run_capture(argv,out,out_sz);SetEnvironmentVariableA("QRX_PASSPHRASE",NULL);return rc;
+#endif
+}
 static int copy_file_local(const char *src, const char *dst){
     FILE *in=fopen(src,"rb"); if(!in) return -1;
     FILE *out=fopen(dst,"wb"); if(!out){ fclose(in); return -1; }
@@ -402,6 +424,51 @@ static int cfg_get_line_local(const char *path, const char *key, char *out, size
     char line[4096]; size_t klen=strlen(key); int rc=-1;
     while(fgets(line,sizeof(line),f)){ trim_nl(line); if(strlen(line)>klen && !strncmp(line,key,klen) && line[klen]=='='){ snprintf(out,out_sz,"%s",line+klen+1); rc=0; break; }}
     fclose(f); return rc;
+}
+
+static long long qrx_connection_count(void);
+static long long qrx_best_peer_height(long long local_height);
+static void qrx_best_block_info(long long *height, char *hash, size_t hash_sz, long long *block_time);
+
+static long long qrx_chain_cfg_ll_local(const char *key, long long defv) {
+    char path[PATH_MAX], val[128];
+    snprintf(path, sizeof(path), "%s/genesis.cfg", g_cdir);
+    if(cfg_get_line_local(path, key, val, sizeof(val)) == 0) return atoll(val);
+    return defv;
+}
+
+static int validator_catchup_safe(void) {
+    long long h=0, bt=0; char bh[256]={0};
+    qrx_best_block_info(&h,bh,sizeof(bh),&bt);
+    long long peers=qrx_connection_count();
+    long long peer_h=qrx_best_peer_height(h);
+    long long highest=peer_h>h?peer_h:h;
+    long long behind=highest>h?highest-h:0;
+    long long max_behind=qrx_chain_cfg_ll_local("validator_catchup_max_blocks",2);
+    long long min_peers=qrx_chain_cfg_ll_local("validator_catchup_min_peers",1);
+    long long stable=qrx_chain_cfg_ll_local("validator_catchup_stable_seconds",30);
+    if(!strcmp(g_network,"regtest")) min_peers=0;
+    g_validator_blocks_behind=behind;
+    if(peers < min_peers) {
+        g_validator_signing_paused=1; g_validator_sync_safe_since=0;
+        snprintf(g_validator_pause_reason,sizeof(g_validator_pause_reason),"waiting_for_peers");
+        return 0;
+    }
+    if(behind > max_behind) {
+        g_validator_signing_paused=1; g_validator_sync_safe_since=0;
+        snprintf(g_validator_pause_reason,sizeof(g_validator_pause_reason),"catching_up");
+        return 0;
+    }
+    time_t now=time(NULL);
+    if(g_validator_sync_safe_since==0) g_validator_sync_safe_since=now;
+    if(stable>0 && now-g_validator_sync_safe_since < stable) {
+        g_validator_signing_paused=1;
+        snprintf(g_validator_pause_reason,sizeof(g_validator_pause_reason),"sync_stabilizing");
+        return 0;
+    }
+    g_validator_signing_paused=0;
+    snprintf(g_validator_pause_reason,sizeof(g_validator_pause_reason),"ready");
+    return 1;
 }
 
 static int spawn_node_process(void){
@@ -453,6 +520,8 @@ static void *maint_loop(void *arg){
         run_capture(discover, buf, sizeof(buf));
         run_capture(bootstrap, buf, sizeof(buf));
         run_capture(process, buf, sizeof(buf));
+        char *generals_offline[] = { g_backend_path, "generals-offline-process", g_cdir, NULL };
+        run_capture(generals_offline, buf, sizeof(buf));
         run_capture(decay, buf, sizeof(buf));
         for(int i=0;i<5 && g_running;i++) sleep(1);
     }
@@ -462,6 +531,20 @@ static void *maint_loop(void *arg){
     return NULL;
 #endif
 }
+
+static int fleet_wallet_dir(int idx, char *out, size_t out_sz) {
+    if(idx < 0 || idx >= g_validator_wallet_count || !out || out_sz == 0) return -1;
+    snprintf(out, out_sz, "%s/wallets/%s", g_base, g_validator_wallet_names[idx]);
+    return 0;
+}
+
+static int fleet_has_name(const char *name) {
+    for(int i=0;i<g_validator_wallet_count;i++) if(!strcmp(g_validator_wallet_names[i], name)) return 1;
+    return 0;
+}
+
+static unsigned long long g_fleet_proposer_cursor = 0;
+
 
 #ifdef _WIN32
 static DWORD WINAPI producer_loop(LPVOID arg){
@@ -473,25 +556,65 @@ static void *producer_loop(void *arg){
     while(g_running){
         for(int i=0;i<g_blocktime_seconds && g_running;i++) sleep(1);
         if(!g_running) break;
+        /* Never propose or vote while behind the peer head, while disconnected on a
+           public network, or during the short post-sync stabilization window. */
+        if(!validator_catchup_safe()) continue;
         char out[65536], block_path[PATH_MAX], vote_path[PATH_MAX], height_s[64], round_s[64], validator[512], vote_dest[PATH_MAX];
         char max_txs_s[16]; snprintf(max_txs_s,sizeof(max_txs_s),"100");
-        char *propose[] = { g_backend_path, "propose-block", g_ndir, max_txs_s, NULL };
-        if(run_capture(propose,out,sizeof(out))!=0) continue;
+        /* Phase 7.2.9: one synchronized node, many validator signing identities.
+           Proposal identity rotates deterministically by next height. All configured
+           signer identities vote on the same proposal, each with its own double-sign lock. */
+        int signer_count = g_validator_wallet_count;
+        int proposer_idx = -1;
+        char proposer_wdir[PATH_MAX]={0};
+        int proposed = -1;
+        if(signer_count > 0) {
+            /* A locked/under-staked fleet wallet must not stall the whole node.
+               Try each configured signer once, starting from the round-robin cursor. */
+            for(int attempt=0; attempt<signer_count; attempt++) {
+                int candidate = (int)((g_fleet_proposer_cursor + (unsigned long long)attempt) % (unsigned long long)signer_count);
+                if(fleet_wallet_dir(candidate, proposer_wdir, sizeof(proposer_wdir))!=0) continue;
+                char *propose_as[] = { g_backend_path, "propose-block-as", g_ndir, proposer_wdir, max_txs_s, NULL };
+                if(run_capture_signer(propose_as,g_validator_wallet_names[candidate],out,sizeof(out))==0) { proposer_idx=candidate; proposed=0; break; }
+            }
+        } else {
+            char *propose[] = { g_backend_path, "propose-block", g_ndir, max_txs_s, NULL };
+            proposed = run_capture(propose,out,sizeof(out));
+        }
+        if(proposed!=0) continue;
         if(parse_last_path_with_suffix(out,".block",block_path,sizeof(block_path))!=0) continue;
         char *verify[] = { g_backend_path, "verify-block", g_cdir, block_path, NULL };
-        run_capture(verify,out,sizeof(out));
-        char *vote[] = { g_backend_path, "vote-block", g_ndir, block_path, NULL };
-        if(run_capture(vote,out,sizeof(out))!=0) continue;
-        if(parse_last_path_with_suffix(out,".vote",vote_path,sizeof(vote_path))==0){
-            if(cfg_get_line_local(vote_path,"height",height_s,sizeof(height_s))==0 && cfg_get_line_local(vote_path,"round",round_s,sizeof(round_s))==0 && cfg_get_line_local(vote_path,"validator",validator,sizeof(validator))==0){
-                snprintf(vote_dest,sizeof(vote_dest),"%s/consensus/votes/%s-%s-%s.vote",g_cdir,height_s,round_s,validator);
-                copy_file_local(vote_path,vote_dest);
+        if(run_capture(verify,out,sizeof(out))!=0) continue;
+
+        int votes_written = 0;
+        if(signer_count > 0) {
+            for(int si=0; si<signer_count; si++) {
+                char signer_wdir[PATH_MAX]={0}; if(fleet_wallet_dir(si, signer_wdir, sizeof(signer_wdir))!=0) continue;
+                char *vote_as[] = { g_backend_path, "vote-block-as", g_ndir, signer_wdir, block_path, NULL };
+                if(run_capture_signer(vote_as,g_validator_wallet_names[si],out,sizeof(out))!=0) continue;
+                if(parse_last_path_with_suffix(out,".vote",vote_path,sizeof(vote_path))==0 &&
+                   cfg_get_line_local(vote_path,"height",height_s,sizeof(height_s))==0 &&
+                   cfg_get_line_local(vote_path,"round",round_s,sizeof(round_s))==0 &&
+                   cfg_get_line_local(vote_path,"validator",validator,sizeof(validator))==0){
+                    snprintf(vote_dest,sizeof(vote_dest),"%s/consensus/votes/%s-%s-%s.vote",g_cdir,height_s,round_s,validator);
+                    if(copy_file_local(vote_path,vote_dest)==0) votes_written++;
+                }
+            }
+        } else {
+            char *vote[] = { g_backend_path, "vote-block", g_ndir, block_path, NULL };
+            if(run_capture(vote,out,sizeof(out))==0 && parse_last_path_with_suffix(out,".vote",vote_path,sizeof(vote_path))==0){
+                if(cfg_get_line_local(vote_path,"height",height_s,sizeof(height_s))==0 && cfg_get_line_local(vote_path,"round",round_s,sizeof(round_s))==0 && cfg_get_line_local(vote_path,"validator",validator,sizeof(validator))==0){
+                    snprintf(vote_dest,sizeof(vote_dest),"%s/consensus/votes/%s-%s-%s.vote",g_cdir,height_s,round_s,validator);
+                    if(copy_file_local(vote_path,vote_dest)==0) votes_written++;
+                }
             }
         }
+        if(votes_written <= 0) continue;
         char *tally[] = { g_backend_path, "tally-votes", g_cdir, block_path, NULL };
         run_capture(tally,out,sizeof(out));
         char *finalize[] = { g_backend_path, "finalize-block", g_cdir, block_path, NULL };
         if(run_capture(finalize,out,sizeof(out))==0){
+            if(signer_count > 0 && proposer_idx >= 0) g_fleet_proposer_cursor = (unsigned long long)proposer_idx + 1ULL;
             char bps[32]; snprintf(bps,sizeof(bps),"%lld",g_commission_bps);
             char *reward[] = { g_backend_path, "reward-epoch-auto", g_cdir, bps, "--block-finalized", NULL };
             run_capture(reward,out,sizeof(out));
@@ -962,6 +1085,48 @@ static int parse_rpc_bind_arg(const char *arg) {
     return 0;
 }
 
+static int rpc_bind_is_ipv4_loopback(const char *host) {
+    struct in_addr addr;
+    if(!host || inet_pton(AF_INET, host, &addr) != 1) return 0;
+    const unsigned char *octets = (const unsigned char *)&addr.s_addr;
+    return octets[0] == 127;
+}
+
+static int validate_rpc_exposure(void) {
+    if(rpc_bind_is_ipv4_loopback(g_rpc_bind)) return 0;
+    if(!g_allow_remote_rpc) {
+        fprintf(stderr,
+            "SECURITY: refusing non-loopback RPC bind %s:%d. "
+            "Wallet RPC is local-only by default. If remote RPC is intentionally required, "
+            "use --allow-remote-rpc together with non-empty --rpc-user and --rpc-password.\n",
+            g_rpc_bind, g_rpc_port);
+        return -1;
+    }
+    if(!g_rpc_user[0] || !g_rpc_password[0]) {
+        fprintf(stderr,
+            "SECURITY: remote RPC requires BOTH --rpc-user and --rpc-password. "
+            "Refusing to expose unauthenticated wallet RPC on %s:%d.\n",
+            g_rpc_bind, g_rpc_port);
+        return -1;
+    }
+    fprintf(stderr,
+        "WARNING: remote QRX RPC explicitly enabled on %s:%d. "
+        "Use a host firewall/VPN and never expose this port directly to the public Internet.\n",
+        g_rpc_bind, g_rpc_port);
+    return 0;
+}
+
+static int qrx_random_token_hex(char*out,size_t out_sz){ unsigned char b[32]; if(out_sz<65)return -1; if(RAND_bytes(b,sizeof(b))!=1)return -1; for(size_t i=0;i<sizeof(b);i++)sprintf(out+i*2,"%02x",b[i]); out[64]=0; return 0;}
+static int qrx_write_rpc_token(void){ char p[PATH_MAX]; snprintf(p,sizeof(p),"%s/rpc.token",g_cdir); if(qrx_random_token_hex(g_rpc_token,sizeof(g_rpc_token)))return -1; FILE*f=fopen(p,"wb");if(!f)return -1;fprintf(f,"%s\n",g_rpc_token);fclose(f);
+#ifndef _WIN32
+ chmod(p,0600);
+#endif
+ return 0;}
+static int rpc_token_ok(const char*req){ if(!g_rpc_token[0])return 0; char exp[256];snprintf(exp,sizeof(exp),"X-QRX-RPC-Token: %s",g_rpc_token); return strstr(req,exp)!=NULL;}
+static int header_has_json_content_type(const char*r){ const char*end=strstr(r,"\r\n\r\n");const char*h=qrx_strcasestr_local(r,"Content-Type:");const char*j=h?qrx_strcasestr_local(h,"application/json"):NULL;return end&&h&&j&&j<end;}
+static int origin_allowed(const char*r){ const char*o=qrx_strcasestr_local(r,"Origin:"); if(!o)return 1; return !strncmp(o+7," http://localhost",17)||!strncmp(o+7," http://127.0.0.1",17)||!strncmp(o+7," tauri://localhost",18)||!strncmp(o+7," https://tauri.localhost",24);}
+static int host_allowed(const char*r){ char want[128];snprintf(want,sizeof(want),"Host: 127.0.0.1:%d",g_rpc_port); if(strstr(r,want))return 1;snprintf(want,sizeof(want),"Host: localhost:%d",g_rpc_port);return strstr(r,want)!=NULL;}
+static QrxSignerSession* signer_session(const char*w,int create){for(int i=0;i<g_signer_session_count;i++)if(!strcmp(g_signer_sessions[i].wallet,w))return &g_signer_sessions[i];if(!create||g_signer_session_count>=QRX_MAX_VALIDATOR_FLEET)return NULL;QrxSignerSession*s=&g_signer_sessions[g_signer_session_count++];memset(s,0,sizeof(*s));snprintf(s->wallet,sizeof(s->wallet),"%s",w);return s;}
 static const char *http_status_text(int code) {
     if(code == 200) return "OK";
     if(code == 400) return "Bad Request";
@@ -977,8 +1142,8 @@ static void http_response(char *out, size_t out_sz, int code, const char *body, 
     snprintf(out, out_sz,
         "HTTP/1.1 %d %s\r\n"
         "Content-Type: application/json\r\n"
-        "Access-Control-Allow-Origin: http://localhost\r\n"
-        "Access-Control-Allow-Headers: Authorization, Content-Type\r\n"
+        "Access-Control-Allow-Origin: tauri://localhost\r\n"
+        "Access-Control-Allow-Headers: Authorization, Content-Type, X-QRX-RPC-Token\r\n"
         "Access-Control-Allow-Methods: POST, OPTIONS\r\n"
         "%s"
         "Content-Length: %zu\r\n"
@@ -1089,13 +1254,15 @@ static int json_get_params_as_cmd_tail(const char *json, char *out, size_t out_s
 
 static void handle_json_rpc_http(const char *req, char *resp, size_t resp_sz) {
     if(strstr(req, "OPTIONS ") == req) {
-        http_response(resp, resp_sz, 200, "{\"ok\":true}\n", 0);
-        return;
+        if(!origin_allowed(req) || !host_allowed(req)){http_response(resp,resp_sz,403,"{\"ok\":false,\"error\":\"forbidden origin/host\"}\n",0);return;}
+        http_response(resp, resp_sz, 200, "{\"ok\":true}\n", 0); return;
     }
-    if(!strstr(req, "POST ") || (!strstr(req, " /rpc ") && !strstr(req, " / "))) {
+    if(!strstr(req, "POST ") || !strstr(req, " /rpc ")) {
         http_response(resp, resp_sz, 404, "{\"ok\":false,\"error\":\"not found\"}\n", 0);
         return;
     }
+    if(!host_allowed(req) || !origin_allowed(req) || !header_has_json_content_type(req)) { http_response(resp,resp_sz,403,"{\"ok\":false,\"error\":\"RPC host/origin/content-type rejected\"}\n",0); return; }
+    if(!rpc_token_ok(req)) { http_response(resp,resp_sz,401,"{\"ok\":false,\"error\":\"missing/invalid local RPC session token\"}\n",0); return; }
     if(!rpc_auth_ok(req)) {
         http_response(resp, resp_sz, 401, "{\"ok\":false,\"error\":\"unauthorized\"}\n", 1);
         return;
@@ -1176,6 +1343,26 @@ static int handle_command(const char *cmdline, char *resp, size_t resp_sz){
         snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"getnetworkinfo\",\"result\":{\"version\":%s,\"subversion\":%s,\"protocolversion\":6,\"connections\":%lld,\"listen\":true,\"networkactive\":true,\"localservices\":\"NODE_NETWORK\"}}\n", vjs, subjs, con);
         return 0;
     }
+    if(!strcmp(args[0], "getmainnethealth")){
+        long long h=0, bt=0; char bh[256]={0};
+        qrx_best_block_info(&h,bh,sizeof(bh),&bt);
+        long long peer_h=qrx_best_peer_height(h), highest=peer_h>h?peer_h:h;
+        long long behind=highest>h?highest-h:0, con=qrx_connection_count();
+        char srout[8192]={0}, sri[12000]={0}, pout[8192]={0}, pi[12000]={0}, siout[8192]={0}, sii[12000]={0};
+        char *srargv[]={g_backend_path,"state-root",g_cdir,NULL};
+        char *pargv[]={g_backend_path,"protocol-info",g_cdir,NULL};
+        char *siargv[]={g_backend_path,"supply-invariant",g_cdir,NULL};
+        int src=run_capture(srargv,srout,sizeof(srout));
+        int prc=run_capture(pargv,pout,sizeof(pout));
+        int sirc=run_capture(siargv,siout,sizeof(siout));
+        if(src==0) json_keyval_object(sri,sizeof(sri),srout); else snprintf(sri,sizeof(sri),"{\"error\":\"state-root unavailable\"}");
+        if(prc==0||prc==2) json_keyval_object(pi,sizeof(pi),pout); else snprintf(pi,sizeof(pi),"{\"error\":\"protocol-info unavailable\"}");
+        if(sirc==0) json_keyval_object(sii,sizeof(sii),siout); else snprintf(sii,sizeof(sii),"{\"status\":\"FAIL\"}");
+        const char *health=(behind>2||con<1||sirc!=0)?"YELLOW":"GREEN";
+        char hjs[64], njs[128], bhjs[512]; json_string(hjs,sizeof(hjs),health); json_string(njs,sizeof(njs),g_network); json_string(bhjs,sizeof(bhjs),bh);
+        snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"getmainnethealth\",\"result\":{\"health\":%s,\"network\":%s,\"height\":%lld,\"best_peer_height\":%lld,\"blocks_behind\":%lld,\"bestblockhash\":%s,\"connections\":%lld,\"block_time\":%lld,\"state\":%s,\"protocol\":%s,\"supply_invariant\":%s}}\n",hjs,njs,h,peer_h,behind,bhjs,con,bt,sri,pi,sii);
+        return 0;
+    }
     if(!strcmp(args[0], "getnodestatus")){
         long long h=0, bt=0; char bh[256]={0};
         qrx_best_block_info(&h, bh, sizeof(bh), &bt);
@@ -1194,7 +1381,8 @@ static int handle_command(const char *cmdline, char *resp, size_t resp_sz){
         json_string(vjs,sizeof(vjs),QRX_VERSION);
         json_string(bjs,sizeof(bjs),QRX_BUILD_ID);
         json_string(ssljs,sizeof(ssljs),OpenSSL_version(OPENSSL_VERSION));
-        snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"getnodestatus\",\"result\":{\"version\":%s,\"build\":%s,\"network\":%s,\"uptime\":%lld,\"connections\":%lld,\"listening\":true,\"networkactive\":true,\"local_height\":%lld,\"best_peer_height\":%lld,\"highest_known_block\":%lld,\"blocks_behind\":%lld,\"sync_percent\":%.2f,\"bestblockhash\":%s,\"wallet_loaded\":%s,\"wallet_address\":%s,\"block_producer\":%s,\"node_pid\":%ld,\"rpc\":\"%s\",\"hybrid_crypto\":true,\"mldsa\":true,\"openssl\":%s}}\n", vjs, bjs, net, up, con, h, peer_h, highest, behind, sync, hashjs, wallet_loaded ? "true" : "false", ajs, g_block_producer_enabled ? "true" : "false", (long)g_node_pid, g_sock, ssljs);
+        char pausejs[256]; json_string(pausejs,sizeof(pausejs),g_validator_pause_reason);
+        snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"getnodestatus\",\"result\":{\"version\":%s,\"build\":%s,\"network\":%s,\"uptime\":%lld,\"connections\":%lld,\"listening\":true,\"networkactive\":true,\"local_height\":%lld,\"best_peer_height\":%lld,\"highest_known_block\":%lld,\"blocks_behind\":%lld,\"sync_percent\":%.2f,\"bestblockhash\":%s,\"wallet_loaded\":%s,\"wallet_address\":%s,\"block_producer\":%s,\"validator_signing_paused\":%s,\"validator_pause_reason\":%s,\"validator_catchup_blocks_behind\":%lld,\"validator_auto_resume\":true,\"node_pid\":%ld,\"rpc\":\"%s\",\"hybrid_crypto\":true,\"mldsa\":true,\"openssl\":%s}}\n", vjs, bjs, net, up, con, h, peer_h, highest, behind, sync, hashjs, wallet_loaded ? "true" : "false", ajs, g_block_producer_enabled ? "true" : "false", g_validator_signing_paused ? "true" : "false", pausejs, g_validator_blocks_behind, (long)g_node_pid, g_sock, ssljs);
         return 0;
     }
     if(!strcmp(args[0], "getmempoolinfo")){
@@ -1228,11 +1416,25 @@ static int handle_command(const char *cmdline, char *resp, size_t resp_sz){
         snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"getvalidatorstatus\",\"result\":{\"wallet_address\":%s,\"block_producer_enabled\":%s,\"staking\":%s}}\n", ajs, g_block_producer_enabled ? "true" : "false", obj);
         return 0;
     }
+    if(!strcmp(args[0], "setvalidatorfleet")){
+        /* 7.2.11: hot-reload validator signer identities without restarting the node.
+           Argument is a comma-separated list of wallet names; '-' clears the fleet. */
+        g_validator_wallet_count = 0;
+        if(argc >= 2 && strcmp(args[1], "-") != 0){
+            char tmp[32768]; snprintf(tmp,sizeof(tmp),"%s",args[1]);
+            for(char *tok=strtok(tmp,","); tok && g_validator_wallet_count<QRX_MAX_VALIDATOR_FLEET; tok=strtok(NULL,",")){
+                if(!*tok || strchr(tok,'/') || strchr(tok,'\\') || strstr(tok,"..")) continue;
+                if(!fleet_has_name(tok)) snprintf(g_validator_wallet_names[g_validator_wallet_count++],sizeof(g_validator_wallet_names[0]),"%s",tok);
+            }
+        }
+        snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"setvalidatorfleet\",\"result\":{\"runtime_applied\":true,\"validator_fleet_count\":%d}}\n",g_validator_wallet_count);
+        return 0;
+    }
     if(!strcmp(args[0], "getblockproducerinfo")){
         char addr[512]={0}, ajs[1024]={0};
         int has_wallet = qrx_get_wallet_address(g_wdir, addr, sizeof(addr)) == 0;
         json_string(ajs, sizeof(ajs), has_wallet ? addr : "");
-        snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"getblockproducerinfo\",\"result\":{\"enabled\":%s,\"wallet_address\":%s,\"blocktime_seconds\":%d,\"commission_bps\":%lld,\"node_pid\":%ld}}\n", g_block_producer_enabled ? "true" : "false", ajs, g_blocktime_seconds, g_commission_bps, (long)g_node_pid);
+        snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"getblockproducerinfo\",\"result\":{\"enabled\":%s,\"wallet_address\":%s,\"blocktime_seconds\":%d,\"commission_bps\":%lld,\"node_pid\":%ld,\"validator_fleet_enabled\":%s,\"validator_fleet_count\":%d}}\n", g_block_producer_enabled ? "true" : "false", ajs, g_blocktime_seconds, g_commission_bps, (long)g_node_pid, g_validator_wallet_count>0?"true":"false", g_validator_wallet_count);
         return 0;
     }
     if(!strcmp(args[0], "getfeeinfo")){
@@ -1335,6 +1537,22 @@ static int handle_command(const char *cmdline, char *resp, size_t resp_sz){
     if(!strcmp(args[0], "listassets")){
         char out[32768],arr[50000]={0}; char *argv[] = { g_backend_path, "list-assets", g_cdir, NULL };
         if(run_capture(argv,out,sizeof(out))!=0) json_error(resp,resp_sz,"listassets","backend failed"); else { json_lines_array(arr,sizeof(arr),out); snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"listassets\",\"result\":{\"assets\":%s}}\n",arr); } return 0;
+    }
+    if(!strcmp(args[0], "getassetinfo") && argc >= 2){
+        char out[32768],obj[48000]={0}; char *argv[] = { g_backend_path, "asset-info-v1", g_cdir, args[1], NULL };
+        if(run_capture(argv,out,sizeof(out))!=0) json_error(resp,resp_sz,"getassetinfo","backend failed"); else { json_keyval_object(obj,sizeof(obj),out); snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"getassetinfo\",\"result\":%s}\n",obj); } return 0;
+    }
+    if(!strcmp(args[0], "getassettag") && argc >= 3){
+        char out[16384],obj[24000]={0}; char *argv[] = { g_backend_path, "asset-tag-check", g_cdir, args[1], args[2], NULL };
+        if(run_capture(argv,out,sizeof(out))!=0) json_error(resp,resp_sz,"getassettag","backend failed"); else { json_keyval_object(obj,sizeof(obj),out); snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"getassettag\",\"result\":%s}\n",obj); } return 0;
+    }
+    if(!strcmp(args[0], "getassetrestriction") && argc >= 3){
+        char out[16384],obj[24000]={0}; char *argv[] = { g_backend_path, "asset-restriction-check", g_cdir, args[1], args[2], NULL };
+        if(run_capture(argv,out,sizeof(out))!=0) json_error(resp,resp_sz,"getassetrestriction","backend failed"); else { json_keyval_object(obj,sizeof(obj),out); snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"getassetrestriction\",\"result\":%s}\n",obj); } return 0;
+    }
+    if(!strcmp(args[0], "getassetburnedfees")){
+        char out[8192]; char *argv[] = { g_backend_path, "asset-burned-fees", g_cdir, NULL };
+        if(run_capture(argv,out,sizeof(out))!=0) json_error(resp,resp_sz,"getassetburnedfees","backend failed"); else { trim_ws_right(out); json_ok_number(resp,resp_sz,"getassetburnedfees","burned_atoms",atoll(out)); } return 0;
     }
     if(!strcmp(args[0], "gettradinginfo")){
         char out[16384], obj[24000]={0}; char *argv[] = { g_backend_path, "trading-info", g_cdir, NULL };
@@ -1503,6 +1721,14 @@ static int handle_command(const char *cmdline, char *resp, size_t resp_sz){
         else { json_keyval_object(obj,sizeof(obj),out); snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"getparams\",\"result\":%s}\n", obj); }
         return 0;
     }
+    if(!strcmp(args[0], "getprotocolinfo")){
+        char out[8192], obj[12000]={0};
+        char *argv[] = { g_backend_path, "protocol-info", g_cdir, argc>=2?args[1]:NULL, NULL };
+        int rc=run_capture(argv, out, sizeof(out));
+        if(rc != 0 && rc != 2) json_error(resp, resp_sz, "getprotocolinfo", "backend failed");
+        else { json_keyval_object(obj,sizeof(obj),out); snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"getprotocolinfo\",\"result\":%s}\n", obj); }
+        return 0;
+    }
     if(!strcmp(args[0], "gethalving")){
         char out[8192], obj[12000]={0};
         char *argv[] = { g_backend_path, "gethalving", g_cdir, argc>=2?args[1]:NULL, NULL };
@@ -1537,6 +1763,11 @@ static int handle_command(const char *cmdline, char *resp, size_t resp_sz){
         else { json_keyval_object(obj,sizeof(obj),out); snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"getstakinginfo\",\"result\":%s}\n", obj); }
         return 0;
     }
+    if(!strcmp(args[0], "walletpassphrasehexfor") && argc >= 3){
+        char secret[256]={0}; QrxSignerSession*ss=signer_session(args[1],1); if(!ss){json_error(resp,resp_sz,"walletpassphrasehexfor","signer session limit reached");return 0;}
+        if(strcmp(args[2],"-") && qrx_hex_decode_text(args[2],secret,sizeof(secret))!=0){json_error(resp,resp_sz,"walletpassphrasehexfor","invalid encoding");return 0;}
+        OPENSSL_cleanse(ss->secret,sizeof(ss->secret));snprintf(ss->secret,sizeof(ss->secret),"%s",secret);ss->unlocked=1;OPENSSL_cleanse(secret,sizeof(secret));snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"walletpassphrasehexfor\",\"result\":{\"wallet\":\"%s\",\"unlocked\":true}}\n",args[1]);return 0;}
+    if(!strcmp(args[0], "walletlockfor") && argc >= 2){QrxSignerSession*ss=signer_session(args[1],0);if(ss){OPENSSL_cleanse(ss->secret,sizeof(ss->secret));ss->unlocked=0;}snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"walletlockfor\",\"result\":{\"locked\":true}}\n");return 0;}
     if(!strcmp(args[0], "walletpassphrasehex") && argc >= 2){
         char secret[1024];
         if(!strcmp(args[1], "-")) secret[0]=0;
@@ -1568,6 +1799,14 @@ static int handle_command(const char *cmdline, char *resp, size_t resp_sz){
     if(!strcmp(args[0], "delegate") && argc >= 3){
         char out[8192]; char *argv[] = { g_backend_path, "delegate", g_cdir, g_wdir, args[1], args[2], NULL };
         if(run_capture(argv, out, sizeof(out)) != 0) json_error(resp, resp_sz, "delegate", "backend failed"); else json_ok_raw(resp, resp_sz, "delegate", out); return 0;
+    }
+    if(!strcmp(args[0], "undelegate") && argc >= 3){
+        char out[8192]; char *argv[] = { g_backend_path, "undelegate", g_cdir, g_wdir, args[1], args[2], NULL };
+        if(run_capture(argv, out, sizeof(out)) != 0) json_error(resp, resp_sz, "undelegate", "backend failed"); else json_ok_raw(resp, resp_sz, "undelegate", out); return 0;
+    }
+    if(!strcmp(args[0], "claim-undelegated") && argc >= 2){
+        char out[8192]; char *argv[] = { g_backend_path, "claim-undelegated", g_cdir, g_wdir, args[1], NULL };
+        if(run_capture(argv, out, sizeof(out)) != 0) json_error(resp, resp_sz, "claim-undelegated", "backend failed"); else json_ok_raw(resp, resp_sz, "claim-undelegated", out); return 0;
     }
     if(!strcmp(args[0], "createrawtransaction") && argc >= 6){
         char out[32768], rawjs[60000]={0};
@@ -1694,6 +1933,11 @@ static int handle_command(const char *cmdline, char *resp, size_t resp_sz){
         char *argv[] = { g_backend_path, "send", g_wdir, g_cdir, args[1], args[2], (char*)memo, g_ndir, NULL };
         if(run_capture(argv, out, sizeof(out)) != 0) json_error(resp, resp_sz, "sendtoaddress", "backend failed"); else json_ok_raw(resp, resp_sz, "sendtoaddress", out); return 0;
     }
+    if(!strcmp(args[0], "sendfromaddress") && argc >= 4){
+        char out[8192]; const char *memo = argc >= 5 ? args[4] : "payment";
+        char *argv[] = { g_backend_path, "send-from", g_wdir, g_cdir, args[1], args[2], args[3], (char*)memo, g_ndir, NULL };
+        if(run_capture(argv, out, sizeof(out)) != 0) json_error(resp, resp_sz, "sendfromaddress", "backend failed"); else json_ok_raw(resp, resp_sz, "sendfromaddress", out); return 0;
+    }
     if(!strcmp(args[0], "createswap") && argc >= 5){
         char out[16384]; const char *memo = argc >= 6 ? args[5] : "quantum-swap";
         char *argv[] = { g_backend_path, "htlc-create", g_cdir, g_wdir, args[1], args[2], args[3], args[4], (char*)memo, NULL };
@@ -1776,11 +2020,45 @@ static int handle_command(const char *cmdline, char *resp, size_t resp_sz){
         else { json_lines_array(arr,sizeof(arr),out); snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"stealth-scan\",\"result\":{\"entries\":%s}}\n", arr); }
         return 0;
     }
+    if(!strcmp(args[0], "stealth-spend") && argc >= 4){
+        char out[16384], obj[20000]={0}; char *argv[] = { g_backend_path, "stealth-spend", g_cdir, g_wdir, args[1], args[2], args[3], NULL };
+        if(run_capture(argv, out, sizeof(out)) != 0) json_error(resp, resp_sz, "stealth-spend", "backend failed");
+        else { json_keyval_object(obj,sizeof(obj),out); snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"stealth-spend\",\"result\":%s}\n", obj); }
+        return 0;
+    }
     if(!strcmp(args[0], "stealth-history")){
         char out[32768], arr[60000]={0}; char *argv[] = { g_backend_path, "stealth-history", g_cdir, g_wdir, NULL };
         if(run_capture(argv, out, sizeof(out)) != 0) json_error(resp, resp_sz, "stealth-history", "backend failed");
         else { json_lines_array(arr,sizeof(arr),out); snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"stealth-history\",\"result\":{\"entries\":%s}}\n", arr); }
         return 0;
+    }
+    if(!strcmp(args[0], "privacy-credential-status")){
+        char out[8192], obj[12000]={0}; char *argv[] = { g_backend_path, "privacy-credential-status", g_cdir, g_wdir, NULL };
+        if(run_capture(argv, out, sizeof(out)) != 0) json_error(resp, resp_sz, "privacy-credential-status", "credential missing, expired, revoked or invalid");
+        else { json_keyval_object(obj,sizeof(obj),out); snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"privacy-credential-status\",\"result\":%s}\n", obj); }
+        return 0;
+    }
+    if(!strcmp(args[0], "hidden-balance")){
+        char out[8192]; char *argv[] = { g_backend_path, "hidden-balance", g_cdir, g_wdir, NULL };
+        if(run_capture(argv, out, sizeof(out)) != 0) json_error(resp, resp_sz, "hidden-balance", "verified privacy credential required");
+        else { trim_ws_right(out); json_ok_number(resp, resp_sz, "hidden-balance", "balance", atoll(out)); }
+        return 0;
+    }
+    if(!strcmp(args[0], "verified-shield") && argc >= 2){
+        char out[16384], obj[20000]={0}; const char *zaddr=argc>=3?args[2]:NULL;
+        char *argv[] = { g_backend_path, "verified-shield", g_cdir, g_wdir, args[1], (char*)zaddr, NULL };
+        if(run_capture(argv,out,sizeof(out))!=0) json_error(resp,resp_sz,"verified-shield","verified privacy credential required or backend failed");
+        else { json_keyval_object(obj,sizeof(obj),out); snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"verified-shield\",\"result\":%s}\n",obj); } return 0;
+    }
+    if(!strcmp(args[0], "verified-shielded-send") && argc >= 3){
+        char out[16384], obj[20000]={0}; char *argv[]={g_backend_path,"verified-shielded-send",g_cdir,g_wdir,args[1],args[2],NULL};
+        if(run_capture(argv,out,sizeof(out))!=0) json_error(resp,resp_sz,"verified-shielded-send","verified privacy credential required or backend failed");
+        else { json_keyval_object(obj,sizeof(obj),out); snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"verified-shielded-send\",\"result\":%s}\n",obj); } return 0;
+    }
+    if(!strcmp(args[0], "verified-unshield") && argc >= 3){
+        char out[16384], obj[20000]={0}; char *argv[]={g_backend_path,"verified-unshield",g_cdir,g_wdir,args[1],args[2],NULL};
+        if(run_capture(argv,out,sizeof(out))!=0) json_error(resp,resp_sz,"verified-unshield","verified privacy credential required or backend failed");
+        else { json_keyval_object(obj,sizeof(obj),out); snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"verified-unshield\",\"result\":%s}\n",obj); } return 0;
     }
     if(!strcmp(args[0], "privacy-feature-status")){
         char out[8192], obj[12000]={0}; char *argv[] = { g_backend_path, "privacy-feature-status", g_cdir, NULL };
@@ -1806,6 +2084,7 @@ int main(int argc, char **argv){
         else if(!strcmp(argv[i],"--listen")&&i+1<argc) listen_arg=argv[++i];
         else if((!strcmp(argv[i],"--addnode") || !strcmp(argv[i],"--seednode"))&&i+1<argc&&addnode_count<64) addnodes[addnode_count++]=argv[++i];
         else if(!strcmp(argv[i],"--rpc-bind")&&i+1<argc) rpc_bind_arg=argv[++i];
+        else if(!strcmp(argv[i],"--allow-remote-rpc")) g_allow_remote_rpc=1;
         else if(!strcmp(argv[i],"--rpc-user")&&i+1<argc) snprintf(g_rpc_user,sizeof(g_rpc_user),"%s",argv[++i]);
         else if(!strcmp(argv[i],"--rpc-password")&&i+1<argc) snprintf(g_rpc_password,sizeof(g_rpc_password),"%s",argv[++i]);
         else if(!strcmp(argv[i],"--wallet-passphrase")&&i+1<argc) snprintf(g_wallet_passphrase,sizeof(g_wallet_passphrase),"%s",argv[++i]);
@@ -1813,12 +2092,18 @@ int main(int argc, char **argv){
         else if(!strcmp(argv[i],"--blocktime")&&i+1<argc) { g_blocktime_override_set=1; g_blocktime_seconds=atoi(argv[++i]); if(g_blocktime_seconds<1) g_blocktime_seconds=1; }
         else if(!strcmp(argv[i],"--commission-bps")&&i+1<argc) { g_commission_override_set=1; g_commission_bps=atoll(argv[++i]); if(g_commission_bps<0) g_commission_bps=0; if(g_commission_bps>10000) g_commission_bps=10000; }
         else if(!strcmp(argv[i],"--no-block-producer")) g_block_producer_enabled=0;
+        else if(!strcmp(argv[i],"--validator-wallet")&&i+1<argc){
+            const char *vn=argv[++i];
+            if(g_validator_wallet_count < QRX_MAX_VALIDATOR_FLEET && vn && *vn && !fleet_has_name(vn))
+                snprintf(g_validator_wallet_names[g_validator_wallet_count++], sizeof(g_validator_wallet_names[0]), "%s", vn);
+        }
         else if(!strcmp(argv[i],"--help")||!strcmp(argv[i],"-h")){ usage(); return 0; }
         else { fprintf(stderr,"unknown arg: %s\n",argv[i]); usage(); return 1; }
     }
     snprintf(g_network, sizeof(g_network), "%s", network);
     parse_rpc_bind_default(network);
-    if(rpc_bind_arg && parse_rpc_bind_arg(rpc_bind_arg)!=0){ fprintf(stderr,"bad --rpc-bind, expected host:port\n"); return 1; }
+    if(rpc_bind_arg && parse_rpc_bind_arg(rpc_bind_arg)!=0){ fprintf(stderr,"bad --rpc-bind, expected IPv4-host:port\n"); return 1; }
+    if(validate_rpc_exposure()!=0) return 1;
     const QrxProfile *profile = qrx_profile_by_name(network);
     if(!profile){ fprintf(stderr,"unknown network profile: %s\n", network); return 1; }
     if(!profile->allow_runtime_overrides && (g_blocktime_override_set || g_commission_override_set)){
@@ -1830,6 +2115,7 @@ int main(int argc, char **argv){
     configure_wallet_passphrase(network);
     build_backend_path(argv[0]);
     if(qrx_ensure_node(network,datadir,wallet,listen_arg,addnodes,addnode_count,g_base,sizeof(g_base),g_cdir,sizeof(g_cdir),g_wdir,sizeof(g_wdir),g_ndir,sizeof(g_ndir))!=0){ fprintf(stderr,"qrxd: failed to initialize\n"); return 1; }
+    if(qrx_write_rpc_token()!=0){ fprintf(stderr,"SECURITY: could not create local RPC session token\n"); return 1; }
     snprintf(g_sock, sizeof(g_sock), "http://%s:%d/rpc", g_rpc_bind, g_rpc_port);
     install_signal_handlers();
     if(spawn_node_process()!=0){ fprintf(stderr, "qrxd: failed to start node-run\n"); return 1; }
@@ -1862,7 +2148,7 @@ qrx_wsa_init_once();
     if(inet_pton(AF_INET, g_rpc_bind, &addr.sin_addr) != 1){ fprintf(stderr, "bad rpc bind address: %s\n", g_rpc_bind); return 1; }
     if(bind(s, (struct sockaddr*)&addr, sizeof(addr)) != 0){ fprintf(stderr, "bind rpc failed on %s:%d\n", g_rpc_bind, g_rpc_port); return 1; }
     if(listen(s, 16) != 0){ fprintf(stderr, "listen rpc failed\n"); return 1; }
-    printf("qrxd running network=%s datadir=%s node=%s rpc=%s node_pid=%ld blocktime=%d commission_bps=%lld auth=%s overrides=%s\n", g_network, g_base, g_ndir, g_sock, (long)g_node_pid, g_blocktime_seconds, g_commission_bps, (g_rpc_user[0]||g_rpc_password[0]) ? "enabled" : "disabled", profile->allow_runtime_overrides ? "allowed" : "disabled");
+    printf("qrxd running network=%s datadir=%s node=%s rpc=%s node_pid=%ld blocktime=%d commission_bps=%lld auth=%s overrides=%s validator_fleet=%d\n", g_network, g_base, g_ndir, g_sock, (long)g_node_pid, g_blocktime_seconds, g_commission_bps, (g_rpc_user[0]||g_rpc_password[0]) ? "enabled" : "disabled", profile->allow_runtime_overrides ? "allowed" : "disabled", g_validator_wallet_count);
     while(g_running){
         qrx_socket_t fd = accept(s, NULL, NULL);
 #ifdef _WIN32
@@ -1945,9 +2231,4 @@ qrx_wsa_init_once();
  *   seed2.qrxchain.org
  *   seed3.qrxchain.org
  *
- * Community bootstrap IP placeholders:
- *   203.0.113.10
- *   203.0.113.11
- *   203.0.113.12
- *   203.0.113.13
  */

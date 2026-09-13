@@ -1,0 +1,5 @@
+PASS: QRX Generals 0.0.7.7 Phase 1 serverless consensus: player identity, native unique General, GAME_JOIN, clan creation, treasury funding, WAL atomicity, address compatibility
+PASS: QRX Generals 0.0.7.7 Phase 2 serverless consensus: deterministic seasons/turns, regenerating energy, season entry + reserved prize pool, clan invite IDs, join/leave/rejoin, WAL atomicity, and wallet/address compatibility
+PASS: 0.0.7.6 consensus native assets: issue/reissue lock/sub/unique/owner/qualifier/restricted/tag/global-freeze/address-compatibility
+PASS: QRX 0.0.7.6 native regulated asset state machine, KYC gate, allowlist, freeze, revoke, forced transfer, and address compatibility
+PASS: 0.0.7.5 3-of-5 developer governance, provider admission, replay/tamper rejection and protocol enforcement

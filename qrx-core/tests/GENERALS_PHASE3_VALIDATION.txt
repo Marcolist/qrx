@@ -1,0 +1,19 @@
+QRX Generals 0.0.7.7 Phase 3 validation
+
+Validated:
+- clean CMake build of qrx/qrx-cli/qrxd/core targets on the current Linux host
+- deterministic 128x128 season world and terrain
+- deterministic starter HQ + 3 infantry on GAME_SEASON_JOIN
+- unique non-water spawn occupancy
+- COMMIT vs REVEAL turn-half enforcement
+- SHA3-512 commitment verification
+- owner/range/water/occupancy checks
+- authoritative movement and source/destination occupancy update
+- Energy debit on successful movement
+- bad/early/replayed reveal rejection
+- Phase 1 regression
+- Phase 2 regression
+- 0.0.7.6 native-assets consensus regression
+- existing wallet address compatibility
+
+The build still emits pre-existing compiler warnings, including OpenSSL deprecation and large-source warnings. This is not a warning-free build and is not an independent Mainnet security audit.

@@ -94,6 +94,7 @@ static int qrx_control_port_for_network(const char *network) {
 
 static char g_rpc_user[128] = "";
 static char g_rpc_password[256] = "";
+static char g_rpc_token[129] = "";
 
 static char *qrx_base64_encode_local(const unsigned char *data, size_t len) {
     static const char tbl[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -130,7 +131,7 @@ static void make_auth_header(char *out, size_t out_sz) {
 }
 
 static void usage(void){
-    puts("qrx-cli [--network <alpha|testnet|regtest|mainnet>] [--datadir PATH] [--wallet NAME] [--rpc-user USER] [--rpc-password PASS] <command>\nCommands: getinfo|getnewaddress|listaddresses|getbalance [addr]|getaddressnonce <addr> [lane]|getnoncelanes <addr>|getagent <agent>|listagents [owner]|getagentlimits <agent>|getorder <order_id>|listorders [owner_or_agent] [status]|gettrade <trade_id>|listtrades [market] [limit]|getorderbook <market> [depth]|getassetbalance <asset> [address]|listassets|gettradinginfo|getgateway <gateway>|listgateways [venue]|getexecutionreport <report_id>|getstateroot|getsettlement <trade_id>|getcrosschaininfo|getcrosschainswap <session_id>|listcrosschainswaps [status]|getcrosschainorderbook [depth]|getbtchtlctemplate <hashlock_hex> <buyer_btc_pubkey_hex> <seller_btc_refund_pubkey_hex> <csv_blocks> [mainnet|testnet|regtest]|getbtcspvinfo|getbtcbestheader|getbtcheader <hash|height>|verifybtcproof <txid> <block_hash> <tx_index> <branch_csv>|getbtcconfirmations <txid>|verifycrosschainfunding <session_id> <rawtx_hex> <block_hash> <tx_index> <branch_csv>|getcrosschainfunding <session_id>|getcrosschainsecurity <session_id>|getvelocityinfo|getvelocityengineinfo|getblockcount|getblockchaininfo|getnetworkinfo|getnodestatus|getuptime|getbuildinfo|getmempoolinfo|getrecentblocks [limit]|getrecenttransactions [limit]|getvalidatorstatus|getblockproducerinfo|getfeeinfo|getpeerinfo|getstakinginfo|getwalletinfo|walletpassphrasehex <hex|->|walletlock|getreward [height]|getparams [height]|gethalving [height]|getforks|getactivefork [height]|createrawtransaction <from> <to> <amount> <ed25519_pub_hex> <mldsa65_pub_b64> [memo] [fee] [nonce]|createvelocitytransaction <from> <to> <amount> <ed25519_pub_hex> <mldsa65_pub_b64> <tx_type> <lane_id> <expiry_height> <payload> [fee] [nonce]|createagentregistertransaction <owner> <agent> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createagentupdatetransaction <owner> <agent> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createagentrevoketransaction <owner> <agent> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createordertransaction <agent> <owner> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createexternalordertransaction <agent> <owner> <venue> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|creategatewayregistertransaction <authority> <gateway> <venue> <name> <gateway_ed_pub_hex> <gateway_mldsa65_pub_b64> <gateway_expires_height> <authority_ed_pub_hex> <authority_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|creategatewayrevoketransaction <authority> <gateway> <authority_ed_pub_hex> <authority_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createexecutionreporttransaction <gateway> <owner> <order_id> <SUBMITTED|PARTIALLY_FILLED|FILLED|REJECTED|CANCELED> <filled_quantity_atoms> <avg_price_atoms> <venue_fee_atoms> <venue_order_id> <report_sequence> <gateway_ed_pub_hex> <gateway_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainbuytransaction <agent> <owner> <btc_sats> <max_qub_per_btc_atoms> <order_expiry_height> <hashlock_hex> <btc_receive_pubkey_hex> <qrx_refund_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainselltransaction <agent> <owner> <btc_sats> <min_qub_per_btc_atoms> <order_expiry_height> <btc_refund_pubkey_hex> <btc_refund_csv_blocks> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainredeemtransaction <seller_owner> <session_id> <secret_hex> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainrefundtransaction <buyer_owner> <session_id> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createbtcspvheadertransaction <address> <header_hex> <ed_pub_hex> <mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createbtcspvfundingprooftransaction <address> <session_id> <rawtx_hex> <block_hash> <tx_index> <branch_csv> <ed_pub_hex> <mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createordercanceltransaction <agent> <owner> <order_id> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createorderreplacetransaction <agent> <owner> <order_id> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|signrawtransactionwithwallet <rawtxfile> <signedtxfile>|decoderawtransaction <txfile>|gettxid <txfile>|sendtoaddress <addr> <amount> [memo]|sendrawtransaction <txfile>|history [addr] [limit]|addnode <host:port>|listpeers|peerstatus|banscores|stake <amount>|delegate <validator> <amount>|validator-set|tokenomics|getdevaddress|faucet <addr> <amount>|createswap <recipient> <amount> <hashlock_hex> <timelock_seconds> [memo]|redeemswap <swap_id> <secret>|refundswap <swap_id>|getswap <swap_id>|listswaps|shielded-address|shield <amount> [shielded_address]|shielded-balance|shielded-send <shielded_address> <amount>|unshield <transparent_address> <amount>|shielded-history|stealth-address|stealth-send <stealth_address> <amount> [memo]|stealth-scan|stealth-history|privacy-feature-status|stop");
+    puts("qrx-cli [--network <alpha|testnet|regtest|mainnet>] [--datadir PATH] [--wallet NAME] [--rpc-user USER] [--rpc-password PASS] <command>\nCommands: getinfo|getnewaddress|listaddresses|getbalance [addr]|getaddressnonce <addr> [lane]|getnoncelanes <addr>|getagent <agent>|listagents [owner]|getagentlimits <agent>|getorder <order_id>|listorders [owner_or_agent] [status]|gettrade <trade_id>|listtrades [market] [limit]|getorderbook <market> [depth]|getassetbalance <asset> [address]|listassets|getassetinfo <asset>|getassettag <qualifier> <address>|getassetrestriction <asset> <address>|getassetburnedfees|gettradinginfo|getgateway <gateway>|listgateways [venue]|getexecutionreport <report_id>|getstateroot|getsettlement <trade_id>|getcrosschaininfo|getcrosschainswap <session_id>|listcrosschainswaps [status]|getcrosschainorderbook [depth]|getbtchtlctemplate <hashlock_hex> <buyer_btc_pubkey_hex> <seller_btc_refund_pubkey_hex> <csv_blocks> [mainnet|testnet|regtest]|getbtcspvinfo|getbtcbestheader|getbtcheader <hash|height>|verifybtcproof <txid> <block_hash> <tx_index> <branch_csv>|getbtcconfirmations <txid>|verifycrosschainfunding <session_id> <rawtx_hex> <block_hash> <tx_index> <branch_csv>|getcrosschainfunding <session_id>|getcrosschainsecurity <session_id>|getvelocityinfo|getvelocityengineinfo|getblockcount|getblockchaininfo|getnetworkinfo|getnodestatus|getmainnethealth|getuptime|getbuildinfo|getmempoolinfo|getrecentblocks [limit]|getrecenttransactions [limit]|getvalidatorstatus|getblockproducerinfo|setvalidatorfleet <wallet1,wallet2,...|->|getfeeinfo|getpeerinfo|getstakinginfo|getwalletinfo|walletpassphrasehex <hex|->|walletpassphrasehexfor <wallet> <hex|->|walletlock|walletlockfor <wallet>|getreward [height]|getparams [height]|getprotocolinfo [height]|gethalving [height]|getforks|getactivefork [height]|createrawtransaction <from> <to> <amount> <ed25519_pub_hex> <mldsa65_pub_b64> [memo] [fee] [nonce]|createvelocitytransaction <from> <to> <amount> <ed25519_pub_hex> <mldsa65_pub_b64> <tx_type> <lane_id> <expiry_height> <payload> [fee] [nonce]|createagentregistertransaction <owner> <agent> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createagentupdatetransaction <owner> <agent> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createagentrevoketransaction <owner> <agent> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createordertransaction <agent> <owner> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createexternalordertransaction <agent> <owner> <venue> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|creategatewayregistertransaction <authority> <gateway> <venue> <name> <gateway_ed_pub_hex> <gateway_mldsa65_pub_b64> <gateway_expires_height> <authority_ed_pub_hex> <authority_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|creategatewayrevoketransaction <authority> <gateway> <authority_ed_pub_hex> <authority_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createexecutionreporttransaction <gateway> <owner> <order_id> <SUBMITTED|PARTIALLY_FILLED|FILLED|REJECTED|CANCELED> <filled_quantity_atoms> <avg_price_atoms> <venue_fee_atoms> <venue_order_id> <report_sequence> <gateway_ed_pub_hex> <gateway_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainbuytransaction <agent> <owner> <btc_sats> <max_qub_per_btc_atoms> <order_expiry_height> <hashlock_hex> <btc_receive_pubkey_hex> <qrx_refund_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainselltransaction <agent> <owner> <btc_sats> <min_qub_per_btc_atoms> <order_expiry_height> <btc_refund_pubkey_hex> <btc_refund_csv_blocks> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainredeemtransaction <seller_owner> <session_id> <secret_hex> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainrefundtransaction <buyer_owner> <session_id> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createbtcspvheadertransaction <address> <header_hex> <ed_pub_hex> <mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createbtcspvfundingprooftransaction <address> <session_id> <rawtx_hex> <block_hash> <tx_index> <branch_csv> <ed_pub_hex> <mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createordercanceltransaction <agent> <owner> <order_id> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createorderreplacetransaction <agent> <owner> <order_id> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|signrawtransactionwithwallet <rawtxfile> <signedtxfile>|decoderawtransaction <txfile>|gettxid <txfile>|sendtoaddress <addr> <amount> [memo]|sendfromaddress <source> <addr> <amount> [memo]|sendrawtransaction <txfile>|history [addr] [limit]|addnode <host:port>|listpeers|peerstatus|banscores|stake <amount>|delegate <validator> <amount>|undelegate <validator> <amount>|claim-undelegated <validator>|validator-set|tokenomics|getdevaddress|faucet <addr> <amount>|createswap <recipient> <amount> <hashlock_hex> <timelock_seconds> [memo]|redeemswap <swap_id> <secret>|refundswap <swap_id>|getswap <swap_id>|listswaps|shielded-address|shield <amount> [shielded_address]|shielded-balance|shielded-send <shielded_address> <amount>|unshield <transparent_address> <amount>|shielded-history|stealth-address|stealth-send <stealth_address> <amount> [memo]|stealth-scan|stealth-spend <tx_id> <transparent_address> <amount>|stealth-history|privacy-feature-status|stop");
     puts("Phase 4F.2: createarbitragehedgetransaction <agent> <owner> <matched_crosschain_buy_order_id> <arbitrage_id> <quantity_sats> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]");
     puts("Complete history: the local Core reader accepts `qrx list-trades <chain-dir> * all`; use qrx-wallet-cli export-ledger for an unbounded verified CSV export");
 }
@@ -192,8 +193,9 @@ static int socket_call(const char *sock_path, const char *cmd, char *out, size_t
     char body[65536];
     snprintf(body, sizeof(body), "{\"method\":\"%s\",\"params\":%s}", method, params);
 
-    char auth_header[1024];
+    char auth_header[1024], token_header[256];
     make_auth_header(auth_header, sizeof(auth_header));
+    token_header[0]=0; if(g_rpc_token[0]) snprintf(token_header,sizeof(token_header),"X-QRX-RPC-Token: %s\r\n",g_rpc_token);
 
     char req[131072];
     snprintf(req, sizeof(req),
@@ -201,11 +203,12 @@ static int socket_call(const char *sock_path, const char *cmd, char *out, size_t
         "Host: 127.0.0.1:%d\r\n"
         "Content-Type: application/json\r\n"
         "%s"
+        "%s"
         "Content-Length: %zu\r\n"
         "Connection: close\r\n"
         "\r\n"
         "%s",
-        port, auth_header, strlen(body), body);
+        port, auth_header, token_header, strlen(body), body);
 
 #ifdef _WIN32
     if(send(fd, req, (int)strlen(req), 0) < 0){ closesocket(fd); return -1; }
@@ -258,6 +261,7 @@ int main(int argc,char **argv){
         network = qrx_detect_network(detected_network, sizeof(detected_network));
     }
     if(qrx_ensure_node(network,datadir,wallet,NULL,NULL,0,base,sizeof(base),cdir,sizeof(cdir),wdir,sizeof(wdir),ndir,sizeof(ndir))!=0){ fprintf(stderr,"qrx-cli: failed to initialize\n"); return 1; }
+    { char tp[PATH_MAX]; snprintf(tp,sizeof(tp),"%s/rpc.token",cdir); qrx_read_file_first_line(tp,g_rpc_token,sizeof(g_rpc_token)); }
     snprintf(sock, sizeof(sock), "http://127.0.0.1:%d/rpc", qrx_control_port_for_network(network));
     char cmd[131072] = {0};
     if(!strcmp(argv[cmdi],"getinfo")) snprintf(cmd,sizeof(cmd),"getinfo\n");
@@ -278,6 +282,10 @@ int main(int argc,char **argv){
     else if(!strcmp(argv[cmdi],"getorderbook") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),cmdi+2<argc?"getorderbook %s %s\n":"getorderbook %s\n",argv[cmdi+1],cmdi+2<argc?argv[cmdi+2]:"");
     else if(!strcmp(argv[cmdi],"getassetbalance") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),cmdi+2<argc?"getassetbalance %s %s\n":"getassetbalance %s\n",argv[cmdi+1],cmdi+2<argc?argv[cmdi+2]:"");
     else if(!strcmp(argv[cmdi],"listassets")) snprintf(cmd,sizeof(cmd),"listassets\n");
+    else if(!strcmp(argv[cmdi],"getassetinfo") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getassetinfo %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"getassettag") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"getassettag %s %s\n",argv[cmdi+1],argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"getassetrestriction") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"getassetrestriction %s %s\n",argv[cmdi+1],argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"getassetburnedfees")) snprintf(cmd,sizeof(cmd),"getassetburnedfees\n");
     else if(!strcmp(argv[cmdi],"gettradinginfo")) snprintf(cmd,sizeof(cmd),"gettradinginfo\n");
     else if(!strcmp(argv[cmdi],"getgateway") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getgateway %s\n",argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"listgateways")) snprintf(cmd,sizeof(cmd),cmdi+1<argc?"listgateways %s\n":"listgateways\n",cmdi+1<argc?argv[cmdi+1]:"");
@@ -302,6 +310,7 @@ int main(int argc,char **argv){
     else if(!strcmp(argv[cmdi],"getblockchaininfo")) snprintf(cmd,sizeof(cmd),"getblockchaininfo\n");
     else if(!strcmp(argv[cmdi],"getnetworkinfo")) snprintf(cmd,sizeof(cmd),"getnetworkinfo\n");
     else if(!strcmp(argv[cmdi],"getnodestatus")) snprintf(cmd,sizeof(cmd),"getnodestatus\n");
+    else if(!strcmp(argv[cmdi],"getmainnethealth")) snprintf(cmd,sizeof(cmd),"getmainnethealth\n");
     else if(!strcmp(argv[cmdi],"getuptime")) snprintf(cmd,sizeof(cmd),"getuptime\n");
     else if(!strcmp(argv[cmdi],"getbuildinfo")) snprintf(cmd,sizeof(cmd),"getbuildinfo\n");
     else if(!strcmp(argv[cmdi],"getmempoolinfo")) snprintf(cmd,sizeof(cmd),"getmempoolinfo\n");
@@ -309,12 +318,15 @@ int main(int argc,char **argv){
     else if(!strcmp(argv[cmdi],"getrecenttransactions")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "getrecenttransactions %s\n" : "getrecenttransactions\n", cmdi+1<argc?argv[cmdi+1]:"");
     else if(!strcmp(argv[cmdi],"getvalidatorstatus")) snprintf(cmd,sizeof(cmd),"getvalidatorstatus\n");
     else if(!strcmp(argv[cmdi],"getblockproducerinfo")) snprintf(cmd,sizeof(cmd),"getblockproducerinfo\n");
+    else if(!strcmp(argv[cmdi],"setvalidatorfleet") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"setvalidatorfleet %s\n", argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"getfeeinfo")) snprintf(cmd,sizeof(cmd),"getfeeinfo\n");
     else if(!strcmp(argv[cmdi],"getpeerinfo")) snprintf(cmd,sizeof(cmd),"getpeerinfo\n");
     else if(!strcmp(argv[cmdi],"getstakinginfo")) snprintf(cmd,sizeof(cmd),"getstakinginfo\n");
     else if(!strcmp(argv[cmdi],"getwalletinfo")) snprintf(cmd,sizeof(cmd),"getwalletinfo\n");
     else if(!strcmp(argv[cmdi],"walletpassphrasehex") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"walletpassphrasehex %s\n", argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"walletpassphrasehexfor") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"walletpassphrasehexfor %s %s\n", argv[cmdi+1],argv[cmdi+2]);
     else if(!strcmp(argv[cmdi],"walletlock")) snprintf(cmd,sizeof(cmd),"walletlock\n");
+    else if(!strcmp(argv[cmdi],"walletlockfor") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"walletlockfor %s\n",argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"history")) {
         if(cmdi+2<argc) snprintf(cmd,sizeof(cmd),"history %s %s\n", argv[cmdi+1], argv[cmdi+2]);
         else if(cmdi+1<argc) snprintf(cmd,sizeof(cmd),"history %s\n", argv[cmdi+1]);
@@ -328,12 +340,15 @@ int main(int argc,char **argv){
     else if(!strcmp(argv[cmdi],"faucet") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"faucet %s %s\n", argv[cmdi+1], argv[cmdi+2]);
     else if(!strcmp(argv[cmdi],"getreward")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "getreward %s\n" : "getreward\n", cmdi+1<argc?argv[cmdi+1]:"");
     else if(!strcmp(argv[cmdi],"getparams")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "getparams %s\n" : "getparams\n", cmdi+1<argc?argv[cmdi+1]:"");
+    else if(!strcmp(argv[cmdi],"getprotocolinfo")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "getprotocolinfo %s\n" : "getprotocolinfo\n", cmdi+1<argc?argv[cmdi+1]:"");
     else if(!strcmp(argv[cmdi],"gethalving")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "gethalving %s\n" : "gethalving\n", cmdi+1<argc?argv[cmdi+1]:"");
     else if(!strcmp(argv[cmdi],"getforks")) snprintf(cmd,sizeof(cmd),"getforks\n");
     else if(!strcmp(argv[cmdi],"getactivefork")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "getactivefork %s\n" : "getactivefork\n", cmdi+1<argc?argv[cmdi+1]:"");
     else if(!strcmp(argv[cmdi],"validator-set")) snprintf(cmd,sizeof(cmd),"validator-set\n");
     else if(!strcmp(argv[cmdi],"stake") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"stake %s\n", argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"delegate") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"delegate %s %s\n", argv[cmdi+1], argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"undelegate") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"undelegate %s %s\n", argv[cmdi+1], argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"claim-undelegated") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"claim-undelegated %s\n", argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"createswap") && cmdi+4<argc) {
         if(cmdi+5<argc) snprintf(cmd,sizeof(cmd),"createswap %s %s %s %s %s\n", argv[cmdi+1], argv[cmdi+2], argv[cmdi+3], argv[cmdi+4], argv[cmdi+5]);
         else snprintf(cmd,sizeof(cmd),"createswap %s %s %s %s\n", argv[cmdi+1], argv[cmdi+2], argv[cmdi+3], argv[cmdi+4]);
@@ -357,7 +372,13 @@ int main(int argc,char **argv){
         else snprintf(cmd,sizeof(cmd),"stealth-send %s %s\n", argv[cmdi+1], argv[cmdi+2]);
     }
     else if(!strcmp(argv[cmdi],"stealth-scan")) snprintf(cmd,sizeof(cmd),"stealth-scan\n");
+    else if(!strcmp(argv[cmdi],"stealth-spend") && cmdi+3<argc) snprintf(cmd,sizeof(cmd),"stealth-spend %s %s %s\n", argv[cmdi+1], argv[cmdi+2], argv[cmdi+3]);
     else if(!strcmp(argv[cmdi],"stealth-history")) snprintf(cmd,sizeof(cmd),"stealth-history\n");
+    else if(!strcmp(argv[cmdi],"privacy-credential-status")) snprintf(cmd,sizeof(cmd),"privacy-credential-status\n");
+    else if(!strcmp(argv[cmdi],"hidden-balance")) snprintf(cmd,sizeof(cmd),"hidden-balance\n");
+    else if(!strcmp(argv[cmdi],"verified-shield") && cmdi+1<argc) { if(cmdi+2<argc) snprintf(cmd,sizeof(cmd),"verified-shield %s %s\n",argv[cmdi+1],argv[cmdi+2]); else snprintf(cmd,sizeof(cmd),"verified-shield %s\n",argv[cmdi+1]); }
+    else if(!strcmp(argv[cmdi],"verified-shielded-send") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"verified-shielded-send %s %s\n",argv[cmdi+1],argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"verified-unshield") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"verified-unshield %s %s\n",argv[cmdi+1],argv[cmdi+2]);
     else if(!strcmp(argv[cmdi],"privacy-feature-status")) snprintf(cmd,sizeof(cmd),"privacy-feature-status\n");
     else if(!strcmp(argv[cmdi],"createrawtransaction") && cmdi+5<argc) {
         if(cmdi+8<argc) snprintf(cmd,sizeof(cmd),"createrawtransaction %s %s %s %s %s %s %s %s\n", argv[cmdi+1], argv[cmdi+2], argv[cmdi+3], argv[cmdi+4], argv[cmdi+5], argv[cmdi+6], argv[cmdi+7], argv[cmdi+8]);
@@ -459,6 +480,7 @@ int main(int argc,char **argv){
     else if(!strcmp(argv[cmdi],"decoderawtransaction") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"decoderawtransaction %s\n", argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"gettxid") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"gettxid %s\n", argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"sendtoaddress") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"sendtoaddress %s %s %s\n", argv[cmdi+1], argv[cmdi+2], cmdi+3<argc?argv[cmdi+3]:"payment");
+    else if(!strcmp(argv[cmdi],"sendfromaddress") && cmdi+3<argc) snprintf(cmd,sizeof(cmd),"sendfromaddress %s %s %s %s\n", argv[cmdi+1], argv[cmdi+2], argv[cmdi+3], cmdi+4<argc?argv[cmdi+4]:"payment");
     else if(!strcmp(argv[cmdi],"sendrawtransaction") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"sendrawtransaction %s\n", argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"stop")) snprintf(cmd,sizeof(cmd),"stop\n");
     else { usage(); return 1; }

@@ -131,10 +131,36 @@ grep -q '^merkle_proof_valid=true$' "$T/preflight"; grep -q '^confirmations=6$' 
 "$BIN" create-btc-spv-funding-proof-raw-tx "$T/chain" "$BO_ADDR" "$SID" "$BTCRAW" "$MAIN1_HASH" 0 "$BTCBRANCH" "$BO_ED" "$BO_ML" 21 4000 0 > "$T/proof.raw"
 QRX_PASSPHRASE=test "$BIN" signrawtransactionwithwallet "$T/buyer_owner" "$T/chain" "$T/proof.raw" "$T/proof.signed" >/dev/null
 "$BIN" verify "$T/chain" "$T/proof.signed" >/dev/null
+
+# Phase 7.1: the same otherwise-valid Bitcoin funding proof must become invalid
+# once the QRX funding deadline is crossed. Use a byte-for-byte chain copy so
+# the proof/signatures/genesis remain identical and only QRX height changes.
+FUNDING_DEADLINE="$($BIN crosschain-status "$T/chain" "$SID" | awk -F= '$1=="btc_funding_deadline_qrx_height"{print $2}')"
+[[ "$FUNDING_DEADLINE" =~ ^[0-9]+$ ]] && [[ "$FUNDING_DEADLINE" -gt 0 ]]
+cp -a "$T/chain" "$T/late-chain"
+mkdir -p "$T/late-chain/blocks"
+for ((h=1; h<=FUNDING_DEADLINE+1; h++)); do : > "$T/late-chain/blocks/phase71-height-$h"; done
+if "$BIN" verify "$T/late-chain" "$T/proof.signed" >"$T/late.out" 2>"$T/late.err"; then
+  echo 'funding proof unexpectedly valid after BTC funding deadline' >&2; exit 1
+fi
+grep -qi 'funding deadline' "$T/late.err" || { echo 'late funding rejected for wrong reason' >&2; cat "$T/late.err" >&2; exit 1; }
+
 "$BIN" applytx "$T/chain" "$T/proof.signed" >/dev/null
 "$BIN" crosschain-funding "$T/chain" "$SID" > "$T/funding"
 grep -q '^bitcoin_spv_verified=true$' "$T/funding"; grep -q '^confirmations=6$' "$T/funding"; grep -q '^safe_to_reveal_secret=true$' "$T/funding"
+grep -q '^btc_funding_proof_locked=true$' < <("$BIN" crosschain-status "$T/chain" "$SID")
 "$BIN" btc-spv-confirmations "$T/chain" "$BTCTXID" | grep -q '^confirmations=6$'
+
+# Phase 7.1: once the first proof is committed, funding identity is immutable.
+# A fresh, correctly signed proof transaction in another lane must not replace
+# or reset the session's Bitcoin funding TXID/status.
+"$BIN" create-btc-spv-funding-proof-raw-tx "$T/chain" "$BO_ADDR" "$SID" "$BTCRAW" "$MAIN1_HASH" 0 "$BTCBRANCH" "$BO_ED" "$BO_ML" 22 4000 0 > "$T/proof2.raw"
+QRX_PASSPHRASE=test "$BIN" signrawtransactionwithwallet "$T/buyer_owner" "$T/chain" "$T/proof2.raw" "$T/proof2.signed" >/dev/null
+if "$BIN" verify "$T/chain" "$T/proof2.signed" >"$T/proof2.out" 2>"$T/proof2.err"; then
+  echo 'second funding proof unexpectedly accepted for locked session' >&2; exit 1
+fi
+grep -Eqi 'already|locked|awaiting_btc_funding|funding proof' "$T/proof2.err" || { echo 'second funding proof rejected for wrong reason' >&2; cat "$T/proof2.err" >&2; exit 1; }
+[[ "$($BIN crosschain-status "$T/chain" "$SID" | awk -F= '$1=="btc_funding_txid"{print $2}')" == "$BTCTXID" ]]
 
 # Create a higher-work fork that excludes the funding transaction. The stored proof remains cryptographically valid,
 # but it is no longer on the active Bitcoin chain and QRX must block settlement.

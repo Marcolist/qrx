@@ -1,7 +1,10 @@
 #define _GNU_SOURCE
 #include "core_frontend.h"
 #include "qrx_core.h"
+#include "chain_params.h"
 #include "treasury/qrx_dev_addresses.h"
+#include "genesis/qrx_bootstrap_validators.h"
+#include "genesis/qrx_genesis_governance.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -28,13 +31,20 @@
   #define PATH_MAX 4096
 #endif
 
+/* Phase 7.2 Mainnet release interlock. It becomes ready automatically only
+   after all 50 compiled bootstrap validator addresses and all five compiled
+   governance Ed25519 public keys are valid and unique. */
+static int qrx_mainnet_genesis_material_ready(void){
+    return qrx_bootstrap_validators_material_ready() && qrx_genesis_governance_material_ready();
+}
+
 static const QrxProfile PROFILES[] = {
     /* name, chain_name, network_id, genesis_hash, protocol_version, magic, port, seeds, slash_threshold, redistribute_bps, max_supply, epoch_reward, faucet_cap,
        block_time, max_txs, max_block_bytes, max_tx_bytes, validator_pct, delegator_pct, network_pool_pct, default_commission_bps, allow_overrides */
     {"alpha","QRX Public Alpha","qrx-alpha","9f1ad2e9e8c9f9b8a1d7e2c3456f7890abcdeffedcba09876543210fedcba98700112233445566778899aabbccddeeff11223344556677889900aabbccdd","62","QRXA62",26661,{"127.0.0.1:26661","127.0.0.1:26662","127.0.0.1:26663",NULL},"20","5000","2100000000000000","25000000","1000000000000",10,100,524288,8192,30,70,0,1000,0},
     {"testnet","QRX Testnet","qrx-testnet","7c10c4f0a7ee488da5021d31f6b5f42423f94f8c1055d4e0c2a0f1e2d3c4b5a6112233445566778899aabbccddeeff00112233445566778899aabbccddeeff","62","QRXT62",26662,{"127.0.0.1:26662",NULL},"20","5000","2100000000000000","25000000","1000000000000",10,100,524288,8192,30,70,0,1000,0},
     {"regtest","QRX Regtest","qrx-regtest","5b7f9c2a4e6d8b0c1f3a597b2d4e6f8091a2b3c4d5e6f77889900aabbccddeeff1234567890abcdef11223344556677889900aabbccddeeff001122334455","62","QRXR62",26663,{"127.0.0.1:26663",NULL},"10","5000","1000000000000","1000000","1000000000",2,100,262144,8192,30,70,0,1000,1},
-    {"mainnet","QRX Mainnet Preview","qrx-mainnet-preview","f0e1d2c3b4a5968778695a4b3c2d1e0ffedcba98765432100123456789abcdeffedcba98765432100123456789abcdeffedcba98765432100123456789abcd","62","QRXM62",26660,{NULL},"20","5000","2100000000000000","50000000","0",10,100,524288,8192,30,70,0,1000,0}
+    {"mainnet","QRX Mainnet","qrx-mainnet","GENESIS_COMPUTED_FROM_FINAL_INPUTS","62","QRXM62",26660,{"seed1.qrxchain.org:26660","seed2.qrxchain.org:26660","seed3.qrxchain.org:26660",NULL},"20","5000","2100000000000000","50000000","0",10,100,524288,8192,30,70,0,1000,0}
 };
 
 static int path_exists(const char *p){struct stat st; return stat(p,&st)==0;}
@@ -107,7 +117,7 @@ static int ensure_chain(const char *base, const QrxProfile *p, char *out_chain, 
 
     snprintf(conf,sizeof(conf),"%s/chain.conf",cdir);
     if(!path_exists(conf)){
-        char *argv_init[20];
+        char *argv_init[21];
         argv_init[0]="qrx";
         argv_init[1]="init-chain";
         argv_init[2]=cdir;
@@ -127,10 +137,13 @@ static int ensure_chain(const char *base, const QrxProfile *p, char *out_chain, 
         argv_init[16]=val_pct;
         argv_init[17]=del_pct;
         argv_init[18]=net_pct;
-        argv_init[19]=NULL;
-        if(qrx_backend_call(19,argv_init)!=0) return -1;
+        argv_init[19]=(char*)qrx_dev_address_for_network(p->name);
+        argv_init[20]=NULL;
+        if(qrx_backend_call(20,argv_init)!=0) return -1;
     }
 
+    char canonical_genesis_hash[128];
+    if(qrx_chain_get_value(cdir, "genesis_hash", canonical_genesis_hash, sizeof(canonical_genesis_hash)) != 0) return -1;
     f=fopen(conf,"wb");
     if(!f) return -1;
     fprintf(f,
@@ -161,7 +174,7 @@ static int ensure_chain(const char *base, const QrxProfile *p, char *out_chain, 
         "supports_snapshot_import_export=1\n"
         "dev_address=%s\n"
         "faucet_enabled=%d\n",
-        p->network_id,p->genesis_hash,p->protocol_version,p->magic,p->chain_name,
+        p->network_id,canonical_genesis_hash,p->protocol_version,p->magic,p->chain_name,
         p->slash_penalty_threshold,p->slash_redistribute_bps,p->max_supply_atoms,p->epoch_reward_atoms,p->faucet_cap_atoms,
         p->block_time_seconds,p->max_txs_per_block,p->max_block_bytes,p->max_tx_bytes,
         p->validator_reward_percent,p->delegator_reward_percent,p->network_pool_percent,
@@ -189,8 +202,8 @@ static int shared_wallet_dir_from_network_base(const char *base, const char *wal
     snprintf(out,out_sz,"%s/wallets/%s",root,wallet);
     return 0;
 }
-static int ensure_wallet(const char *base, const char *wallet, char *out_wallet, size_t out_wallet_sz){
-    char wdir[PATH_MAX], apath[PATH_MAX], root[PATH_MAX], alpha_legacy[PATH_MAX]; char *argv_new[3];
+static int ensure_wallet(const char *base, const QrxProfile *profile, const char *wallet, char *out_wallet, size_t out_wallet_sz){
+    char wdir[PATH_MAX], apath[PATH_MAX], root[PATH_MAX]; char *argv_new[3];
     if(shared_wallet_dir_from_network_base(base,wallet,wdir,sizeof(wdir))!=0) return -1;
     snprintf(root,sizeof(root),"%s",base); char *slash1=strrchr(root,'/');
 #ifdef _WIN32
@@ -198,18 +211,40 @@ static int ensure_wallet(const char *base, const char *wallet, char *out_wallet,
 #endif
     if(!slash1) return -1;
     *slash1=0;
-    snprintf(alpha_legacy,sizeof(alpha_legacy),"%s/alpha/wallets/%s",root,wallet);
-    /* Compatibility: until the GUI performs its copy-only migration to
-       ~/.qrx/wallets/<name>, all networks may safely use the existing Alpha
-       wallet identity in place. This prevents accidental per-network keys. */
+
+    /* Security invariant: a network-specific legacy wallet must never be
+       silently selected as the new shared identity. In particular, do not
+       privilege Alpha when Mainnet/Testnet/Regtest was requested. The GUI
+       migration wizard performs a copy-only, conflict-aware migration. */
     snprintf(apath,sizeof(apath),"%s/address.txt",wdir);
     if(!path_exists(apath)){
-        char legacy_address[PATH_MAX]; snprintf(legacy_address,sizeof(legacy_address),"%s/address.txt",alpha_legacy);
-        if(path_exists(legacy_address)){ snprintf(out_wallet,out_wallet_sz,"%s",alpha_legacy); return 0; }
+        const char *legacy_networks[] = {"mainnet","alpha","testnet","regtest",NULL};
+        int legacy_found = 0;
+        for(int i=0; legacy_networks[i]; ++i){
+            char legacy_address[PATH_MAX];
+            snprintf(legacy_address,sizeof(legacy_address),"%s/%s/wallets/%s/address.txt",root,legacy_networks[i],wallet);
+            if(path_exists(legacy_address)){ legacy_found = 1; break; }
+        }
+        if(legacy_found){
+            fprintf(stderr,
+                "QRX wallet safety: legacy per-network wallet '%s' exists while shared wallet '%s/wallets/%s' is absent. "
+                "Refusing automatic network preference or overwrite. Use the GUI Wallets -> Migration Conflict Wizard (copy-only) or explicitly migrate the intended identity first.\n",
+                wallet, root, wallet);
+            return -1;
+        }
     }
     if(mkdir_p(wdir)!=0) return -1;
     snprintf(apath,sizeof(apath),"%s/address.txt",wdir);
-    if(!path_exists(apath)){ if(!getenv("QRX_PASSPHRASE")) setenv_qrx("QRX_PASSPHRASE","change-me",1); argv_new[0]="qrx"; argv_new[1]="seed-new"; argv_new[2]=wdir; if(qrx_backend_call(3,argv_new)!=0) return -1; }
+    if(!path_exists(apath)){
+        const char *pass = getenv("QRX_PASSPHRASE");
+        if((!pass || !*pass) && profile && !strcmp(profile->name, "mainnet")){
+            fprintf(stderr, "QRX mainnet wallet safety: refusing wallet creation without an explicit QRX_PASSPHRASE.\n");
+            return -1;
+        }
+        if(!pass || !*pass) setenv_qrx("QRX_PASSPHRASE","change-me",1);
+        argv_new[0]="qrx"; argv_new[1]="seed-new"; argv_new[2]=wdir;
+        if(qrx_backend_call(3,argv_new)!=0) return -1;
+    }
     snprintf(out_wallet,out_wallet_sz,"%s",wdir); return 0;
 }
 int qrx_get_wallet_address(const char *wallet_dir, char *out, size_t out_sz){ char apath[PATH_MAX]; char *txt; snprintf(apath,sizeof(apath),"%s/address.txt",wallet_dir); txt=read_file_simple(apath); if(!txt) return -1; txt[strcspn(txt,"\r\n")]=0; snprintf(out,out_sz,"%s",txt); free(txt); return 0; }
@@ -232,4 +267,4 @@ static int ensure_node_conf(const char *base, const QrxProfile *p, const char *w
  if(refresh_node_wallet_binding(nconf,wallet_dir)!=0) return -1;
  snprintf(peers,sizeof(peers),"%s/peers.txt",ndir); snprintf(seedf,sizeof(seedf),"%s/seednodes.txt",ndir); snprintf(self,sizeof(self),"%s:%s",host,port); for(int i=0;p->seednodes[i];++i){ snprintf(ep,sizeof(ep),"%s",p->seednodes[i]); if(strcmp(ep,self)!=0){ append_unique_line(peers,ep); append_unique_line(seedf,ep);} }
  for(int i=0;i<addnode_count;++i){ char h[128], prt[32]; char *argv_add[5]; if(qrx_parse_hostport(addnodes[i],h,sizeof(h),prt,sizeof(prt))!=0) continue; argv_add[0]="qrx"; argv_add[1]="add-peer"; argv_add[2]=ndir; argv_add[3]=h; argv_add[4]=prt; qrx_backend_call(5,argv_add);} snprintf(out_node,out_node_sz,"%s",ndir); return 0; }
-int qrx_ensure_node(const char *network, const char *datadir, const char *wallet, const char *listen, const char **addnodes, int addnode_count, char *out_base, size_t out_base_sz, char *out_chain, size_t out_chain_sz, char *out_wallet, size_t out_wallet_sz, char *out_node, size_t out_node_sz){ const QrxProfile *p=qrx_profile_by_name(network); if(!p) return -1; qrx_default_datadir(network,datadir,out_base,out_base_sz); if(mkdir_p(out_base)!=0) return -1; if(ensure_chain(out_base,p,out_chain,out_chain_sz)!=0) return -1; if(ensure_wallet(out_base,wallet,out_wallet,out_wallet_sz)!=0) return -1; if(ensure_node_conf(out_base,p,wallet,listen,addnodes,addnode_count,out_node,out_node_sz,out_chain,out_wallet)!=0) return -1; return 0; }
+int qrx_ensure_node(const char *network, const char *datadir, const char *wallet, const char *listen, const char **addnodes, int addnode_count, char *out_base, size_t out_base_sz, char *out_chain, size_t out_chain_sz, char *out_wallet, size_t out_wallet_sz, char *out_node, size_t out_node_sz){ const QrxProfile *p=qrx_profile_by_name(network); if(!p) return -1; if(!strcmp(network,"mainnet") && !qrx_mainnet_genesis_material_ready()){ fprintf(stderr,"QRX mainnet release gate: fill the 50 bootstrap validator addresses and 5 developer-governance public keys; refusing to initialize or start Mainnet.\n"); return -1; } qrx_default_datadir(network,datadir,out_base,out_base_sz); if(mkdir_p(out_base)!=0) return -1; if(ensure_chain(out_base,p,out_chain,out_chain_sz)!=0) return -1; if(ensure_wallet(out_base,p,wallet,out_wallet,out_wallet_sz)!=0) return -1; if(ensure_node_conf(out_base,p,wallet,listen,addnodes,addnode_count,out_node,out_node_sz,out_chain,out_wallet)!=0) return -1; return 0; }

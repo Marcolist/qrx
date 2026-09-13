@@ -1,0 +1,18 @@
+PASS: QRX Generals 0.0.7.7 Phase 3.1 adaptive seasonal world: deterministic size tiers, 64x64 chunk occupancy, fair HQ minimum distance, clustered starter armies, monotonic coordinate-compatible world model
+PASS: Generals Phase 4.7 advanced air operations consensus primitives
+PASS: QRX Generals 0.0.7.7 Phase 4.5 air/radar/SAM/missile consensus primitives
+PASS: QRX Generals 0.0.7.7 Phase 4.6 air superiority/interception/mission resolution consensus primitives
+PASS: Generals Phase 5.1 city population, industry and economic development consensus structure
+PASS: QRX Generals Phase 4 regression under Phase 4.4+ rules: support units, strategic commitment, blind long-range fire rejection, pending-damage surface, territory state, legacy starter-index compatibility
+PASS: QRX Generals 0.0.7.7 Phase 3 deterministic world & orders: deterministic terrain/spawn, starter units, commit/reveal timing, commitment verification, movement, occupancy, Energy debit, replay rejection, WAL atomicity, wallet compatibility
+PASS: Generals Phase 5 deterministic strategic features, capture ownership, per-turn economy production and scoring primitives
+PASS: Generals Phase 4.4 static/compiled feature surface: Fog of War, Reconnaissance, EW, contact-gated long-range targeting
+PASS: Phase 6.1 full GUI wiring surface, right-click tactical context menu, 70/30 player+clan season reward accounting, season clan snapshot and clan ranking
+PASS: Generals Phase 4.8 naval classes, water movement, amphibious transport and sea supply consensus primitives
+PASS: Generals Phase 4.9 fleets, carrier operations, naval-yard deployment, blockades and deterministic naval combat primitives
+PASS: Generals Phase 6 playable-alpha lifecycle, deterministic ranking/finalization, atomic QUB reward claim, replay rejection, region API and GUI bridge surface
+Phase 5.3 structural/core/music checks: PASS
+PASS: QRX Generals 0.0.7.7 Phase 1 serverless consensus: player identity, native unique General, GAME_JOIN, clan creation, treasury funding, WAL atomicity, address compatibility
+PASS: QRX Generals 0.0.7.7 Phase 2 serverless consensus: deterministic seasons/turns, regenerating energy, season entry + reserved prize pool, clan invite IDs, join/leave/rejoin, WAL atomicity, and wallet/address compatibility
+PASS: QRX Generals 0.0.7.7 Phase 4.1 supply, production and strategic infrastructure: deterministic logistics resources, owned-territory factory construction, unit production, atomic resource debit and duplicate-build rejection
+PHASE52_PASS

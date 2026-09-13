@@ -1,0 +1,9 @@
+{
+  "network": "mainnet",
+  "qrx_cli": "./qrx-core/build/qrx-cli",
+  "nodes": [
+    {"name": "observer-1", "datadir": "/srv/qrx/observer1"},
+    {"name": "observer-2", "datadir": "/srv/qrx/observer2"},
+    {"name": "observer-3", "datadir": "/srv/qrx/observer3"}
+  ]
+}

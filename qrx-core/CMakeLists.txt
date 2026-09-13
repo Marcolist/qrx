@@ -84,6 +84,8 @@ set(QRX_CORE_SOURCES
     src/consensus/qrx_slashing.c
     src/economics/qrx_economics.c
     src/treasury/qrx_dev_addresses.c
+    src/genesis/qrx_bootstrap_validators.c
+    src/genesis/qrx_genesis_governance.c
 )
 
 add_library(qrxcore STATIC ${QRX_CORE_SOURCES})
@@ -93,22 +95,23 @@ target_include_directories(qrxcore PUBLIC
     ${OPENSSL_INCLUDE_DIR}
 )
 
-# Build a robust OpenSSL link list.
-# We intentionally keep the library path explicit when OPENSSL_CRYPTO_LIBRARY
-# is provided, because OpenSSL::Crypto can otherwise resolve to system OpenSSL
-# on Linux/macOS cache-heavy builds.
-set(QRX_OPENSSL_LINK_LIBS "")
-if(OPENSSL_CRYPTO_LIBRARY)
-    list(APPEND QRX_OPENSSL_LINK_LIBS "${OPENSSL_CRYPTO_LIBRARY}")
-else()
-    list(APPEND QRX_OPENSSL_LINK_LIBS OpenSSL::Crypto)
+# OpenSSL is a required part of the QRX ABI.  Always link through CMake's
+# imported OpenSSL::Crypto target so include paths, architecture selection and
+# transitive link requirements stay attached to every consumer of qrxcore.
+# The release builder pins OPENSSL_ROOT_DIR on macOS to prevent CMake from
+# accidentally selecting an Intel/Rosetta Homebrew installation for arm64.
+if(NOT TARGET OpenSSL::Crypto)
+    message(FATAL_ERROR "CMake OpenSSL package did not provide OpenSSL::Crypto")
 endif()
 
+add_library(qrx_crypto_deps INTERFACE)
+target_link_libraries(qrx_crypto_deps INTERFACE OpenSSL::Crypto Threads::Threads)
 if(UNIX AND NOT APPLE)
-    list(APPEND QRX_OPENSSL_LINK_LIBS Threads::Threads ${CMAKE_DL_LIBS})
+    target_link_libraries(qrx_crypto_deps INTERFACE ${CMAKE_DL_LIBS})
 endif()
 
-target_link_libraries(qrxcore PUBLIC ${QRX_OPENSSL_LINK_LIBS})
+set(QRX_OPENSSL_LINK_LIBS qrx_crypto_deps)
+target_link_libraries(qrxcore PUBLIC qrx_crypto_deps)
 
 if(WIN32)
     target_link_libraries(qrxcore PUBLIC ws2_32)
@@ -314,10 +317,15 @@ if(QRX_BUILD_TESTS)
     add_executable(qrx_velocity_block_scheduler_test tests/velocity_phase4f_scheduler.c)
     target_include_directories(qrx_velocity_block_scheduler_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
     target_link_libraries(qrx_velocity_block_scheduler_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
-    add_test(NAME velocity_phase4f_block_scheduler COMMAND qrx_velocity_block_scheduler_test)
+    add_test(NAME velocity_phase4f_block_scheduler COMMAND qrx_velocity_block_scheduler_test qrx_btc_spv_hardening_test)
+
+    add_executable(qrx_btc_spv_hardening_test tests/qrx_btc_spv_hardening.c)
+    target_include_directories(qrx_btc_spv_hardening_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(qrx_btc_spv_hardening_test PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_LIBS})
+    add_test(NAME bitcoin_spv_phase71_hardening COMMAND qrx_btc_spv_hardening_test)
 
     if(NOT MSVC)
-        foreach(test_tgt qrx_velocity_engine_test qrx_velocity_mvcc_test qrx_velocity_stateful_mvcc_test qrx_velocity_dynamic_mvcc_test qrx_velocity_speculative_mvcc_test qrx_velocity_block_scheduler_test)
+        foreach(test_tgt qrx_velocity_engine_test qrx_velocity_mvcc_test qrx_velocity_stateful_mvcc_test qrx_velocity_dynamic_mvcc_test qrx_velocity_speculative_mvcc_test qrx_velocity_block_scheduler_test qrx_btc_spv_hardening_test)
             if(QRX_ENABLE_ASAN)
                 target_link_options(${test_tgt} PRIVATE -fsanitize=address)
             endif()

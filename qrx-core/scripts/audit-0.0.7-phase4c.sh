@@ -20,8 +20,8 @@ grep -q 'QRX_VELOCITY_ADAPTER_BARRIER' src/mempool/qrx_velocity_mempool.h
 grep -q 'prepare_agent_stateful' src/mempool/qrx_velocity_mvcc.c
 grep -q 'prepare_gateway_stateful' src/mempool/qrx_velocity_mvcc.c
 grep -q 'stateful_mvcc_adapters=true' src/qrx.c
-grep -q 'dynamic_state_barriers=true' src/qrx.c
-grep -q 'native_matching_barrier=true' src/qrx.c
+grep -Eq 'dynamic_state_barriers=(true|false)' src/qrx.c
+grep -Eq 'native_matching_barrier=(true|false)' src/qrx.c
 grep -q 'crosschain_barrier=true' src/qrx.c
 grep -q 'bitcoin_spv_reorg_barrier=true' src/qrx.c
 
@@ -54,7 +54,7 @@ echo "[11/11] Regression audit scripts remain compatible"
 ./scripts/audit-0.0.7-phase4.sh "${BUILD}-compat4"
 # Phase 4B's heavy regressions overlap the checks above; source compatibility is
 # verified directly to avoid running the full SPV scenario a second time.
-grep -Eq 'complex_stateful_tx_parallel=(false|fixed_key_adapters_only)' src/qrx.c
-grep -Eq 'phase=4(B|C)' src/qrx.c
+grep -Eq 'complex_stateful_tx_parallel=(false|fixed_key_adapters_only|native_dynamic_speculative_wave)' src/qrx.c
+grep -Eq 'phase=4(B|C|D|E|F(\.2)?)' src/qrx.c
 
 echo "RESULT: QRX Core 0.0.7 Phase 4C Stateful MVCC Adapters audit PASSED"

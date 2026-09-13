@@ -43,6 +43,16 @@ typedef struct {
 } QrxBtcTxOutputMatch;
 
 int qrx_btc_spv_network_valid(const char *network);
+/* Deterministic Bitcoin Core-style 2016-block retarget arithmetic.
+ * Exposed so release tests can pin consensus vectors without duplicating the
+ * compact-target implementation. actual_timespan is clamped to 1/4..4x. */
+int qrx_btc_spv_retarget_bits(uint32_t previous_bits, uint32_t network_powlimit_bits,
+                              int64_t actual_timespan, uint32_t *out_bits);
+/* Pure cross-chain funding release gate used by consensus before expensive
+ * SPV proof verification. Returns 1 only while funding is still allowed, the
+ * first proof has not been locked, and the session is awaiting funding. */
+int qrx_btc_spv_funding_policy_valid(int64_t current_qrx_height, int64_t funding_deadline_qrx_height,
+                                     int proof_locked, int has_funding_txid, int status_awaiting_funding);
 const char *qrx_btc_spv_genesis_header_hex(const char *network);
 int qrx_btc_spv_init(QrxDB *db, const char *network, char *err, size_t err_sz);
 int qrx_btc_spv_stage_header(QrxDB *db, QrxDBBatch *batch, const char *network,

@@ -52,12 +52,33 @@ fail:free(sid);free(raw);free(bh);free(idxs);free(branch);return -1;
 }
 
 static void validate_btc_spv_funding_proof_tx(const char *chain_dir,const char *from,const char *to,const char *payload){
-    (void)to;QrxBtcSpvProofResult p;QrxBtcTxOutputMatch m;char sid[160],err[512]={0};if(btc_spv_verify_crosschain_payload(chain_dir,from,payload,&p,&m,sid,sizeof(sid),err,sizeof(err)))die("Bitcoin SPV funding proof rejected: %s",err[0]?err:"validation failed");
+    (void)to;QrxBtcSpvProofResult p;QrxBtcTxOutputMatch m;char sid[160],err[512]={0};
+    if(btc_spv_verify_crosschain_payload(chain_dir,from,payload,&p,&m,sid,sizeof(sid),err,sizeof(err)))die("Bitcoin SPV funding proof rejected: %s",err[0]?err:"validation failed");
+    long long h=current_height_from_chain(chain_dir);
+    long long deadline=crosschain_get_ll(chain_dir,sid,"btc_funding_deadline_qrx_height",0);
+    long long req=btc_spv_session_required_confirmations(chain_dir,sid);
+    char *locked=crosschain_get_field(chain_dir,sid,"btc_funding_proof_locked");
+    char *existing=crosschain_get_field(chain_dir,sid,"btc_funding_txid");
+    char *status=crosschain_get_field(chain_dir,sid,"status");
+    if(!qrx_btc_spv_funding_policy_valid(h,deadline,locked&&!strcmp(locked,"true"),existing&&*existing,status&&!strcmp(status,"awaiting_btc_funding"))){
+        if(!deadline||h>deadline)die("Bitcoin SPV funding proof rejected: funding deadline passed");
+        if((locked&&!strcmp(locked,"true"))||(existing&&*existing))die("Bitcoin SPV funding proof rejected: funding proof already locked for session");
+        die("Bitcoin SPV funding proof rejected: session is not awaiting funding");
+    }
+    if(!p.active_chain||p.confirmations<(uint64_t)req)die("Bitcoin SPV funding proof rejected: required confirmations not reached");
+    free(locked);free(existing);free(status);
 }
 
 static int atomic_stage_btc_spv_funding_proof(QrxDBBatch *b,const char *chain_dir,const char *from,const char *payload,const char *body_hash,long long qrx_height){
-    QrxBtcSpvProofResult p;QrxBtcTxOutputMatch m;char sid[160],err[512]={0};if(btc_spv_verify_crosschain_payload(chain_dir,from,payload,&p,&m,sid,sizeof(sid),err,sizeof(err)))return -1;char *spk=crosschain_get_field(chain_dir,sid,"btc_scriptpubkey_hex");if(!spk)return -1;int rc=qrx_btc_spv_stage_proof(b,btc_spv_network_for_chain(chain_dir),&p,m.vout,m.sats,spk,err,sizeof(err));free(spk);long long req=btc_spv_session_required_confirmations(chain_dir,sid);int safe=p.active_chain&&p.confirmations>=(uint64_t)req;
-    rc|=crosschain_batch_put(b,sid,"bitcoin_spv_verified","true");rc|=crosschain_batch_put(b,sid,"btc_funding_txid",p.txid);rc|=crosschain_batch_put_ll(b,sid,"btc_funding_vout",m.vout);rc|=crosschain_batch_put_ll(b,sid,"btc_funding_sats",m.sats);rc|=crosschain_batch_put(b,sid,"btc_funding_block_hash",p.block_hash);rc|=crosschain_batch_put_ll(b,sid,"btc_funding_block_height",(long long)p.block_height);rc|=crosschain_batch_put_ll(b,sid,"btc_proof_confirmations_at_submit",(long long)p.confirmations);rc|=crosschain_batch_put_ll(b,sid,"btc_required_confirmations",req);rc|=crosschain_batch_put(b,sid,"btc_funding_status",safe?"confirmed":"confirming");rc|=crosschain_batch_put(b,sid,"safe_to_reveal_secret",safe?"true":"false");rc|=crosschain_batch_put(b,sid,"status",safe?"btc_funded":"btc_confirming");rc|=crosschain_batch_put_ll(b,sid,"btc_proof_qrx_height",qrx_height);rc|=crosschain_batch_put(b,sid,"btc_proof_last_tx",body_hash);return rc?-1:0;
+    QrxBtcSpvProofResult p;QrxBtcTxOutputMatch m;char sid[160],err[512]={0};
+    if(btc_spv_verify_crosschain_payload(chain_dir,from,payload,&p,&m,sid,sizeof(sid),err,sizeof(err)))return -1;
+    long long req=btc_spv_session_required_confirmations(chain_dir,sid),deadline=crosschain_get_ll(chain_dir,sid,"btc_funding_deadline_qrx_height",0);
+    char *existing=crosschain_get_field(chain_dir,sid,"btc_funding_txid"),*locked=crosschain_get_field(chain_dir,sid,"btc_funding_proof_locked"),*status=crosschain_get_field(chain_dir,sid,"status");
+    if(!qrx_btc_spv_funding_policy_valid(qrx_height,deadline,locked&&!strcmp(locked,"true"),existing&&*existing,status&&!strcmp(status,"awaiting_btc_funding"))||!p.active_chain||p.confirmations<(uint64_t)req){free(existing);free(locked);free(status);return -1;}
+    free(existing);free(locked);free(status);
+    char *spk=crosschain_get_field(chain_dir,sid,"btc_scriptpubkey_hex");if(!spk)return -1;
+    int rc=qrx_btc_spv_stage_proof(b,btc_spv_network_for_chain(chain_dir),&p,m.vout,m.sats,spk,err,sizeof(err));free(spk);
+    rc|=crosschain_batch_put(b,sid,"bitcoin_spv_verified","true");rc|=crosschain_batch_put(b,sid,"btc_funding_txid",p.txid);rc|=crosschain_batch_put_ll(b,sid,"btc_funding_vout",m.vout);rc|=crosschain_batch_put_ll(b,sid,"btc_funding_sats",m.sats);rc|=crosschain_batch_put(b,sid,"btc_funding_block_hash",p.block_hash);rc|=crosschain_batch_put_ll(b,sid,"btc_funding_block_height",(long long)p.block_height);rc|=crosschain_batch_put_ll(b,sid,"btc_proof_confirmations_at_submit",(long long)p.confirmations);rc|=crosschain_batch_put_ll(b,sid,"btc_required_confirmations",req);rc|=crosschain_batch_put(b,sid,"btc_funding_status","confirmed");rc|=crosschain_batch_put(b,sid,"safe_to_reveal_secret","true");rc|=crosschain_batch_put(b,sid,"status","btc_funded");rc|=crosschain_batch_put(b,sid,"btc_funding_proof_locked","true");rc|=crosschain_batch_put_ll(b,sid,"btc_proof_qrx_height",qrx_height);rc|=crosschain_batch_put(b,sid,"btc_proof_last_tx",body_hash);return rc?-1:0;
 }
 
 static int btc_spv_info_cmd(const char *chain_dir){

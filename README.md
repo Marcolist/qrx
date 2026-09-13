@@ -1,3 +1,7 @@
+# QRX 0.0.7.7 Phase 7.2.11
+
+Wallet UX, Accounting Completion & Advanced Market Chart.
+
 # QRX RC6.4 Final Merge — Cleaned & Unified
 
 This repository is the cleaned, unified QRX working tree for a **public alpha / hobby network**.

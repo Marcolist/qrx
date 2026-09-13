@@ -160,7 +160,7 @@ case "$TARGET" in
     ;;
   windows-x64)
     vcpkg_root="${VCPKG_ROOT:-${VCPKG_INSTALLATION_ROOT:-C:\\vcpkg}}"
-    pwsh -NoProfile -File "$CORE/scripts/build-windows-x64-static.ps1" -VcpkgRoot "$vcpkg_root" -BuildDir "$CORE_BUILD"
+    pwsh -NoProfile -File "$CORE/scripts/build-windows-x64-static.ps1" -VcpkgRoot "$vcpkg_root" -BuildDir "$CORE_BUILD" -Jobs "$JOBS"
     ;;
 esac
 
@@ -291,6 +291,22 @@ if [[ "$TARGET" == macos-* ]]; then
   echo "Created Finder-free macOS DMG: $DMG_PATH"
 fi
 
+# Verify the native installer set before packaging. A successful Cargo/Tauri
+# compile is not enough for a release target.
+case "$TARGET" in
+  macos-*)
+    find "$BUNDLE_DIR/dmg" -maxdepth 1 -type f -name '*.dmg' -print -quit | grep -q . || { echo "macOS DMG missing after bundle step" >&2; exit 8; }
+    ;;
+  linux-*)
+    find "$BUNDLE_DIR" -type f -name '*.deb' -print -quit | grep -q . || { echo "Linux DEB missing after Tauri bundle" >&2; exit 8; }
+    find "$BUNDLE_DIR" -type f -name '*.AppImage' -print -quit | grep -q . || { echo "Linux AppImage missing after Tauri bundle" >&2; exit 8; }
+    ;;
+  windows-x64)
+    find "$BUNDLE_DIR" -type f -name '*.msi' -print -quit | grep -q . || { echo "Windows MSI missing after Tauri bundle" >&2; exit 8; }
+    find "$BUNDLE_DIR" -type f -name '*.exe' -print -quit | grep -Eiq 'setup|installer|nsis' || { echo "Windows NSIS installer EXE missing after Tauri bundle" >&2; exit 8; }
+    ;;
+esac
+
 cp -R "$BUNDLE_DIR"/. "$TARGET_OUT/wallet/"
 
 echo "[6/7] Verifying staged release"
@@ -303,6 +319,6 @@ done
 find "$TARGET_OUT/wallet" -type f -print -quit | grep -q . || { echo "No Tauri installer was produced" >&2; exit 9; }
 
 echo "[7/7] Creating checksummed manifest and archive"
-python3 "$ROOT/scripts/package-target-release.py" --root "$TARGET_OUT" --target "$TARGET" --output "$DIST_ROOT/qrx-0.0.7-$TARGET.zip"
+python3 "$ROOT/scripts/package-target-release.py" --root "$TARGET_OUT" --target "$TARGET" --output "$DIST_ROOT/qrx-0.0.7.7-$TARGET.zip"
 
-echo "QRX target release complete: $DIST_ROOT/qrx-0.0.7-$TARGET.zip"
+echo "QRX target release complete: $DIST_ROOT/qrx-0.0.7.7-$TARGET.zip"

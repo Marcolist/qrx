@@ -1,4 +1,6 @@
 #include "chain_params.h"
+#include "genesis/qrx_bootstrap_validators.h"
+#include "genesis/qrx_genesis_governance.h"
 
 #include <openssl/sha.h>
 #include <stdio.h>
@@ -266,16 +268,19 @@ int qrx_chain_write_genesis(const char *chain_dir,
                             long long validator_reward_percent,
                             long long delegator_reward_percent,
                             long long network_pool_percent,
+                            const char *dev_address,
                             long long genesis_time) {
     char meta_path[1024], genesis_path[1024];
     path_meta(chain_dir, meta_path);
     path_genesis(chain_dir, genesis_path);
 
-    char genesis[4096];
+    char genesis[65536];
     snprintf(genesis, sizeof(genesis),
         "genesis_version=1\n"
         "chain_name=%s\n"
         "genesis_time=%lld\n"
+        "genesis_activation_policy=not_before_timestamp\n"
+        "genesis_memo=At the threshold of the AI age, amid global change, QRX was launched to keep value, verification, and digital sovereignty in the hands of people -- and to help ensure that the opportunities of artificial intelligence are open to all, not reserved for a few.\n"
         "block_time_seconds=%lld\n"
         "max_txs_per_block=%lld\n"
         "max_block_bytes=%lld\n"
@@ -286,6 +291,16 @@ int qrx_chain_write_genesis(const char *chain_dir,
         "epoch_reward_atoms=%lld\n"
         "initial_reward_atoms=%lld\n"
         "tx_fee_atoms=1000\n"
+        "asset_activation_height=0\n"
+        "asset_issue_main_burn_atoms=10000000000\n"
+        "asset_issue_sub_burn_atoms=2500000000\n"
+        "asset_issue_unique_burn_atoms=250000000\n"
+        "asset_issue_channel_burn_atoms=2500000000\n"
+        "asset_issue_qualifier_burn_atoms=25000000000\n"
+        "asset_issue_subqualifier_burn_atoms=2500000000\n"
+        "asset_issue_restricted_burn_atoms=50000000000\n"
+        "asset_reissue_burn_atoms=1000000000\n"
+        "asset_tag_burn_atoms=100000000\n"
         "halving_interval_blocks=12614400\n"
         "faucet_cap_atoms=%lld\n"
         "validator_reward_percent=%lld\n"
@@ -294,12 +309,18 @@ int qrx_chain_write_genesis(const char *chain_dir,
         "min_validator_stake_atoms=10000000000\n"
         "double_sign_slash_bps=5000\n"
         "double_sign_jail_seconds=315360000\n"
-        "offline_penalty_bps=100\n"
-        "offline_penalty_after_blocks=100\n"
-        "offline_penalty_interval_blocks=100\n"
+        "offline_penalty_bps=5\n"
+        "offline_penalty_after_blocks=25920\n"
+        "offline_penalty_interval_blocks=8640\n"
+        "offline_max_slash_bps_per_outage=100\n"
+        "offline_jail_after_blocks=60480\n"
         "offline_jail_seconds=3600\n"
+        "validator_catchup_max_blocks=2\n"
+        "validator_catchup_min_peers=1\n"
+        "validator_catchup_stable_seconds=30\n"
         "genesis_premine_policy=bootstrap_validators_only\n"
         "development_fund_policy=dynamic_subsidy_share\n"
+        "dev_address=%s\n"
         "transaction_fee_policy=validators_and_delegators_100_percent\n"
         "fork.0.block_time_seconds=%lld\n"
         "fork.0.max_txs_per_block=%lld\n"
@@ -308,6 +329,16 @@ int qrx_chain_write_genesis(const char *chain_dir,
         "fork.0.epoch_reward_atoms=%lld\n"
         "fork.0.initial_reward_atoms=%lld\n"
         "fork.0.tx_fee_atoms=1000\n"
+        "fork.0.asset_activation_height=0\n"
+        "fork.0.asset_issue_main_burn_atoms=10000000000\n"
+        "fork.0.asset_issue_sub_burn_atoms=2500000000\n"
+        "fork.0.asset_issue_unique_burn_atoms=250000000\n"
+        "fork.0.asset_issue_channel_burn_atoms=2500000000\n"
+        "fork.0.asset_issue_qualifier_burn_atoms=25000000000\n"
+        "fork.0.asset_issue_subqualifier_burn_atoms=2500000000\n"
+        "fork.0.asset_issue_restricted_burn_atoms=50000000000\n"
+        "fork.0.asset_reissue_burn_atoms=1000000000\n"
+        "fork.0.asset_tag_burn_atoms=100000000\n"
         "fork.0.halving_interval_blocks=12614400\n"
         "fork.0.validator_reward_percent=%lld\n"
         "fork.0.delegator_reward_percent=%lld\n"
@@ -315,10 +346,15 @@ int qrx_chain_write_genesis(const char *chain_dir,
         "fork.0.min_validator_stake_atoms=10000000000\n"
         "fork.0.double_sign_slash_bps=5000\n"
         "fork.0.double_sign_jail_seconds=315360000\n"
-        "fork.0.offline_penalty_bps=100\n"
-        "fork.0.offline_penalty_after_blocks=100\n"
-        "fork.0.offline_penalty_interval_blocks=100\n"
-        "fork.0.offline_jail_seconds=3600\n",
+        "fork.0.offline_penalty_bps=5\n"
+        "fork.0.offline_penalty_after_blocks=25920\n"
+        "fork.0.offline_penalty_interval_blocks=8640\n"
+        "fork.0.offline_max_slash_bps_per_outage=100\n"
+        "fork.0.offline_jail_after_blocks=60480\n"
+        "fork.0.offline_jail_seconds=3600\n"
+        "fork.0.validator_catchup_max_blocks=2\n"
+        "fork.0.validator_catchup_min_peers=1\n"
+        "fork.0.validator_catchup_stable_seconds=30\n",
         chain_name,
         genesis_time,
         block_time_seconds,
@@ -334,6 +370,7 @@ int qrx_chain_write_genesis(const char *chain_dir,
         validator_reward_percent,
         delegator_reward_percent,
         network_pool_percent,
+        dev_address ? dev_address : "",
         block_time_seconds,
         max_txs_per_block,
         max_block_bytes,
@@ -343,6 +380,54 @@ int qrx_chain_write_genesis(const char *chain_dir,
         validator_reward_percent,
         delegator_reward_percent,
         network_pool_percent);
+
+    /* Phase 7.2: Mainnet bootstrap validators and developer-governance roots
+     * are part of the canonical Genesis bytes. Any change therefore changes
+     * genesis_hash and chain_id on every node. */
+    if (network_id && strstr(network_id, "mainnet") != NULL) {
+        size_t off = strlen(genesis);
+        int n = snprintf(genesis + off, sizeof(genesis) - off,
+            "governance_model=developer_threshold_v1\n"
+            "governance_threshold=%d\n"
+            "governance_root_count=%d\n"
+            "kyc_provider_registry=consensus_qrxdb_v1\n"
+            "kyc_provider_governance=developer_threshold_v1\n"
+            "bootstrap_validator_count=%d\n"
+            "bootstrap_validator_amount_atoms=%llu\n"
+            "bootstrap_validator_lock_until_height=%lld\n",
+            QRX_GENESIS_GOVERNANCE_THRESHOLD,
+            QRX_GENESIS_GOVERNANCE_ROOT_COUNT,
+            QRX_BOOTSTRAP_VALIDATOR_COUNT,
+            (unsigned long long)QRX_BOOTSTRAP_VALIDATOR_ATOMS,
+            (long long)QRX_BOOTSTRAP_LOCK_UNTIL_HEIGHT);
+        if (n < 0 || (size_t)n >= sizeof(genesis)-off) return -1;
+        off += (size_t)n;
+        for (int i=0;i<QRX_GENESIS_GOVERNANCE_ROOT_COUNT;i++) {
+            n = snprintf(genesis + off, sizeof(genesis) - off,
+                "governance_root_%d_key_id=%s\n"
+                "governance_root_%d_public_key_hex=%s\n",
+                i+1, QRX_GENESIS_GOVERNANCE_ROOTS[i].key_id,
+                i+1, QRX_GENESIS_GOVERNANCE_ROOTS[i].public_key_hex);
+            if (n < 0 || (size_t)n >= sizeof(genesis)-off) return -1;
+            off += (size_t)n;
+        }
+        for (int i=0;i<QRX_BOOTSTRAP_VALIDATOR_COUNT;i++) {
+            const qrx_bootstrap_validator_t *v=&QRX_BOOTSTRAP_VALIDATORS[i];
+            n = snprintf(genesis + off, sizeof(genesis) - off,
+                "bootstrap_validator_%d_address=%s\n"
+                "bootstrap_validator_%d_amount_atoms=%llu\n"
+                "bootstrap_validator_%d_locked_until_height=%lld\n"
+                "bootstrap_validator_%d_staking_allowed=%d\n"
+                "bootstrap_validator_%d_transfer_allowed_before_unlock=%d\n",
+                i+1,v->address,
+                i+1,(unsigned long long)v->amount_atoms,
+                i+1,(long long)v->locked_until_height,
+                i+1,v->staking_allowed,
+                i+1,v->transfer_allowed_before_unlock);
+            if (n < 0 || (size_t)n >= sizeof(genesis)-off) return -1;
+            off += (size_t)n;
+        }
+    }
 
     char genesis_hash[65];
     sha256_hex_local((const unsigned char*)genesis, strlen(genesis), genesis_hash);

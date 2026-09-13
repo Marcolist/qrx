@@ -14,7 +14,7 @@ test -f src/mempool/qrx_velocity_mvcc.h
 grep -q 'qrxdb_parallel_validation_prepare' src/mempool/qrx_velocity_mvcc.c
 grep -q 'QRX_MVCC_RETRY' src/mempool/qrx_velocity_mvcc.h
 grep -q 'single_wal_batch_per_mvcc_batch=true' src/qrx.c
-grep -Eq 'complex_stateful_tx_parallel=(false|fixed_key_adapters_only)' src/qrx.c
+grep -Eq 'complex_stateful_tx_parallel=(false|fixed_key_adapters_only|native_dynamic_speculative_wave)' src/qrx.c
 grep -q 'velocity-mvcc-execute' src/qrx.c
 
 echo "[3/10] configure + clean build"
@@ -44,6 +44,6 @@ echo "[9/10] QRXDB atomic batch recovery"
 
 echo "[10/10] Runtime engine markers"
 "$ROOT/$BUILD/qrx" 2>&1 | grep -q 'velocity-mvcc-execute <node-dir>' || true
-grep -Eq 'phase=4(B|C)' src/qrx.c
+grep -Eq 'phase=4(B|C|D|E|F(\.2)?)' src/qrx.c
 
 echo "RESULT: QRX Core 0.0.7 Phase 4B MVCC audit PASSED"

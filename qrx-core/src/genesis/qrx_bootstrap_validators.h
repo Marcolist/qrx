@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <stddef.h>
 #include "../economics/qrx_economics.h"
 
 #define QRX_BOOTSTRAP_VALIDATOR_COUNT 50
@@ -16,3 +17,5 @@ typedef struct {
 } qrx_bootstrap_validator_t;
 
 extern const qrx_bootstrap_validator_t QRX_BOOTSTRAP_VALIDATORS[QRX_BOOTSTRAP_VALIDATOR_COUNT];
+
+int qrx_bootstrap_validators_material_ready(void);

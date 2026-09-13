@@ -42,6 +42,12 @@ static int batch_put_u32(QrxDBBatch *b,const char *k,uint32_t v){char x[32];snpr
 
 static const char *normnet(const char *n){if(!n)return NULL;if(!strcasecmp(n,"mainnet")||!strcasecmp(n,"bitcoin"))return "mainnet";if(!strcasecmp(n,"testnet")||!strcasecmp(n,"testnet3"))return "testnet";if(!strcasecmp(n,"regtest"))return "regtest";return NULL;}
 int qrx_btc_spv_network_valid(const char *network){return normnet(network)!=NULL;}
+int qrx_btc_spv_funding_policy_valid(int64_t current_qrx_height, int64_t funding_deadline_qrx_height,
+                                     int proof_locked, int has_funding_txid, int status_awaiting_funding){
+    if(funding_deadline_qrx_height<=0||current_qrx_height>funding_deadline_qrx_height)return 0;
+    if(proof_locked||has_funding_txid||!status_awaiting_funding)return 0;
+    return 1;
+}
 
 const char *qrx_btc_spv_genesis_header_hex(const char *network){
     const char *n=normnet(network);if(!n)return NULL;
@@ -118,6 +124,18 @@ static int pow_valid(const unsigned char header[80],uint32_t bits,const char*net
 
 static int get_ancestor(QrxDB*db,const char*n,const char*start,uint64_t target,QrxBtcSpvHeaderInfo*out){QrxBtcSpvHeaderInfo cur;if(load_header_hash(db,n,start,&cur))return -1;while(cur.height>target){if(load_header_hash(db,n,cur.prev_hash,&cur))return -1;}if(cur.height!=target)return -1;*out=cur;return 0;}
 
+int qrx_btc_spv_retarget_bits(uint32_t previous_bits,uint32_t network_powlimit_bits,int64_t actual_timespan,uint32_t*out_bits){
+    if(!out_bits)return -1;
+    int64_t min=(int64_t)BTC_TARGET_TIMESPAN/4,max=(int64_t)BTC_TARGET_TIMESPAN*4;
+    if(actual_timespan<min)actual_timespan=min;if(actual_timespan>max)actual_timespan=max;
+    BIGNUM*t=NULL,*limit=NULL;
+    if(compact_to_bn(previous_bits,&t)||compact_to_bn(network_powlimit_bits,&limit)){BN_free(t);BN_free(limit);return -1;}
+    if(!BN_mul_word(t,(BN_ULONG)actual_timespan)){BN_free(t);BN_free(limit);return -1;}
+    if(BN_div_word(t,(BN_ULONG)BTC_TARGET_TIMESPAN)==(BN_ULONG)-1){BN_free(t);BN_free(limit);return -1;}
+    if(BN_cmp(t,limit)>0)BN_copy(t,limit);
+    *out_bits=bn_to_compact(t);BN_free(t);BN_free(limit);return *out_bits?0:-1;
+}
+
 static int expected_bits(QrxDB*db,const char*n,const QrxBtcSpvHeaderInfo*prev,uint64_t new_height,uint32_t new_time,uint32_t*out,char*err,size_t err_sz){
     if(!strcmp(n,"regtest")){*out=prev->bits;return 0;}
     if(new_height%BTC_RETARGET_INTERVAL!=0){
@@ -128,8 +146,8 @@ static int expected_bits(QrxDB*db,const char*n,const QrxBtcSpvHeaderInfo*prev,ui
         *out=prev->bits;return 0;
     }
     QrxBtcSpvHeaderInfo first;if(get_ancestor(db,n,prev->hash,new_height-BTC_RETARGET_INTERVAL,&first)){seterr(err,err_sz,"retarget ancestor missing");return -1;}
-    int64_t span=(int64_t)prev->timestamp-(int64_t)first.timestamp;int64_t min=(int64_t)BTC_TARGET_TIMESPAN/4,max=(int64_t)BTC_TARGET_TIMESPAN*4;if(span<min)span=min;if(span>max)span=max;
-    BIGNUM*t=NULL,*limit=NULL;if(compact_to_bn(prev->bits,&t)||compact_to_bn(powlimit_bits(n),&limit)){BN_free(t);BN_free(limit);seterr(err,err_sz,"retarget target invalid");return -1;}BN_mul_word(t,(BN_ULONG)span);BN_div_word(t,(BN_ULONG)BTC_TARGET_TIMESPAN);if(BN_cmp(t,limit)>0)BN_copy(t,limit);*out=bn_to_compact(t);BN_free(t);BN_free(limit);return 0;
+    int64_t span=(int64_t)prev->timestamp-(int64_t)first.timestamp;
+    if(qrx_btc_spv_retarget_bits(prev->bits,powlimit_bits(n),span,out)){seterr(err,err_sz,"retarget target invalid");return -1;}return 0;
 }
 
 static int median_time_past(QrxDB*db,const char*n,const char*prev_hash,uint32_t*out){uint32_t t[11];size_t count=0;QrxBtcSpvHeaderInfo cur;if(load_header_hash(db,n,prev_hash,&cur))return -1;while(count<11){t[count++]=cur.timestamp;if(cur.height==0)break;if(load_header_hash(db,n,cur.prev_hash,&cur))return -1;}for(size_t i=1;i<count;i++){uint32_t x=t[i];size_t j=i;while(j&&t[j-1]>x){t[j]=t[j-1];j--;}t[j]=x;}*out=t[count/2];return 0;}

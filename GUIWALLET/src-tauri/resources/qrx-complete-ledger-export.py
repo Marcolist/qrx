@@ -28,7 +28,7 @@ SCHEMAS = {
   "crosschain_swaps": ["timestamp_utc","created_height","session_id","status","buyer_order_id","seller_order_id","buyer_owner","seller_owner","btc_sats","qub_atoms","price_atoms","btc_txid","btc_confirmations","bitcoin_spv_verified","qrx_refund_height","hashlock_hex"],
   "kraken_executions": ["qrx_order_id","cl_ord_id","kraken_txid","last_seen_status","pending_qrx_seq","updated_at_utc"],
   "arbitrage_report": ["created_at_utc","updated_at_utc","arbitrage_id","state","decision","reason","mode","qrx_order_id","crosschain_session_id","qrx_hedge_order_id","symbol","quantity_sats","quantity_btc","acquisition_qub","acquisition_eur","kraken_gross_eur","kraken_vwap_eur","kraken_limit_eur","kraken_fee_eur","slippage_buffer_eur","risk_buffer_eur","network_fees_eur","net_profit_eur","net_margin_bps","oracle_source","oracle_timestamp","book_timestamp","approved_at_utc"],
-  "complete_ledger": ["timestamp_utc","record_type","primary_id","related_id","wallet","agent","venue","market","side","asset","quantity_atoms","quantity","price_atoms","gross_value","fee_value","net_value","realized_profit","status","source"],
+  "complete_ledger": ["timestamp_utc","record_type","tax_category","tax_event","tax_note","primary_id","related_id","wallet","agent","venue","market","side","asset","quantity_atoms","quantity","price_atoms","gross_value","fee_value","net_value","realized_profit","fiat_currency","fiat_unit_price","fiat_gross_value","fiat_fee_value","price_source","price_timestamp_utc","status","source"],
 }
 
 class ExportError(RuntimeError): pass
@@ -289,10 +289,25 @@ def collect_arbitrage(path: Optional[Path],period:Optional[Dict[str,Any]]=None) 
     finally:db.close()
     return out
 
+def tax_classification(event_type:Any,record_type:str,direction:str="")->Dict[str,str]:
+    t=str(event_type or "").upper(); d=str(direction or "").upper()
+    if "VALIDATOR" in t and "REWARD" in t or "BLOCK_REWARD" in t or "STAKING_REWARD" in t:
+        return {"tax_category":"REWARD","tax_event":"VALIDATOR_REWARD","tax_note":"Protocol reward; determine EUR value at receipt time for German tax reporting."}
+    if "DELEGAT" in t and "REWARD" in t:
+        return {"tax_category":"REWARD","tax_event":"DELEGATION_REWARD","tax_note":"Delegation reward; determine EUR value at receipt time for German tax reporting."}
+    if t in {"STAKE_BOND","STAKE_UNBOND","STAKE_CLAIM","DELEGATE_BOND","DELEGATE_UNBOND","DELEGATE_CLAIM"} or "STAKE_" in t or "DELEGATE_" in t:
+        return {"tax_category":"INTERNAL_STAKING","tax_event":t or record_type.upper(),"tax_note":"Stake/delegation movement; not automatically classified as taxable disposal. Review jurisdiction-specific treatment."}
+    if record_type in {"trade","crosschain_swap","kraken_execution","arbitrage"}:
+        return {"tax_category":"TRADE_OR_SWAP","tax_event":record_type.upper(),"tax_note":"Potential disposal/acquisition event. Fiat valuation and cost basis are required for tax calculation."}
+    if d=="INTERNAL": return {"tax_category":"INTERNAL_TRANSFER","tax_event":"INTERNAL_TRANSFER","tax_note":"Movement between addresses owned by the same wallet; normally not a disposal by itself."}
+    if d=="IN": return {"tax_category":"RECEIPT","tax_event":t or "RECEIPT","tax_note":"Incoming asset; classify source (purchase, reward, gift, transfer) before filing."}
+    if d=="OUT": return {"tax_category":"OUTGOING","tax_event":t or "OUTGOING","tax_note":"Outgoing asset; determine whether transfer, payment, sale or other disposal."}
+    return {"tax_category":"INFORMATIONAL","tax_event":t or record_type.upper(),"tax_note":"Review classification before filing."}
+
 def complete_rows(data: Dict[str,List[Dict[str,Any]]]) -> List[Dict[str,Any]]:
     out=[]
     for r in data["transactions"]:
-        out.append({"timestamp_utc":r.get("timestamp_utc",r.get("timestamp","")),"record_type":"transaction","primary_id":r.get("txid",r.get("hash","")),"wallet":r.get("wallet",""),"side":r.get("direction",""),"asset":r.get("asset","QUB"),"quantity_atoms":r.get("amount_atoms",r.get("amount","")),"quantity":r.get("amount",""),"fee_value":r.get("fee",""),"status":r.get("status","confirmed"),"source":r.get("source","qrx-chain")})
+        row={"timestamp_utc":r.get("timestamp_utc",r.get("timestamp","")),"record_type":"transaction","primary_id":r.get("txid",r.get("hash","")),"wallet":r.get("wallet",""),"side":r.get("direction",""),"asset":r.get("asset","QUB"),"quantity_atoms":r.get("amount_atoms",r.get("amount","")),"quantity":r.get("amount",""),"fee_value":r.get("fee",""),"status":r.get("status","confirmed"),"source":r.get("source","qrx-chain")};row.update(tax_classification(r.get("event_type",r.get("type","")),"transaction",r.get("direction","")));out.append(row)
     for r in data["orders"]:
         out.append({"timestamp_utc":r.get("timestamp_utc",""),"record_type":"order","primary_id":r.get("order_id",""),"related_id":r.get("arbitrage_id",r.get("crosschain_session_id","")),"wallet":r.get("owner",""),"agent":r.get("agent",""),"venue":r.get("venue","QRX"),"market":r.get("market",""),"side":r.get("side",""),"quantity_atoms":r.get("quantity_atoms",""),"price_atoms":r.get("limit_price_atoms",""),"status":r.get("status",""),"source":"qrx-order-state"})
     for r in data["trades"]:
@@ -303,6 +318,11 @@ def complete_rows(data: Dict[str,List[Dict[str,Any]]]) -> List[Dict[str,Any]]:
         out.append({"timestamp_utc":r.get("updated_at_utc",""),"record_type":"kraken_execution","primary_id":r.get("kraken_txid",""),"related_id":r.get("qrx_order_id",""),"venue":"KRAKEN","status":r.get("last_seen_status",""),"source":"kraken-gateway"})
     for r in data["arbitrage_report"]:
         out.append({"timestamp_utc":r.get("updated_at_utc",""),"record_type":"arbitrage","primary_id":r.get("arbitrage_id",""),"related_id":r.get("qrx_order_id",""),"venue":"QRX→KRAKEN","market":r.get("symbol","BTC/EUR"),"side":"SELL","asset":"BTC","quantity_atoms":r.get("quantity_sats",""),"quantity":r.get("quantity_btc",""),"gross_value":r.get("kraken_gross_eur",""),"fee_value":r.get("kraken_fee_eur",""),"net_value":r.get("net_profit_eur",""),"realized_profit":r.get("net_profit_eur","") if r.get("state") == "COMPLETED" else "","status":r.get("state",""),"source":"qrx-arbitrage"})
+    for row in out:
+        if not row.get("tax_category"): row.update(tax_classification(row.get("record_type",""),str(row.get("record_type","")),str(row.get("side",""))))
+        row.setdefault("fiat_currency","EUR")
+        row.setdefault("fiat_unit_price",""); row.setdefault("fiat_gross_value",""); row.setdefault("fiat_fee_value","")
+        row.setdefault("price_source",""); row.setdefault("price_timestamp_utc",row.get("timestamp_utc",""))
     return sorted(out,key=lambda r:(str(r.get("timestamp_utc","")),str(r.get("record_type","")),str(r.get("primary_id",""))))
 
 def export_bundle(output:Path,profile:str,data:Dict[str,List[Dict[str,Any]]],warnings:Optional[List[str]]=None,snapshot:Optional[Dict[str,Any]]=None,period:Optional[Dict[str,Any]]=None)->Dict[str,Any]:
@@ -314,7 +334,7 @@ def export_bundle(output:Path,profile:str,data:Dict[str,List[Dict[str,Any]]],war
     files=[]
     for name,fields in SCHEMAS.items():
         path=output/f"{name}.csv";write_csv(path,data.get(name,[]),fields,profile);files.append(path)
-    manifest={"format":"QRX_COMPLETE_LEDGER_V3","created_at_utc":datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),"profile":profile,"complete":True,"export_period":period or {"label":"all-time"},"source_warnings":[],"chain_snapshot":snapshot or {},"source_counts":{k:len(data.get(k,[])) for k in SCHEMAS if k!="complete_ledger"},"files":[]}
+    manifest={"format":"QRX_COMPLETE_LEDGER_V4_TAX_READY","created_at_utc":datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),"profile":profile,"complete":True,"tax_event_classification":True,"automatic_tax_advice":False,"fiat_valuation_policy":"Never invent a price. fiat_* fields are populated only when a provable source exists; blank values require accountant/user valuation input.","export_period":period or {"label":"all-time"},"source_warnings":[],"chain_snapshot":snapshot or {},"source_counts":{k:len(data.get(k,[])) for k in SCHEMAS if k!="complete_ledger"},"files":[]}
     for path in files:manifest["files"].append({"name":path.name,"rows":len(data[path.stem]),"sha256":hashlib.sha256(path.read_bytes()).hexdigest()})
     mp=output/"manifest.json";mp.write_text(json.dumps(manifest,indent=2,sort_keys=True)+"\n",encoding="utf-8");return manifest
 

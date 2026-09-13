@@ -18,6 +18,7 @@
 #define QRX_CROSSCHAIN_BTC_BLOCK_SECONDS_POLICY 600LL
 #define QRX_CROSSCHAIN_SAFETY_SECONDS 3600LL
 #define QRX_CROSSCHAIN_MAX_CSV_BLOCKS 65535LL
+#define QRX_CROSSCHAIN_DEFAULT_BTC_CONFIRMATIONS 6LL
 
 static int crosschain_hex_exact(const char *s,size_t min_len,size_t max_len){
     if(!s) return 0; size_t n=strlen(s); if(n<min_len||n>max_len) return 0;
@@ -117,6 +118,22 @@ static long long crosschain_required_qrx_window_blocks(const char *chain_dir,lon
     long long seconds=btc_csv*QRX_CROSSCHAIN_BTC_BLOCK_SECONDS_POLICY+QRX_CROSSCHAIN_SAFETY_SECONDS;return (seconds+bt-1)/bt;
 }
 
+/* Phase 7.1: a Bitcoin funding proof must arrive early enough that the
+ * required Bitcoin confirmation horizon plus a fixed QRX safety window can
+ * elapse before the QUB refund height. This closes the late-funding race where
+ * a seller could fund immediately before the QUB refund became available. */
+static long long crosschain_funding_safety_qrx_blocks(const char *chain_dir,long long confirmations){
+    long long h=current_height_from_chain(chain_dir);
+    long long bt=qrx_chain_get_ll_at_height_or_default(chain_dir,h,"block_time_seconds",10LL);
+    if(bt<=0)bt=10; if(confirmations<=0)confirmations=QRX_CROSSCHAIN_DEFAULT_BTC_CONFIRMATIONS;
+    long long seconds=confirmations*QRX_CROSSCHAIN_BTC_BLOCK_SECONDS_POLICY+QRX_CROSSCHAIN_SAFETY_SECONDS;
+    return (seconds+bt-1)/bt;
+}
+static long long crosschain_funding_deadline_height(const char *chain_dir,long long qrx_refund_height,long long confirmations){
+    long long reserve=crosschain_funding_safety_qrx_blocks(chain_dir,confirmations);
+    return qrx_refund_height>reserve?qrx_refund_height-reserve:0;
+}
+
 static void validate_crosschain_order_fields(const char *chain_dir,const char *agent,const char *owner,const char *payload,const char *tx_expiry,const char *ed,const char *ml){
     validate_payload_clean(payload,"cross-chain trading payload");char *market=payload_get_field(payload,"market"),*side=payload_get_field(payload,"side"),*otype=payload_get_field(payload,"order_type"),*qs=payload_get_field(payload,"quantity_atoms"),*ps=payload_get_field(payload,"limit_price_atoms"),*oes=payload_get_field(payload,"order_expires_height"),*hash=payload_get_field(payload,"hashlock_hex"),*redeem=payload_get_field(payload,"btc_redeem_pubkey_hex"),*refund=payload_get_field(payload,"btc_refund_pubkey_hex"),*csvs=payload_get_field(payload,"btc_refund_csv_blocks"),*qrhs=payload_get_field(payload,"qrx_refund_height");
     if(!market||!side||!otype||!qs||!ps||!oes||!hash||!redeem||!refund||!csvs||!qrhs)die("cross-chain payload missing fields");
@@ -165,7 +182,10 @@ static int crosschain_settle_match(const char *chain_dir,const char *maker_id,co
     QrxDB db;QrxDBBatch b;if(qrxdb_init(&db,chain_dir)||qrxdb_batch_begin(&db,&b)){free(hash);free(buyer_pub);free(seller_pub);free(buyer_owner);free(seller_owner);free(ms);free(ts);return -1;}int rc=0;rc|=atomic_batch_put_balance(&b,buyer_owner,newbal);
 #define XPUT(f,v) do{rc|=crosschain_batch_put(&b,sid,(f),(v));}while(0)
 #define XPUTLL(f,v) do{rc|=crosschain_batch_put_ll(&b,sid,(f),(v));}while(0)
-    XPUT("market",QRX_CROSSCHAIN_MARKET);XPUT("status","awaiting_btc_funding");XPUT("buy_order_id",buy);XPUT("sell_order_id",sell);XPUT("maker_order_id",maker_id);XPUT("taker_order_id",taker_id);XPUT("qrx_buyer",buyer_owner);XPUT("qrx_seller",seller_owner);XPUTLL("quantity_sats",bqty);XPUTLL("price_atoms",price);XPUTLL("qub_atoms",quote);XPUTLL("qrx_locked_atoms",quote);XPUT("hashlock_hex",hash);XPUTLL("qrx_refund_height",qrh);XPUTLL("btc_refund_csv_blocks",csv);XPUT("btc_redeem_pubkey_hex",buyer_pub);XPUT("btc_refund_pubkey_hex",seller_pub);XPUT("btc_witness_script_hex",shex);XPUT("btc_script_sha256",shash);XPUT("btc_scriptpubkey_hex",spk);XPUT("btc_p2wsh_mainnet",bcaddr);XPUT("btc_p2wsh_testnet",tbaddr);XPUT("btc_p2wsh_regtest",bcrtaddr);XPUTLL("created_height",h);XPUT("bitcoin_spv_verified","false");XPUT("btc_funding_status","waiting");XPUT("safe_to_reveal_secret","false");XPUTLL("btc_required_confirmations",6);XPUT("settlement_model","HTLC_SHA256_P2WSH_CSV_SPV");
+    long long required_conf=QRX_CROSSCHAIN_DEFAULT_BTC_CONFIRMATIONS;
+    long long funding_deadline=crosschain_funding_deadline_height(chain_dir,qrh,required_conf);
+    if(funding_deadline<=h){qrxdb_batch_abort(&b);qrxdb_close(&db);free(hash);free(buyer_pub);free(seller_pub);free(buyer_owner);free(seller_owner);free(ms);free(ts);return 1;}
+    XPUT("market",QRX_CROSSCHAIN_MARKET);XPUT("status","awaiting_btc_funding");XPUT("buy_order_id",buy);XPUT("sell_order_id",sell);XPUT("maker_order_id",maker_id);XPUT("taker_order_id",taker_id);XPUT("qrx_buyer",buyer_owner);XPUT("qrx_seller",seller_owner);XPUTLL("quantity_sats",bqty);XPUTLL("price_atoms",price);XPUTLL("qub_atoms",quote);XPUTLL("qrx_locked_atoms",quote);XPUT("hashlock_hex",hash);XPUTLL("qrx_refund_height",qrh);XPUTLL("btc_refund_csv_blocks",csv);XPUT("btc_redeem_pubkey_hex",buyer_pub);XPUT("btc_refund_pubkey_hex",seller_pub);XPUT("btc_witness_script_hex",shex);XPUT("btc_script_sha256",shash);XPUT("btc_scriptpubkey_hex",spk);XPUT("btc_p2wsh_mainnet",bcaddr);XPUT("btc_p2wsh_testnet",tbaddr);XPUT("btc_p2wsh_regtest",bcrtaddr);XPUTLL("created_height",h);XPUT("bitcoin_spv_verified","false");XPUT("btc_funding_status","waiting");XPUT("safe_to_reveal_secret","false");XPUTLL("btc_required_confirmations",required_conf);XPUTLL("btc_funding_deadline_qrx_height",funding_deadline);XPUTLL("btc_funding_safety_qrx_blocks",crosschain_funding_safety_qrx_blocks(chain_dir,required_conf));XPUT("btc_funding_proof_locked","false");XPUT("settlement_model","HTLC_SHA256_P2WSH_CSV_SPV_V3");
 #undef XPUT
 #undef XPUTLL
     rc|=velocity_batch_put_order(&b,buy,"status","matched");rc|=velocity_batch_put_order_ll(&b,buy,"filled_atoms",bqty);rc|=velocity_batch_put_order_ll(&b,buy,"remaining_atoms",0);rc|=velocity_batch_put_order_ll(&b,buy,"locked_atoms",0);rc|=velocity_batch_put_order(&b,buy,"crosschain_session_id",sid);rc|=velocity_batch_put_order_ll(&b,buy,"updated_height",h);
@@ -181,7 +201,7 @@ typedef struct{char**ids;size_t n,c;} CrossPending;
 static int cross_pending_cb(const char*k,const char*v,uint32_t vl,void*ctx){(void)vl;CrossPending*p=ctx;const char*pfx="velocity:xmatch_pending:";if(!v||strcmp(v,"1")||strncmp(k,pfx,strlen(pfx)))return 0;if(p->n==p->c){size_t nc=p->c?p->c*2:8;char**nn=realloc(p->ids,nc*sizeof(*nn));if(!nn)return -1;p->ids=nn;p->c=nc;}p->ids[p->n++]=strdup(k+strlen(pfx));return p->ids[p->n-1]?0:-1;}
 static void velocity_process_pending_crosschain_matches(const char *chain_dir){QrxDB db;CrossPending p={0};if(qrxdb_init(&db,chain_dir))return;qrxdb_scan_prefix(&db,"velocity:xmatch_pending:",cross_pending_cb,&p);qrxdb_close(&db);for(size_t i=0;i<p.n;i++){mirror_order_from_authoritative(chain_dir,p.ids[i]);match_crosschain_order(chain_dir,p.ids[i]);free(p.ids[i]);}free(p.ids);}
 
-static int crosschain_status_cmd(const char *chain_dir,const char *sid){const char*fields[]={"market","status","buy_order_id","sell_order_id","maker_order_id","taker_order_id","qrx_buyer","qrx_seller","quantity_sats","price_atoms","qub_atoms","qrx_locked_atoms","hashlock_hex","qrx_refund_height","btc_refund_csv_blocks","btc_redeem_pubkey_hex","btc_refund_pubkey_hex","btc_witness_script_hex","btc_script_sha256","btc_scriptpubkey_hex","btc_p2wsh_mainnet","btc_p2wsh_testnet","btc_p2wsh_regtest","bitcoin_spv_verified","btc_funding_status","btc_funding_txid","btc_funding_vout","btc_funding_sats","btc_funding_block_hash","btc_funding_block_height","btc_proof_confirmations_at_submit","btc_required_confirmations","safe_to_reveal_secret","btc_proof_qrx_height","btc_proof_last_tx","settlement_model","created_height","redeemed_height","refunded_height","secret_hash","last_tx",NULL};int found=0;printf("session_id=%s\n",sid);for(int i=0;fields[i];i++){char*v=crosschain_get_field(chain_dir,sid,fields[i]);if(v){printf("%s=%s\n",fields[i],v);free(v);found=1;}}if(!found)die("cross-chain session not found");return 0;}
+static int crosschain_status_cmd(const char *chain_dir,const char *sid){const char*fields[]={"market","status","buy_order_id","sell_order_id","maker_order_id","taker_order_id","qrx_buyer","qrx_seller","quantity_sats","price_atoms","qub_atoms","qrx_locked_atoms","hashlock_hex","qrx_refund_height","btc_refund_csv_blocks","btc_redeem_pubkey_hex","btc_refund_pubkey_hex","btc_witness_script_hex","btc_script_sha256","btc_scriptpubkey_hex","btc_p2wsh_mainnet","btc_p2wsh_testnet","btc_p2wsh_regtest","bitcoin_spv_verified","btc_funding_status","btc_funding_txid","btc_funding_vout","btc_funding_sats","btc_funding_block_hash","btc_funding_block_height","btc_proof_confirmations_at_submit","btc_required_confirmations","btc_funding_deadline_qrx_height","btc_funding_safety_qrx_blocks","btc_funding_proof_locked","safe_to_reveal_secret","btc_proof_qrx_height","btc_proof_last_tx","settlement_model","created_height","redeemed_height","refunded_height","secret_hash","last_tx",NULL};int found=0;printf("session_id=%s\n",sid);for(int i=0;fields[i];i++){char*v=crosschain_get_field(chain_dir,sid,fields[i]);if(v){printf("%s=%s\n",fields[i],v);free(v);found=1;}}if(!found)die("cross-chain session not found");return 0;}
 typedef struct{const char*sf;} CrossListCtx;
 static int crosschain_list_cb(const char*k,const char*v,uint32_t vl,void*vp){(void)vl;CrossListCtx*cc=(CrossListCtx*)vp;const char*pfx="velocity:crosschain:";const char*suf=":status";size_t kl=strlen(k),pl=strlen(pfx),sl=strlen(suf);if(kl<=pl+sl||strncmp(k,pfx,pl)||strcmp(k+kl-sl,suf))return 0;if(cc->sf&&*cc->sf&&strcasecmp(cc->sf,v))return 0;char sid[160];size_t n=kl-pl-sl;if(n>=sizeof(sid))return 0;memcpy(sid,k+pl,n);sid[n]=0;printf("session_id=%s status=%s\n",sid,v);return 0;}
 static int list_crosschain_cmd(const char *chain_dir,const char *status_filter){QrxDB db;if(qrxdb_init(&db,chain_dir))die("QRXDB init failed");CrossListCtx c={status_filter};qrxdb_scan_prefix(&db,"velocity:crosschain:",crosschain_list_cb,&c);qrxdb_close(&db);return 0;}

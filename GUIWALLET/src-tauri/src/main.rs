@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use serde::{Deserialize, Serialize};
+use tauri::Manager;
 use serde_json::Value;
 use std::{
     fs::{self, File, OpenOptions},
@@ -18,11 +19,15 @@ use aes_gcm::aead::Aead;
 use base64::{engine::general_purpose, Engine as _};
 use rand::RngCore;
 use argon2::{Algorithm, Argon2, Params, Version};
-use openssl::{pkey::PKey, symm::Cipher};
+use openssl::{pkey::PKey, symm::Cipher, hash::{Hasher, MessageDigest}};
 
 struct DaemonState {
     child: Mutex<Option<Child>>,
 }
+
+
+#[derive(Debug, Serialize)]
+struct ValidatorFleetModeResult { changed: usize, daemon_running: bool, runtime_applied: bool, restart_required: bool, validator_fleet_count: usize, message: String }
 
 struct KrakenGatewayState {
     child: Mutex<Option<Child>>,
@@ -92,6 +97,24 @@ struct WalletListItem {
     wallet_version: Option<u64>,
     legacy_or_unknown: bool,
     safety_backup_exists: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ValidatorFleetItem {
+    wallet: String,
+    address: Option<String>,
+    validator_mode_enabled: bool,
+    is_bootstrap: bool,
+    bootstrap_lock_active: bool,
+    bootstrap_principal_atoms: i64,
+    bootstrap_lock_until_height: i64,
+    liveness_slash_grace_active: bool,
+    double_sign_slashing_active: bool,
+    self_stake_atoms: i64,
+    locked_self_stake_atoms: i64,
+    freely_unstakeable_self_stake_atoms: i64,
+    spendable_balance_atoms: i64,
+    status_note: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -846,6 +869,26 @@ fn sign_and_broadcast_raw(app:&tauri::AppHandle,network:&str,wallet:&str,raw:&st
     result
 }
 
+fn sign_raw_to_text(app:&tauri::AppHandle,network:&str,wallet:&str,raw:&str,passphrase:Option<&str>,label:&str)->Result<String,String>{
+    let stamp=SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e|e.to_string())?.as_nanos();
+    let dir=std::env::temp_dir().join(format!("qrx-{label}-{}-{stamp}",std::process::id())); fs::create_dir_all(&dir).map_err(|e|e.to_string())?;
+    let raw_path=dir.join("transaction.raw"); let signed_path=dir.join("transaction.signed"); fs::write(&raw_path,raw.as_bytes()).map_err(|e|e.to_string())?;
+    let r=run_cli(Some(app),network,wallet,&["signrawtransactionwithwallet",&raw_path.to_string_lossy(),&signed_path.to_string_lossy()],passphrase).map_err(|e|e.to_string());
+    if let Err(e)=r{let _=fs::remove_dir_all(&dir);return Err(e)} let signed=fs::read_to_string(&signed_path).map_err(|e|e.to_string())?; let _=fs::remove_dir_all(&dir); Ok(signed)
+}
+
+#[tauri::command]
+fn generals_prepare_offline_reveal(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,payload:String,not_before_height:i64,expires_height:i64,passphrase:Option<String>)->Result<Value,String>{
+    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    if not_before_height<1||expires_height<not_before_height{return Err("Invalid offline reveal height window".into())} if payload.len()>8192{return Err("Reveal payload too large".into())}
+    let ctx=ensure_context(&network,&wallet).map_err(String::from)?; let address=generals_address(&network,&wallet)?; let (ed,ml)=generals_public_keys(&network,&wallet)?;
+    let expiry=expires_height.to_string(); let created=run_cli(Some(&app),&network,&wallet,&["createvelocitytransaction",&address,&address,"0",&ed,&ml,"GAME_ORDER_REVEAL","7",&expiry,&payload],passphrase.as_deref()).map_err(String::from)?;
+    let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?; let signed=sign_raw_to_text(&app,&network,&wallet,raw,passphrase.as_deref(),"generals-offline")?;
+    let q=PathBuf::from(&ctx.data_dir).join("generals-offline-queue"); fs::create_dir_all(&q).map_err(|e|e.to_string())?; let stamp=SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e|e.to_string())?.as_nanos(); let path=q.join(format!("reveal-{stamp}.scheduled"));
+    fs::write(&path,format!("{}\n{}\n{}",not_before_height,expires_height,signed)).map_err(|e|e.to_string())?;
+    Ok(serde_json::json!({"queued":true,"not_before_height":not_before_height,"expires_height":expires_height,"path":path.to_string_lossy(),"keyless_relay":true}))
+}
+
 fn broadcast_created_transaction(app:&tauri::AppHandle,network:&str,wallet:&str,created:CommandResult,passphrase:Option<&str>,action:&str,agent:&str)->Result<AgentManagerResult,String>{ let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return a raw transaction".to_string())?; let broadcast=sign_and_broadcast_raw(app,network,wallet,raw,passphrase,"agent-manager")?; Ok(AgentManagerResult{action:action.into(),agent:agent.into(),venue:"KRAKEN".into(),raw_transaction_created:true,broadcast}) }
 
 #[tauri::command]
@@ -943,6 +986,21 @@ fn daemon_health_inner(
     })
 }
 
+fn enabled_validator_wallets(network: &str, primary_wallet: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Ok(items) = list_wallets(Some(network.to_string())) {
+        for item in items {
+            if read_validator_mode(network, &item.name).unwrap_or(false) && !out.iter().any(|w| w == &item.name) {
+                out.push(item.name);
+            }
+        }
+    }
+    if read_validator_mode(network, primary_wallet).unwrap_or(false) && !out.iter().any(|w| w == primary_wallet) {
+        out.push(primary_wallet.to_string());
+    }
+    out
+}
+
 fn spawn_daemon(
     app: &tauri::AppHandle,
     network: &str,
@@ -970,15 +1028,26 @@ fn spawn_daemon(
         .arg("--datadir")
         .arg(&ctx.data_dir)
         .arg("--wallet")
-        .arg(wallet);
+        .arg(wallet)
+        // Security invariant: GUI-managed wallet RPC must never be reachable from LAN/Wi-Fi.
+        // P2P networking is a separate listener owned by Core.
+        .arg("--rpc-bind")
+        .arg(format!("127.0.0.1:{}", rpc_port_for_network(network)));
 
     if !validator_enabled {
         cmd.arg("--no-block-producer");
+    } else {
+        /* Phase 7.2.9: a single qrxd/P2P/QRXDB runtime may host many validator
+           signer identities. The daemon receives wallet names only; private keys
+           remain in their normal local wallet directories. */
+        for signer_wallet in enabled_validator_wallets(network, wallet) {
+            cmd.arg("--validator-wallet").arg(signer_wallet);
+        }
     }
 
     let child = cmd
         .env("QRX_PASSPHRASE", passphrase.unwrap_or(""))
-        .env("QRX_ENABLE_MAINNET_HTLC", htlc_env_value_for_network(network))
+        .env_remove("QRX_ENABLE_MAINNET_HTLC")
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr))
         .spawn()?;
@@ -1114,7 +1183,9 @@ fn verify_wallet_passphrase(app: tauri::AppHandle, network: Option<String>, wall
     // running yet, start_daemon receives the in-memory passphrase later.
     let passphrase_hex: String = passphrase.as_bytes().iter().map(|b| format!("{b:02x}")).collect();
     let encoded = if passphrase_hex.is_empty() { "-" } else { passphrase_hex.as_str() };
-    let _ = run_cli(Some(&app), &network, &wallet, &["walletpassphrasehex", encoded], None);
+    let ack = run_cli(Some(&app), &network, &wallet, &["walletpassphrasehexfor", &wallet, encoded], None)
+        .map_err(|e| format!("Passphrase is correct, but the running node did not establish the signer session: {e}"))?;
+    if ack.result.get("unlocked").and_then(Value::as_bool) != Some(true) { return Err("The node did not confirm the signer session; wallet remains locked.".into()); }
     Ok(true)
 }
 
@@ -1155,7 +1226,7 @@ fn change_wallet_passphrase(app: tauri::AppHandle, network: Option<String>, wall
     if !encrypted_pem_accepts_passphrase(&paths[0],&new_passphrase) || !encrypted_pem_accepts_passphrase(&paths[1],&new_passphrase){ let _=fs::remove_file(&paths[0]); let _=fs::remove_file(&paths[1]); let _=fs::rename(&olds[0],&paths[0]); let _=fs::rename(&olds[1],&paths[1]); return Err("Post-write verification failed; original keys restored.".into()); }
     let _=fs::remove_file(&olds[0]); let _=fs::remove_file(&olds[1]);
     let passphrase_hex:String=new_passphrase.as_bytes().iter().map(|b|format!("{b:02x}")).collect();
-    let _=run_cli(Some(&app),&network,&wallet,&["walletpassphrasehex",&passphrase_hex],None);
+    run_cli(Some(&app),&network,&wallet,&["walletpassphrasehexfor",&wallet,&passphrase_hex],None).map_err(|e|format!("Keys were re-encrypted, but the daemon signer session could not be refreshed: {e}"))?;
     Ok(WalletPassphraseChangeResult{wallet,backup_path,passphrase_state:"passphrase-required-to-use-private-keys".into(),changed_files:paths.iter().map(|p|p.to_string_lossy().to_string()).collect()})
 }
 
@@ -1164,7 +1235,7 @@ fn lock_wallet_session(app: tauri::AppHandle, network: Option<String>, wallet: O
     let network = network.unwrap_or_else(|| "alpha".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     // An offline daemon is already effectively locked.
-    let _ = run_cli(Some(&app), &network, &wallet, &["walletlock"], None);
+    let _ = run_cli(Some(&app), &network, &wallet, &["walletlockfor", &wallet], None);
     Ok(true)
 }
 
@@ -1325,6 +1396,91 @@ fn migrate_legacy_network_wallet(source_network: String, wallet: String, target_
     });
     fs::write(target.join("QRX_SHARED_IDENTITY_MIGRATION.json"), serde_json::to_vec_pretty(&marker).map_err(|e|e.to_string())?).map_err(|e|e.to_string())?;
     inspect_wallet_inner("alpha", &target_wallet).map_err(String::from)
+}
+
+fn parse_kv_i64(map: &std::collections::HashMap<String,String>, key: &str) -> i64 {
+    map.get(key).and_then(|v| v.parse::<i64>().ok()).unwrap_or(0)
+}
+
+fn parse_qrx_kv(text: &str) -> std::collections::HashMap<String,String> {
+    let mut out = std::collections::HashMap::new();
+    for line in text.lines() {
+        if let Some((k,v)) = line.split_once('=') { out.insert(k.trim().to_string(), v.trim().to_string()); }
+    }
+    out
+}
+
+#[tauri::command]
+fn validator_fleet_status(app: tauri::AppHandle, network: Option<String>) -> Result<Vec<ValidatorFleetItem>, String> {
+    let network = network.unwrap_or_else(|| "alpha".into());
+    let wallets = list_wallets(Some(network.clone()))?;
+    let chain_dir = app_data_dir().map_err(String::from)?.join(&network).join("chain");
+    let mut out = Vec::with_capacity(wallets.len());
+    for w in wallets {
+        let enabled = read_validator_mode(&network, &w.name).unwrap_or(false);
+        let mut item = ValidatorFleetItem {
+            wallet: w.name.clone(), address: w.address.clone(), validator_mode_enabled: enabled,
+            is_bootstrap:false, bootstrap_lock_active:false, bootstrap_principal_atoms:0,
+            bootstrap_lock_until_height:0, liveness_slash_grace_active:false, double_sign_slashing_active:true,
+            self_stake_atoms:0, locked_self_stake_atoms:0, freely_unstakeable_self_stake_atoms:0,
+            spendable_balance_atoms:0, status_note:String::new()
+        };
+        if let Some(addr) = w.address.as_deref() {
+            if chain_dir.is_dir() {
+                let chain_s = chain_dir.to_string_lossy().to_string();
+                match run_qrx(Some(&app), &["bootstrap-validator-status", &chain_s, addr], None, None) {
+                    Ok(raw) => {
+                        let kv = parse_qrx_kv(&raw);
+                        item.is_bootstrap = parse_kv_i64(&kv,"is_bootstrap") == 1;
+                        item.bootstrap_lock_active = parse_kv_i64(&kv,"bootstrap_lock_active") == 1;
+                        item.bootstrap_principal_atoms = parse_kv_i64(&kv,"bootstrap_principal");
+                        item.bootstrap_lock_until_height = parse_kv_i64(&kv,"bootstrap_lock_until_height");
+                        item.liveness_slash_grace_active = parse_kv_i64(&kv,"liveness_slash_grace_active") == 1;
+                        item.double_sign_slashing_active = parse_kv_i64(&kv,"double_sign_slashing_active") == 1;
+                        item.self_stake_atoms = parse_kv_i64(&kv,"self_stake");
+                        item.locked_self_stake_atoms = parse_kv_i64(&kv,"locked_self_stake");
+                        item.freely_unstakeable_self_stake_atoms = parse_kv_i64(&kv,"freely_unstakeable_self_stake");
+                        item.spendable_balance_atoms = parse_kv_i64(&kv,"spendable_balance");
+                        item.status_note = if item.is_bootstrap && item.bootstrap_lock_active {
+                            "Bootstrap principal locked; rewards/incoming QUB remain free. Offline slashing grace active; double-sign slashing active.".into()
+                        } else if item.is_bootstrap {
+                            "Bootstrap lock ended; normal validator slashing rules apply.".into()
+                        } else { "Normal wallet/validator identity.".into() };
+                    }
+                    Err(e) => item.status_note = format!("Chain status unavailable: {e}"),
+                }
+            } else { item.status_note = "Chain is not initialized yet.".into(); }
+        } else { item.status_note = "Wallet address unavailable.".into(); }
+        out.push(item);
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+fn set_validator_fleet_modes(app: tauri::AppHandle, state: tauri::State<DaemonState>, network: Option<String>, wallets: Vec<String>, enabled: bool) -> Result<ValidatorFleetModeResult, String> {
+    let network = network.unwrap_or_else(|| "alpha".into());
+    let mut changed = 0usize;
+    for wallet in wallets {
+        let wallet = sanitize_wallet_name(&wallet).map_err(String::from)?;
+        write_validator_mode(&network, &wallet, enabled).map_err(String::from)?;
+        changed += 1;
+    }
+    let all = list_wallets(Some(network.clone()))?;
+    let enabled_wallets: Vec<String> = all.into_iter().filter(|w| read_validator_mode(&network,&w.name).unwrap_or(false)).map(|w|w.name).collect();
+    let selected_wallet = enabled_wallets.first().cloned().unwrap_or_else(|| "node1".into());
+    let health = daemon_health_inner(Some(&app), &state, &network, &selected_wallet, None).ok();
+    let daemon_running = health.as_ref().map(|h|h.running).unwrap_or(false);
+    let mut runtime_applied=false; let mut restart_required=false;
+    let mut message = if daemon_running { "Validator Mode saved; applying signer fleet to the running node.".to_string() } else { "Validator Mode saved; it will be used when the node starts.".to_string() };
+    if daemon_running {
+        let csv = if enabled_wallets.is_empty(){"-".to_string()}else{enabled_wallets.join(",")};
+        let rpc_wallet = health.as_ref().and_then(|h|h.actual_wallet.clone()).unwrap_or_else(||selected_wallet.clone());
+        match run_cli(Some(&app),&network,&rpc_wallet,&["setvalidatorfleet",&csv],None) {
+            Ok(_) => { runtime_applied=true; message="Validator signer fleet updated immediately. No node restart was needed and no QUB moved.".into(); },
+            Err(e) => { restart_required=true; message=format!("Validator Mode was saved, but the running node could not hot-reload the signer fleet: {e}. Restart the node when convenient."); }
+        }
+    }
+    Ok(ValidatorFleetModeResult{changed,daemon_running,runtime_applied,restart_required,validator_fleet_count:enabled_wallets.len(),message})
 }
 
 #[tauri::command]
@@ -1708,8 +1864,8 @@ fn get_validator_mode(network: Option<String>, wallet: Option<String>) -> Result
         wallet_mode_safe: !enabled,
         min_validator_self_stake_qub: "100 QUB".into(),
         double_sign_slash: "50% of validator power + tombstone".into(),
-        offline_penalty: "1% after 100 missed blocks, then 1h jail".into(),
-        best_practice: "Use Wallet/Delegator mode on home computers. Validator mode is for stable 24/7 servers/VPS with reliable uptime.".into(),
+        offline_penalty: "Home profile: first 72h offline = no liveness slash; then 0.05% per 24h, capped at 1% per continuous outage; temporary 1h jail only after 7 days offline. Bootstrap validators keep their separate 180-day 0-QUB liveness-slash grace.".into(),
+        best_practice: "Home Validator Mode is supported: after reconnect QRX pauses signing while catching up, waits until it is within 2 blocks of peer head and stable for 30 seconds, then resumes automatically. Avoid running the same validator keys on two machines at once.".into(),
     })
 }
 
@@ -1837,6 +1993,49 @@ fn get_wallet_address_set(
 }
 
 #[tauri::command]
+fn get_address_privacy_context(
+    app: tauri::AppHandle,
+    network: Option<String>,
+    wallet: Option<String>,
+    passphrase: Option<String>,
+) -> Result<Value, String> {
+    let network = network.unwrap_or_else(|| "alpha".into());
+    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let aset = get_wallet_address_set(app.clone(), Some(network.clone()), Some(wallet.clone()), passphrase.clone())?;
+    let mut rows = Vec::<Value>::new();
+    for (idx, address) in aset.addresses.iter().enumerate() {
+        let balance_result = run_cli(Some(&app), &network, &wallet, &["getbalance", address], passphrase.as_deref());
+        let balance = balance_result.ok().and_then(|r| {
+            if let Some(n)=r.result.as_f64(){Some(n)}
+            else if let Some(n)=r.result.get("balance").and_then(Value::as_f64){Some(n)}
+            else if let Some(s)=r.result.get("balance").and_then(Value::as_str){s.parse::<f64>().ok()}
+            else if let Some(s)=r.result.as_str(){s.parse::<f64>().ok()} else {None}
+        });
+        let hist = run_cli(Some(&app), &network, &wallet, &["history", address, "200"], passphrase.as_deref()).ok();
+        let history_count = hist.as_ref().map(|r| {
+            r.result.get("entries").and_then(Value::as_array).map(|a|a.len())
+                .or_else(||r.result.as_array().map(|a|a.len())).unwrap_or(0)
+        }).unwrap_or(0);
+        rows.push(serde_json::json!({
+            "address": address,
+            "balance": balance,
+            "history_count": history_count,
+            "primary": aset.primary_address.as_ref().map(|a|a==address).unwrap_or(idx==0),
+            "reused": history_count > 1
+        }));
+    }
+    let address_count = rows.len();
+    let reused_any = rows.iter().any(|r| r.get("reused").and_then(Value::as_bool).unwrap_or(false));
+    Ok(serde_json::json!({
+        "wallet": wallet,
+        "network": network,
+        "addresses": rows,
+        "address_count": address_count,
+        "privacy_score": if reused_any { 70 } else { 100 }
+    }))
+}
+
+#[tauri::command]
 fn get_history(
     app: tauri::AppHandle,
     network: Option<String>,
@@ -1917,6 +2116,54 @@ fn get_tokenomics(
 }
 
 #[tauri::command]
+fn get_protocol_info(
+    app: tauri::AppHandle,
+    network: Option<String>,
+    wallet: Option<String>,
+    passphrase: Option<String>,
+) -> Result<Value, String> {
+    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    Ok(run_cli(
+        Some(&app),
+        network.as_deref().unwrap_or("alpha"),
+        &wallet,
+        &["getprotocolinfo"],
+        passphrase.as_deref(),
+    )
+    .map_err(String::from)?
+    .result)
+}
+
+#[tauri::command]
+fn markets_snapshot(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, market: String, depth: Option<u32>, trade_limit: Option<u32>, passphrase: Option<String>) -> Result<Value, String> {
+    let network=network.unwrap_or_else(||"alpha".into());
+    let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let market=required_clean(&market,"Market")?; if !market.contains('/') { return Err("Market must look like ASSET/QUB".into()); }
+    let depth=depth.unwrap_or(30).clamp(1,200).to_string(); let limit=trade_limit.unwrap_or(500).clamp(1,5000).to_string();
+    let book=run_cli(Some(&app),&network,&wallet,&["getorderbook",&market,&depth],passphrase.as_deref()).map_err(String::from)?.result;
+    let trades=run_cli(Some(&app),&network,&wallet,&["listtrades",&market,&limit],passphrase.as_deref()).map_err(String::from)?.result;
+    Ok(serde_json::json!({"network":network,"market":market,"source":"QRX_CHAIN","verifiable":true,"orderbook":book,"trades":trades}))
+}
+
+#[tauri::command]
+fn markets_place_order(app:tauri::AppHandle, network:Option<String>, wallet:Option<String>, agent:String, owner:String, market:String, side:String, quantity_atoms:String, limit_price_atoms:String, order_expiry_height:String, agent_ed_pub:String, agent_mldsa_pub:String, lane:String, tx_expiry:String, passphrase:Option<String>) -> Result<CommandResult,String> {
+    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let side=side.trim().to_uppercase(); if side!="BUY"&&side!="SELL" {return Err("Side must be BUY or SELL".into())} if !market.contains('/') {return Err("Invalid market".into())}
+    positive_u64(&quantity_atoms,"Quantity atoms")?; positive_u64(&limit_price_atoms,"Limit price atoms")?; positive_u64(&order_expiry_height,"Order expiry")?; positive_u64(&tx_expiry,"Transaction expiry")?;
+    let created=run_cli(Some(&app),&network,&wallet,&["createordertransaction",agent.trim(),owner.trim(),market.trim(),&side,"LIMIT",quantity_atoms.trim(),limit_price_atoms.trim(),order_expiry_height.trim(),agent_ed_pub.trim(),agent_mldsa_pub.trim(),lane.trim(),tx_expiry.trim()],passphrase.as_deref()).map_err(String::from)?;
+    let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?;
+    sign_and_broadcast_raw(&app,&network,&wallet,raw,passphrase.as_deref(),"native-market-order")
+}
+
+#[tauri::command]
+fn markets_cancel_order(app:tauri::AppHandle, network:Option<String>, wallet:Option<String>, agent:String, owner:String, order_id:String, agent_ed_pub:String, agent_mldsa_pub:String, lane:String, tx_expiry:String, passphrase:Option<String>) -> Result<CommandResult,String> {
+    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let created=run_cli(Some(&app),&network,&wallet,&["createordercanceltransaction",agent.trim(),owner.trim(),order_id.trim(),agent_ed_pub.trim(),agent_mldsa_pub.trim(),lane.trim(),tx_expiry.trim()],passphrase.as_deref()).map_err(String::from)?;
+    let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?;
+    sign_and_broadcast_raw(&app,&network,&wallet,raw,passphrase.as_deref(),"native-market-cancel")
+}
+
+#[tauri::command]
 fn get_node_info(
     app: tauri::AppHandle,
     network: Option<String>,
@@ -1929,6 +2176,44 @@ fn get_node_info(
         network.as_deref().unwrap_or("alpha"),
         &wallet,
         &["getinfo"],
+        passphrase.as_deref(),
+    )
+    .map_err(String::from)?
+    .result)
+}
+
+#[tauri::command]
+fn get_mainnet_health(
+    app: tauri::AppHandle,
+    network: Option<String>,
+    wallet: Option<String>,
+    passphrase: Option<String>,
+) -> Result<Value, String> {
+    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    Ok(run_cli(
+        Some(&app),
+        network.as_deref().unwrap_or("mainnet"),
+        &wallet,
+        &["getmainnethealth"],
+        passphrase.as_deref(),
+    )
+    .map_err(String::from)?
+    .result)
+}
+
+#[tauri::command]
+fn get_peer_info(
+    app: tauri::AppHandle,
+    network: Option<String>,
+    wallet: Option<String>,
+    passphrase: Option<String>,
+) -> Result<Value, String> {
+    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    Ok(run_cli(
+        Some(&app),
+        network.as_deref().unwrap_or("alpha"),
+        &wallet,
+        &["getpeerinfo"],
         passphrase.as_deref(),
     )
     .map_err(String::from)?
@@ -1962,6 +2247,7 @@ fn send_to_address(
     to: String,
     amount: String,
     memo: Option<String>,
+    source_address: Option<String>,
     passphrase: Option<String>,
 ) -> Result<Value, String> {
     if to.trim().is_empty() {
@@ -1972,26 +2258,24 @@ fn send_to_address(
     let amount = parse_amount(&amount).map_err(String::from)?;
     let memo = memo.unwrap_or_default();
 
-    let res = if memo.trim().is_empty() {
-        run_cli(
-            Some(&app),
-            &network,
-            &wallet,
-            &["sendtoaddress", to.trim(), &amount],
-            passphrase.as_deref(),
-        )
-    } else {
-        run_cli(
-            Some(&app),
-            &network,
-            &wallet,
-            &["sendtoaddress", to.trim(), &amount, memo.trim()],
-            passphrase.as_deref(),
-        )
-    }
-    .map_err(String::from)?;
+    let source = source_address.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let res = match (source, memo.trim().is_empty()) {
+        (Some(src), true) => run_cli(Some(&app), &network, &wallet, &["sendfromaddress", src, to.trim(), &amount], passphrase.as_deref()),
+        (Some(src), false) => run_cli(Some(&app), &network, &wallet, &["sendfromaddress", src, to.trim(), &amount, memo.trim()], passphrase.as_deref()),
+        (None, true) => run_cli(Some(&app), &network, &wallet, &["sendtoaddress", to.trim(), &amount], passphrase.as_deref()),
+        (None, false) => run_cli(Some(&app), &network, &wallet, &["sendtoaddress", to.trim(), &amount, memo.trim()], passphrase.as_deref()),
+    }.map_err(String::from)?;
 
     Ok(res.result)
+}
+
+fn staking_consensus_broadcast(app:&tauri::AppHandle,network:&str,wallet:&str,tx_type:&str,to:Option<&str>,amount:&str,passphrase:Option<&str>)->Result<Value,String>{
+    let address=generals_address(network,wallet)?; let (ed,ml)=generals_public_keys(network,wallet)?;
+    let height=run_cli(Some(app),network,wallet,&["getblockcount"],passphrase).map_err(|e|e.to_string())?.result.get("count").and_then(Value::as_i64).or_else(||run_cli(Some(app),network,wallet,&["getblockcount"],passphrase).ok().and_then(|x|x.result.as_i64())).unwrap_or(0);
+    let expiry=(height+240).to_string(); let target=to.unwrap_or(&address); let payload="phase=7.2.12";
+    let created=run_cli(Some(app),network,wallet,&["createvelocitytransaction",&address,target,amount,&ed,&ml,tx_type,"1",&expiry,payload],passphrase).map_err(|e|e.to_string())?;
+    let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"Core did not return a staking raw transaction".to_string())?;
+    let sent=sign_and_broadcast_raw(app,network,wallet,raw,passphrase,"staking-consensus")?; Ok(sent.result)
 }
 
 #[tauri::command]
@@ -2008,15 +2292,19 @@ fn stake(
         return Err("Validator Mode is disabled. Enable Validator Mode first and confirm the slashing/uptime risks.".into());
     }
     let amount = parse_amount(&amount).map_err(String::from)?;
-    Ok(run_cli(
-        Some(&app),
-        &network,
-        &wallet,
-        &["stake", &amount],
-        passphrase.as_deref(),
-    )
-    .map_err(String::from)?
-    .result)
+    staking_consensus_broadcast(&app,&network,&wallet,"STAKE_BOND",None,&amount,passphrase.as_deref())
+}
+
+#[tauri::command]
+fn validator_safe_pause(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, passphrase: Option<String>) -> Result<Value,String> {
+    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    staking_consensus_broadcast(&app,&network,&wallet,"VALIDATOR_PAUSE",None,"0",passphrase.as_deref())
+}
+
+#[tauri::command]
+fn validator_safe_resume(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, passphrase: Option<String>) -> Result<Value,String> {
+    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    staking_consensus_broadcast(&app,&network,&wallet,"VALIDATOR_RESUME",None,"0",passphrase.as_deref())
 }
 
 #[tauri::command]
@@ -2034,15 +2322,37 @@ fn delegate(
     let network = network.unwrap_or_else(|| "alpha".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let amount = parse_amount(&amount).map_err(String::from)?;
-    Ok(run_cli(
-        Some(&app),
-        &network,
-        &wallet,
-        &["delegate", validator.trim(), &amount],
-        passphrase.as_deref(),
-    )
-    .map_err(String::from)?
-    .result)
+    staking_consensus_broadcast(&app,&network,&wallet,"DELEGATE_BOND",Some(validator.trim()),&amount,passphrase.as_deref())
+}
+
+#[tauri::command]
+fn undelegate(
+    app: tauri::AppHandle,
+    network: Option<String>,
+    wallet: Option<String>,
+    validator: String,
+    amount: String,
+    passphrase: Option<String>,
+) -> Result<Value, String> {
+    if validator.trim().is_empty() { return Err("Validator address is required".into()); }
+    let network = network.unwrap_or_else(|| "alpha".into());
+    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let amount = parse_amount(&amount).map_err(String::from)?;
+    staking_consensus_broadcast(&app,&network,&wallet,"DELEGATE_UNBOND",Some(validator.trim()),&amount,passphrase.as_deref())
+}
+
+#[tauri::command]
+fn claim_undelegated(
+    app: tauri::AppHandle,
+    network: Option<String>,
+    wallet: Option<String>,
+    validator: String,
+    passphrase: Option<String>,
+) -> Result<Value, String> {
+    if validator.trim().is_empty() { return Err("Validator address is required".into()); }
+    let network = network.unwrap_or_else(|| "alpha".into());
+    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    staking_consensus_broadcast(&app,&network,&wallet,"DELEGATE_CLAIM",Some(validator.trim()),"0",passphrase.as_deref())
 }
 
 #[tauri::command]
@@ -2149,61 +2459,6 @@ struct BtcSendResult {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct SwapDraft {
-    swap_id: String,
-    status: String,
-    btc_amount: String,
-    qrx_address: String,
-    mode: String,
-    timelock_hours: u32,
-    refund_path: String,
-    custody: String,
-    next_step: String,
-    disclaimer: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct HtlcSafetyStatus {
-    network: String,
-    mainnet_like: bool,
-    htlc_enabled: bool,
-    env_value: String,
-    required_confirmation: String,
-    disclaimer: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct CoreSwapResult {
-    ok: bool,
-    command: String,
-    result_raw: String,
-    warning: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct QuantumGuardPreview {
-    action_id: String,
-    action: String,
-    title: String,
-    summary: String,
-    risk_level: String,
-    required_confirmation: String,
-    details: Vec<String>,
-    disclaimer: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct QuantumGuardAuditEntry {
-    timestamp: String,
-    action: String,
-    action_id: String,
-    network: String,
-    wallet: String,
-    confirmed: bool,
-    result: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 struct AuraLocalReply {
     source: String,
     answer: String,
@@ -2296,22 +2551,6 @@ fn write_setting(name: &str, value: &str) -> Result<(), AppError> {
 fn is_mainnet_like(network: &str) -> bool {
     let n = network.to_lowercase();
     n.contains("mainnet")
-}
-
-fn htlc_setting_key(network: &str) -> String {
-    format!("htlc_enabled_{}.txt", network)
-}
-
-fn htlc_enabled_for_network(network: &str) -> bool {
-    read_setting(&htlc_setting_key(network), "false") == "true"
-}
-
-fn htlc_env_value_for_network(network: &str) -> String {
-    if is_mainnet_like(network) && htlc_enabled_for_network(network) {
-        "I_UNDERSTAND_EXPERIMENTAL".into()
-    } else {
-        "".into()
-    }
 }
 
 fn shared_btc_service<T: serde::de::DeserializeOwned>(app: &tauri::AppHandle, request: Value) -> Result<T, String> {
@@ -2733,375 +2972,59 @@ fn btc_send(app:tauri::AppHandle,to_address: String, amount_sats: u64, fee_rate_
 }
 
 
-fn quantum_guard_required_confirmation() -> &'static str {
-    "I UNDERSTAND HTLC RISK"
-}
-
-fn quantum_guard_action_id(action: &str) -> String {
-    format!("qguard_{}_{}", action, chrono_like_timestamp())
-}
-
-fn quantum_guard_audit_path() -> Result<PathBuf, AppError> {
-    let dir = app_data_dir()?.join("audit");
-    fs::create_dir_all(&dir)?;
-    Ok(dir.join("quantum_guard.log"))
-}
-
-fn append_quantum_guard_audit(entry: &QuantumGuardAuditEntry) {
-    if let Ok(path) = quantum_guard_audit_path() {
-        if let Ok(line) = serde_json::to_string(entry) {
-            let _ = OpenOptions::new().create(true).append(true).open(path)
-                .and_then(|mut f| {
-                    use std::io::Write;
-                    writeln!(f, "{}", line)
-                });
-        }
-    }
-}
-
-fn quantum_guard_check(confirmation: Option<String>) -> Result<(), String> {
-    let got = confirmation.unwrap_or_default();
-    if got.trim() != quantum_guard_required_confirmation() {
-        return Err(format!("Quantum Guard confirmation required: {}", quantum_guard_required_confirmation()));
-    }
-    Ok(())
-}
-
-fn quantum_guard_preview_common(action: &str, network: &str, wallet: &str, details: Vec<String>) -> QuantumGuardPreview {
-    QuantumGuardPreview {
-        action_id: quantum_guard_action_id(action),
-        action: action.into(),
-        title: "Quantum Guard Request".into(),
-        summary: format!("Experimental Quantum Swap action '{}' for wallet '{}' on network '{}'.", action, wallet, network),
-        risk_level: if is_mainnet_like(network) { "high-mainnet".into() } else { "experimental-alpha-test".into() },
-        required_confirmation: quantum_guard_required_confirmation().into(),
-        details,
-        disclaimer: "Quantum Swaps / HTLC actions are experimental and not audited. Confirm only for small test amounts. This wallet is non-custodial and cannot recover funds if you make an irreversible mistake.".into(),
-    }
+#[tauri::command]
+fn crosschain_place_buy(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,owner:String,btc_sats:String,max_qub_per_btc_atoms:String,order_expiry_height:String,hashlock_hex:String,btc_receive_pubkey_hex:String,qrx_refund_height:String,lane:Option<String>,tx_expiry_height:String,passphrase:Option<String>)->Result<CommandResult,String>{
+    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let agent=generals_address(&network,&wallet)?; if owner.trim().is_empty()||owner.trim()==agent{return Err("Cross-chain orders require a distinct delegated owner address; the active wallet is the authorized agent wallet.".into());}
+    positive_u64(&btc_sats,"BTC sats")?; positive_u64(&max_qub_per_btc_atoms,"Max QUB/BTC price atoms")?; positive_u64(&order_expiry_height,"Order expiry")?; positive_u64(&qrx_refund_height,"QUB refund height")?; positive_u64(&tx_expiry_height,"Transaction expiry")?;
+    if hashlock_hex.trim().len()!=64||!hashlock_hex.trim().chars().all(|c|c.is_ascii_hexdigit()){return Err("Hashlock must be a 32-byte SHA-256 hex value".into());}
+    let (ed,ml)=generals_public_keys(&network,&wallet)?; let lane=lane.unwrap_or_else(||"5".into());
+    let created=run_cli(Some(&app),&network,&wallet,&["createcrosschainbuytransaction",&agent,owner.trim(),btc_sats.trim(),max_qub_per_btc_atoms.trim(),order_expiry_height.trim(),hashlock_hex.trim(),btc_receive_pubkey_hex.trim(),qrx_refund_height.trim(),&ed,&ml,lane.trim(),tx_expiry_height.trim()],passphrase.as_deref()).map_err(String::from)?;
+    let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?; sign_and_broadcast_raw(&app,&network,&wallet,raw,passphrase.as_deref(),"crosschain-buy")
 }
 
 #[tauri::command]
-fn quantum_guard_audit_log() -> Result<Vec<QuantumGuardAuditEntry>, String> {
-    let path = quantum_guard_audit_path().map_err(String::from)?;
-    if !path.exists() {
-        return Ok(vec![]);
-    }
-    let txt = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    let mut out = Vec::new();
-    for line in txt.lines().rev().take(50) {
-        if let Ok(entry) = serde_json::from_str::<QuantumGuardAuditEntry>(line) {
-            out.push(entry);
-        }
-    }
-    Ok(out)
-}
-
-
-fn validate_sha256_hashlock(hashlock: &str) -> Result<(), String> {
-    let h = hashlock.trim();
-    if h.len() != 64 {
-        return Err("Hashlock must be exactly 64 hex characters: SHA256(secret).".into());
-    }
-    if !h.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err("Hashlock must be hexadecimal.".into());
-    }
-    Ok(())
+fn crosschain_place_sell(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,owner:String,btc_sats:String,min_qub_per_btc_atoms:String,order_expiry_height:String,btc_refund_pubkey_hex:String,btc_refund_csv_blocks:String,lane:Option<String>,tx_expiry_height:String,passphrase:Option<String>)->Result<CommandResult,String>{
+    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let agent=generals_address(&network,&wallet)?; if owner.trim().is_empty()||owner.trim()==agent{return Err("Cross-chain orders require a distinct delegated owner address; the active wallet is the authorized agent wallet.".into());}
+    for (v,l) in [(&btc_sats,"BTC sats"),(&min_qub_per_btc_atoms,"Min QUB/BTC price atoms"),(&order_expiry_height,"Order expiry"),(&btc_refund_csv_blocks,"BTC refund CSV blocks"),(&tx_expiry_height,"Transaction expiry")] {positive_u64(v,l)?;}
+    let (ed,ml)=generals_public_keys(&network,&wallet)?; let lane=lane.unwrap_or_else(||"5".into());
+    let created=run_cli(Some(&app),&network,&wallet,&["createcrosschainselltransaction",&agent,owner.trim(),btc_sats.trim(),min_qub_per_btc_atoms.trim(),order_expiry_height.trim(),btc_refund_pubkey_hex.trim(),btc_refund_csv_blocks.trim(),&ed,&ml,lane.trim(),tx_expiry_height.trim()],passphrase.as_deref()).map_err(String::from)?;
+    let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?; sign_and_broadcast_raw(&app,&network,&wallet,raw,passphrase.as_deref(),"crosschain-sell")
 }
 
 #[tauri::command]
-fn quantum_guard_preview_create(
-    network: Option<String>,
-    wallet: Option<String>,
-    recipient: String,
-    amount: String,
-    hashlock: String,
-    timelock_seconds: String,
-) -> Result<QuantumGuardPreview, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
-    validate_sha256_hashlock(&hashlock)?;
-    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
-    let mut details = vec![
-        format!("Hash algorithm: SHA256 (BTC-compatible HTLC v1)"),
-        format!("Action: Create QUB HTLC lock"),
-        format!("Recipient: {}", recipient),
-        format!("Amount: {} QUB base units", amount),
-        format!("Hashlock: {}", hashlock),
-        format!("Timelock: {} seconds", timelock_seconds),
-    ];
-    if is_mainnet_like(&network) {
-        details.push("Mainnet-like network: core HTLC safety gate must also be enabled.".into());
-    }
-    Ok(quantum_guard_preview_common("create_htlc", &network, &wallet, details))
+fn crosschain_redeem(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,session_id:String,secret_hex:String,lane:Option<String>,tx_expiry_height:String,passphrase:Option<String>)->Result<CommandResult,String>{
+    let network=network.unwrap_or_else(||"alpha".into());let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;let owner=generals_address(&network,&wallet)?;let(ed,ml)=generals_public_keys(&network,&wallet)?;let lane=lane.unwrap_or_else(||"5".into());
+    let created=run_cli(Some(&app),&network,&wallet,&["createcrosschainredeemtransaction",&owner,session_id.trim(),secret_hex.trim(),&ed,&ml,lane.trim(),tx_expiry_height.trim()],passphrase.as_deref()).map_err(String::from)?;let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?;sign_and_broadcast_raw(&app,&network,&wallet,raw,passphrase.as_deref(),"crosschain-redeem")
 }
 
 #[tauri::command]
-fn quantum_guard_preview_redeem(
-    network: Option<String>,
-    wallet: Option<String>,
-    swap_id: String,
-) -> Result<QuantumGuardPreview, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
-    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
-    Ok(quantum_guard_preview_common("redeem_htlc", &network, &wallet, vec![
-        "Action: Redeem QUB HTLC using secret".into(),
-        format!("Swap ID: {}", swap_id),
-        "The secret may become visible to the counterparty and can affect the BTC-side swap flow.".into(),
-    ]))
+fn crosschain_refund(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,session_id:String,lane:Option<String>,tx_expiry_height:String,passphrase:Option<String>)->Result<CommandResult,String>{
+    let network=network.unwrap_or_else(||"alpha".into());let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;let owner=generals_address(&network,&wallet)?;let(ed,ml)=generals_public_keys(&network,&wallet)?;let lane=lane.unwrap_or_else(||"5".into());
+    let created=run_cli(Some(&app),&network,&wallet,&["createcrosschainrefundtransaction",&owner,session_id.trim(),&ed,&ml,lane.trim(),tx_expiry_height.trim()],passphrase.as_deref()).map_err(String::from)?;let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?;sign_and_broadcast_raw(&app,&network,&wallet,raw,passphrase.as_deref(),"crosschain-refund")
 }
 
 #[tauri::command]
-fn quantum_guard_preview_refund(
-    network: Option<String>,
-    wallet: Option<String>,
-    swap_id: String,
-) -> Result<QuantumGuardPreview, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
-    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
-    Ok(quantum_guard_preview_common("refund_htlc", &network, &wallet, vec![
-        "Action: Refund QUB HTLC after timelock expiry".into(),
-        format!("Swap ID: {}", swap_id),
-        "Refund should only be possible after the configured timelock has expired.".into(),
-    ]))
+fn crosschain_submit_funding_proof(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,session_id:String,rawtx_hex:String,block_hash:String,tx_index:String,branch_csv:String,lane:Option<String>,tx_expiry_height:String,passphrase:Option<String>)->Result<CommandResult,String>{
+    let network=network.unwrap_or_else(||"alpha".into());let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;let address=generals_address(&network,&wallet)?;let(ed,ml)=generals_public_keys(&network,&wallet)?;let lane=lane.unwrap_or_else(||"5".into());
+    let created=run_cli(Some(&app),&network,&wallet,&["createbtcspvfundingprooftransaction",&address,session_id.trim(),rawtx_hex.trim(),block_hash.trim(),tx_index.trim(),branch_csv.trim(),&ed,&ml,lane.trim(),tx_expiry_height.trim()],passphrase.as_deref()).map_err(String::from)?;let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?;sign_and_broadcast_raw(&app,&network,&wallet,raw,passphrase.as_deref(),"btc-spv-funding-proof")
 }
 
 #[tauri::command]
-fn htlc_safety_status(network: Option<String>) -> Result<HtlcSafetyStatus, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
-    let enabled = htlc_enabled_for_network(&network);
-    let mainnet_like = is_mainnet_like(&network);
-    Ok(HtlcSafetyStatus {
-        network: network.clone(),
-        mainnet_like,
-        htlc_enabled: enabled,
-        env_value: htlc_env_value_for_network(&network),
-        required_confirmation: "I UNDERSTAND EXPERIMENTAL HTLC RISK".into(),
-        disclaimer: if mainnet_like {
-            "Mainnet Quantum Swaps / HTLC support is a release-candidate feature and is disabled by default. Enable only after understanding the risk. Use tiny amounts only until audited.".into()
-        } else {
-            "Quantum Swaps / HTLC support is experimental. Alpha/testnet use is intended for development and small-value testing.".into()
-        },
-    })
+fn crosschain_status(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,session_id:Option<String>,passphrase:Option<String>)->Result<Value,String>{
+    let network=network.unwrap_or_else(||"alpha".into());let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let res=if let Some(sid)=session_id.filter(|s|!s.trim().is_empty()){run_cli(Some(&app),&network,&wallet,&["getcrosschainswap",sid.trim()],passphrase.as_deref())}else{run_cli(Some(&app),&network,&wallet,&["listcrosschainswaps"],passphrase.as_deref())}.map_err(String::from)?;Ok(res.result)
 }
 
-#[tauri::command]
-fn htlc_set_safety(
-    network: Option<String>,
-    enable: bool,
-    confirmation: Option<String>,
-) -> Result<HtlcSafetyStatus, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
-    if enable && is_mainnet_like(&network) {
-        let required = "I UNDERSTAND EXPERIMENTAL HTLC RISK";
-        if confirmation.as_deref().unwrap_or("").trim() != required {
-            return Err(format!("Mainnet HTLC activation requires exact confirmation: {}", required));
-        }
-    }
-    write_setting(&htlc_setting_key(&network), if enable { "true" } else { "false" }).map_err(String::from)?;
-    htlc_safety_status(Some(network))
-}
 
-fn run_core_swap_command(
-    app: Option<&tauri::AppHandle>,
-    network: &str,
-    wallet: &str,
-    args: &[&str],
-    passphrase: Option<&str>,
-) -> Result<CoreSwapResult, String> {
-    let raw = run_cli_raw(app, network, wallet, args, passphrase).map_err(|e| e.to_string())?;
-    Ok(CoreSwapResult {
-        ok: true,
-        command: args.first().unwrap_or(&"swap").to_string(),
-        result_raw: raw,
-        warning: "Core HTLC command executed. This is experimental until audited and consensus-hardened.".into(),
-    })
-}
 
-#[tauri::command]
-fn core_create_swap(
-    app: tauri::AppHandle,
-    network: Option<String>,
-    wallet: Option<String>,
-    recipient: String,
-    amount: String,
-    hashlock: String,
-    timelock_seconds: String,
-    memo: Option<String>,
-    passphrase: Option<String>,
-    confirmation: Option<String>,
-) -> Result<CoreSwapResult, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
-    validate_sha256_hashlock(&hashlock)?;
-    let wallet_raw = wallet.unwrap_or_else(|| "node1".into());
-    let wallet = sanitize_wallet_name(wallet_raw.as_str()).map_err(String::from)?;
-    let action_id = quantum_guard_action_id("create_htlc");
-    quantum_guard_check(confirmation)?;
-    if is_mainnet_like(&network) && !htlc_enabled_for_network(&network) {
-        return Err("Mainnet HTLC is disabled in GUI safety settings.".into());
-    }
-    let memo = memo.unwrap_or_else(|| "quantum-swap".into());
-    let result = run_core_swap_command(Some(&app), &network, &wallet, &[
-        "createswap",
-        recipient.as_str(),
-        amount.as_str(),
-        hashlock.as_str(),
-        timelock_seconds.as_str(),
-        memo.as_str(),
-    ], passphrase.as_deref());
-    append_quantum_guard_audit(&QuantumGuardAuditEntry {
-        timestamp: chrono_like_timestamp(),
-        action: "create_htlc".into(),
-        action_id,
-        network,
-        wallet,
-        confirmed: true,
-        result: if result.is_ok() { "ok".into() } else { "error".into() },
-    });
-    result
+fn chrono_like_timestamp() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
 }
-
-#[tauri::command]
-fn core_get_swap(
-    app: tauri::AppHandle,
-    network: Option<String>,
-    wallet: Option<String>,
-    swap_id: String,
-    passphrase: Option<String>,
-) -> Result<CoreSwapResult, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
-    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
-    run_core_swap_command(Some(&app), &network, &wallet, &["getswap", swap_id.as_str()], passphrase.as_deref())
-}
-
-#[tauri::command]
-fn core_list_swaps(
-    app: tauri::AppHandle,
-    network: Option<String>,
-    wallet: Option<String>,
-    passphrase: Option<String>,
-) -> Result<CoreSwapResult, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
-    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
-    run_core_swap_command(Some(&app), &network, &wallet, &["listswaps"], passphrase.as_deref())
-}
-
-#[tauri::command]
-fn core_redeem_swap(
-    app: tauri::AppHandle,
-    network: Option<String>,
-    wallet: Option<String>,
-    swap_id: String,
-    secret: String,
-    passphrase: Option<String>,
-    confirmation: Option<String>,
-) -> Result<CoreSwapResult, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
-    let wallet_raw = wallet.unwrap_or_else(|| "node1".into());
-    let wallet = sanitize_wallet_name(wallet_raw.as_str()).map_err(String::from)?;
-    let action_id = quantum_guard_action_id("redeem_htlc");
-    quantum_guard_check(confirmation)?;
-    if is_mainnet_like(&network) && !htlc_enabled_for_network(&network) {
-        return Err("Mainnet HTLC is disabled in GUI safety settings.".into());
-    }
-    let result = run_core_swap_command(Some(&app), &network, &wallet, &["redeemswap", swap_id.as_str(), secret.as_str()], passphrase.as_deref());
-    append_quantum_guard_audit(&QuantumGuardAuditEntry {
-        timestamp: chrono_like_timestamp(),
-        action: "redeem_htlc".into(),
-        action_id,
-        network,
-        wallet,
-        confirmed: true,
-        result: if result.is_ok() { "ok".into() } else { "error".into() },
-    });
-    result
-}
-
-#[tauri::command]
-fn core_refund_swap(
-    app: tauri::AppHandle,
-    network: Option<String>,
-    wallet: Option<String>,
-    swap_id: String,
-    passphrase: Option<String>,
-    confirmation: Option<String>,
-) -> Result<CoreSwapResult, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
-    let wallet_raw = wallet.unwrap_or_else(|| "node1".into());
-    let wallet = sanitize_wallet_name(wallet_raw.as_str()).map_err(String::from)?;
-    let action_id = quantum_guard_action_id("refund_htlc");
-    quantum_guard_check(confirmation)?;
-    if is_mainnet_like(&network) && !htlc_enabled_for_network(&network) {
-        return Err("Mainnet HTLC is disabled in GUI safety settings.".into());
-    }
-    let result = run_core_swap_command(Some(&app), &network, &wallet, &["refundswap", swap_id.as_str()], passphrase.as_deref());
-    append_quantum_guard_audit(&QuantumGuardAuditEntry {
-        timestamp: chrono_like_timestamp(),
-        action: "refund_htlc".into(),
-        action_id,
-        network,
-        wallet,
-        confirmed: true,
-        result: if result.is_ok() { "ok".into() } else { "error".into() },
-    });
-    result
-}
-
-#[tauri::command]
-fn swap_create(btc_amount: String, qrx_address: String, mode: String) -> Result<SwapDraft, String> {
-    if btc_amount.trim().is_empty() { return Err("BTC amount is required".into()); }
-    if qrx_address.trim().is_empty() { return Err("QRX receive address is required".into()); }
-    let mode = if mode == "htlc" { "htlc" } else { "coordinated" };
-    let swap_id = format!("QSWAP-{}-{}", chrono_like_timestamp(), mode.to_uppercase());
-    Ok(SwapDraft {
-        swap_id,
-        status: if mode == "htlc" { "htlc-design-preview".into() } else { "coordinator-ready-draft".into() },
-        btc_amount: btc_amount.trim().into(),
-        qrx_address: qrx_address.trim().into(),
-        mode: mode.into(),
-        timelock_hours: 24,
-        refund_path: "Refund path must be available after timeout before production use.".into(),
-        custody: "non-custodial-design-target".into(),
-        next_step: "Integrate BTC BDK/Electrum monitoring and QUB HTLC commands: createswap, redeemswap, refundswap.".into(),
-        disclaimer: "Experimental swap preparation only. This wallet does not custody user funds and does not guarantee execution or price.".into(),
-    })
-}
-
-fn chrono_like_timestamp() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs().to_string()).unwrap_or_else(|_| "0".into())
-}
-
-#[tauri::command]
-fn swap_status(swap_id: String) -> Result<SwapDraft, String> {
-    Ok(SwapDraft {
-        swap_id,
-        status: "draft-waiting-for-real-swap-engine".into(),
-        btc_amount: "not-locked".into(),
-        qrx_address: "not-set".into(),
-        mode: "coordinated-or-htlc".into(),
-        timelock_hours: 24,
-        refund_path: "not-active-until-real-HTLC-integration".into(),
-        custody: "no-custody-in-GUI-placeholder".into(),
-        next_step: "Connect swap state to a local swap engine or coordinator and QUBITCOIN Core HTLC commands.".into(),
-        disclaimer: "Status is placeholder UX until swap backend is integrated.".into(),
-    })
-}
-
-#[tauri::command]
-fn swap_refund(swap_id: String) -> Result<SwapDraft, String> {
-    Ok(SwapDraft {
-        swap_id,
-        status: "refund-path-preview".into(),
-        btc_amount: "not-locked".into(),
-        qrx_address: "not-set".into(),
-        mode: "refund".into(),
-        timelock_hours: 24,
-        refund_path: "In production, this calls BTC/QRX refund transaction builders after timelock expiry.".into(),
-        custody: "user-controlled-keys-required".into(),
-        next_step: "Implement actual HTLC timeout checks before enabling refund button for real funds.".into(),
-        disclaimer: "Do not treat this placeholder as a real refund transaction.".into(),
-    })
-}
-
 
 fn aura_history_path() -> Result<PathBuf, AppError> {
     let dir = app_data_dir()?.join("aura");
@@ -3162,7 +3085,15 @@ fn aura_local_help(message: String) -> Result<AuraLocalReply, String> {
         token_hint: "No cloud tokens used.".into(),
     };
 
-    if msg.contains("balance") || msg.contains("guthaben") {
+    if (msg.contains("offline") || msg.contains("internet") || msg.contains("catch") || msg.contains("sync")) && (msg.contains("validator") || msg.contains("slash") || msg.contains("m1") || msg.contains("home")) {
+        reply.answer = "QRX Home Validator protection: a normal outage does not make the node sign while stale. After reconnect, signing stays PAUSED while the node catches up, until it is no more than 2 blocks behind peer head and has remained stable for 30 seconds; then it resumes automatically. Outside the separate 180-day Bootstrap grace, the current home-friendly liveness profile gives the first 72 hours of one continuous outage without liveness slashing. After that, 0.05% of slashable validator power is applied per further 24 hours, with a hard cap of 1% for that continuous outage. A temporary 1-hour jail is only applied after 7 days offline. Once the validator is observed active again, the outage cap resets. Double-signing is different and remains a severe 50% slash + permanent tombstone risk. Never run the same validator keys simultaneously on a second node.".into();
+    } else if msg.contains("tombston") || msg.contains("tombstone") || msg.contains("tombstoned") {
+        reply.answer = "Tombstoned bedeutet bei QRX: Ein Validator wurde wegen eines nachweisbaren schweren Consensus-Verstoßes dauerhaft aus der aktiven Validator-Menge ausgeschlossen – insbesondere bei Double-Signing, also wenn dieselbe Validator-ID für dieselbe Höhe/Runde widersprüchliche Blöcke oder Votes signiert. Das ist NICHT dasselbe wie 'jailed': Jailed ist eine vorübergehende Sperre, z. B. nach Fehlverhalten oder Ausfall. Tombstoned ist dauerhaft. Bei Double-Signing greift zusätzlich die protokollierte Slashing-Regel; im aktuellen QRX-Profil sind standardmäßig 50 % des slashbaren Stakes vorgesehen. Ein tombstoned Validator kann nicht einfach wieder durch 'Validator Mode ON' aktiviert werden. Für den Nutzer wichtig: Offline sein allein führt nicht zum Tombstone; Double-Signing/Evidence ist der kritische Fall.".into();
+        reply.command = Some("Validator Fleet → Details → Status / qrx staking-status <chain-dir> <validator-address>".into());
+    } else if msg.contains("jailed") || msg.contains("jail") {
+        reply.answer = "Jailed bedeutet: Der Validator ist vorübergehend vom aktiven Consensus ausgeschlossen. Das ist grundsätzlich zeitlich begrenzt und unterscheidet sich von 'tombstoned'. Tombstoned bedeutet dauerhaft ausgeschlossen – typischerweise nach nachweisbarem Double-Signing. Offline-Probleme führen nicht automatisch zu einem Tombstone.".into();
+        reply.command = Some("Validator Fleet → Details → Status".into());
+    } else if msg.contains("balance") || msg.contains("guthaben") {
         reply.answer = "Balance lokal prüfen: Im Dashboard Refresh klicken oder per CLI getbalance nutzen.".into();
         reply.command = Some("qrx-cli --network alpha --wallet node1 getbalance".into());
     } else if msg.contains("adresse") || msg.contains("address") || msg.contains("receive") || msg.contains("empfangen") {
@@ -3178,14 +3109,14 @@ fn aura_local_help(message: String) -> Result<AuraLocalReply, String> {
         reply.answer = "Delegation lokal: Validator-Adresse und Betrag angeben.".into();
         reply.command = Some("qrx-cli --network alpha --wallet node1 delegate <validator> <amount>".into());
     } else if msg.contains("privacy") || msg.contains("shield") || msg.contains("stealth") || msg.contains("private") {
-        reply.answer = "QUB is designed as exchange-ready transparent-by-default, with optional privacy. The recommended path is transparent QUB for exchanges and BTC swaps, then optional shielded pool locally: transparent QUB → shielded pool → private transfer → unshield. This is not marketed as anonymous or untraceable.".into();
-        reply.command = Some("Privacy Center → Shield funds / Send private / Unshield (GUI prepared, Core next)".into());
+        reply.answer = "QUB is exchange-ready transparent-by-default with an optional Phase 7.1 consensus-backed shielded pool. The production path is transparent QUB → signed PRIVACY_SHIELD → signed PRIVACY_TRANSFER → signed PRIVACY_UNSHIELD. Verified Privacy credentials and chain-bound proofs are enforced by consensus before QRXDB state is committed atomically. This is not marketed as anonymous or untraceable.".into();
+        reply.command = Some("Privacy Center → PRIVACY_SHIELD / PRIVACY_TRANSFER / PRIVACY_UNSHIELD (signed consensus transactions)".into());
     } else if msg.contains("exchange") || msg.contains("cex") || msg.contains("listing") {
         reply.answer = "Exchange-ready mode means transparent transfers are default. Centralized exchanges should use transparent QUB deposits/withdrawals only. Privacy stays optional and local after withdrawal.".into();
         reply.command = Some("Privacy Center → Exchange-ready mode".into());
     } else if msg.contains("swap") || msg.contains("htlc") || msg.contains("quantum") {
-        reply.answer = "Quantum Swaps are experimental. Quantum Swaps v1 uses SHA256 hashlocks for BTC compatibility, while QUBITCOIN can still use SHA3 internally for chain hashing. Use Quantum Guard. Alpha/testnet commands: createswap, getswap, redeemswap, refundswap, listswaps.".into();
-        reply.command = Some("qrx-cli --network alpha --wallet node1 createswap <recipient> <amount> <hashlock_hex> <timelock_seconds> [memo]".into());
+        reply.answer = "Quantum Swaps now use the VELOCITY BTC/QUB cross-chain settlement path with SHA-256 P2WSH/CSV and Bitcoin SPV verification. The legacy file-backed createswap/redeemswap/refundswap path is not exposed by the production wallet.".into();
+        reply.command = Some("Wallet → Quantum Swaps → VELOCITY Cross-Chain (CROSSCHAIN_* + BTC_SPV_*)".into());
     } else if msg.contains("btc") || msg.contains("bitcoin") {
         reply.answer = "BTC Light nutzt BDK/Electrum. Nutze BTC Backup, Sync, Generate Address und Send. Seed vorher sichern.".into();
         reply.command = Some("BTC Light → Backup Phrase → Verify Backup → Generate BTC address".into());
@@ -3205,9 +3136,9 @@ fn aura_local_help(message: String) -> Result<AuraLocalReply, String> {
 fn aura_cloud_request_preview(message: String) -> Result<AuraLocalReply, String> {
     aura_append_local("user", &message);
     Ok(AuraLocalReply {
-        source: "cloud-preview".into(),
-        answer: "AURA Cloud ist vorbereitet, aber noch nicht mit Cloudflare verbunden. Backend-Aufgaben: Auth/User-ID, Paketstatus, BTC/QUB Invoice, Rate Limits, ChatGPT Proxy, lokale Verlaufspayload verarbeiten.".into(),
-        command: Some("POST https://<your-cloudflare-worker>/aura/chat".into()),
+        source: "local-only".into(),
+        answer: "AURA Cloud is not configured in this release. No payment or cloud request will be created. Local wallet help remains available.".into(),
+        command: None,
         needs_cloud: true,
         token_hint: "Requires active 30-day package and Cloudflare token/rate-limit check.".into(),
     })
@@ -3234,104 +3165,80 @@ fn exchange_ready_status() -> Result<ExchangeReadyStatus, String> {
 }
 
 #[tauri::command]
-fn shielded_pool_status() -> Result<ShieldedPoolStatus, String> {
+fn shielded_pool_status(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, passphrase: Option<String>) -> Result<ShieldedPoolStatus, String> {
+    let network = network.unwrap_or_else(|| "alpha".into());
+    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let status = run_cli_raw(Some(&app), &network, &wallet, &["privacy-feature-status"], passphrase.as_deref()).map_err(|e| e.to_string())?;
     Ok(ShieldedPoolStatus {
-        enabled: false,
-        phase: "gui-prepared-core-next".into(),
+        enabled: true,
+        phase: "phase7.1-consensus-backed".into(),
         transparent_balance_label: "Transparent QUB".into(),
-        shielded_balance_label: "Shielded QUB (not active until Core support exists)".into(),
-        commands_prepared: vec![
-            "shielded-address".into(),
-            "shield".into(),
-            "shielded-balance".into(),
-            "shielded-send".into(),
-            "unshield".into(),
-            "shielded-history".into(),
-        ],
-        pool_model: "Transparent QUB → Shielded Pool → Private Transfer → Transparent QUB. BTC swaps stay on transparent QUB first.".into(),
-        warning: "GUI preparation only. No real shielded funds exist until the Core implements commitments, nullifiers, Merkle tree, encrypted notes, and proof verification.".into(),
+        shielded_balance_label: "Shielded QUB".into(),
+        commands_prepared: vec!["PRIVACY_SHIELD".into(),"PRIVACY_TRANSFER".into(),"PRIVACY_UNSHIELD".into(),"privacy-consensus-balance".into()],
+        pool_model: "Transparent QUB → Shielded Pool → Private Transfer → Transparent QUB. BTC swaps use transparent QUB settlement.".into(),
+        warning: format!("{}\nPhase 7.1 GUI actions create, hybrid-sign and broadcast consensus PRIVACY_* transactions; legacy file-backed privacy is never used here.", status),
     })
+}
+
+fn extract_core_kv(raw:&str,key:&str)->Option<String>{
+    raw.lines().find_map(|line| line.strip_prefix(&format!("{}=",key))).map(|v|v.trim().to_string())
+}
+
+#[tauri::command]
+fn privacy_action_execute(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, action: String, amount: Option<String>, destination: Option<String>, passphrase: Option<String>) -> Result<Value,String> {
+    let network=network.unwrap_or_else(||"alpha".into());
+    let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let action_l=action.trim().to_lowercase();
+    let action_core=match action_l.as_str(){"shield"|"privacy_shield"=>"SHIELD","shielded-send"|"privacy_transfer"=>"TRANSFER","unshield"|"privacy_unshield"=>"UNSHIELD",_=>return Err("Unsupported privacy action".into())};
+    let amount=positive_u64(amount.as_deref().unwrap_or(""),"Amount")?;
+    let destination=destination.unwrap_or_default();
+    if (action_core=="TRANSFER"||action_core=="UNSHIELD") && destination.trim().is_empty(){return Err("Destination is required".into());}
+    let chain=network_root(&network).map_err(String::from)?;
+    let wdir=wallet_dir(&network,&wallet).map_err(String::from)?;
+    let chain_s=chain.to_string_lossy().to_string(); let wdir_s=wdir.to_string_lossy().to_string();
+    let prep=run_qrx(Some(&app),&["prepare-privacy-payload",&chain_s,&wdir_s,action_core,&amount,destination.trim()],passphrase.as_deref(),None).map_err(String::from)?;
+    let payload=extract_core_kv(&prep,"payload").ok_or_else(||"QRX Core did not return a privacy payload".to_string())?;
+    let address=generals_address(&network,&wallet)?; let (ed,ml)=generals_public_keys(&network,&wallet)?;
+    let hval=run_cli(Some(&app),&network,&wallet,&["getblockcount"],passphrase.as_deref()).map_err(String::from)?.result;
+    let h=hval.as_i64().or_else(||hval.as_str().and_then(|x|x.parse().ok())).unwrap_or(0); let expiry=(h+240).to_string();
+    let (tx_type,to,public_amount)=match action_core{
+        "SHIELD"=>("PRIVACY_SHIELD",address.clone(),amount.clone()),
+        "TRANSFER"=>("PRIVACY_TRANSFER",address.clone(),"0".to_string()),
+        "UNSHIELD"=>("PRIVACY_UNSHIELD",destination.trim().to_string(),amount.clone()),
+        _=>unreachable!()
+    };
+    let created=run_cli(Some(&app),&network,&wallet,&["createvelocitytransaction",&address,&to,&public_amount,&ed,&ml,tx_type,"6",&expiry,&payload],passphrase.as_deref()).map_err(String::from)?;
+    let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?;
+    let broadcast=sign_and_broadcast_raw(&app,&network,&wallet,raw,passphrase.as_deref(),"privacy-consensus")?;
+    Ok(serde_json::json!({"ok":true,"consensus":true,"tx_type":tx_type,"public_amount_atoms":public_amount,"destination":to,"broadcast":broadcast}))
+}
+
+#[tauri::command]
+fn shielded_address_create(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, passphrase: Option<String>) -> Result<String,String>{
+ let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+ run_cli_raw(Some(&app),&network,&wallet,&["shielded-address"],passphrase.as_deref()).map_err(|e|e.to_string())
 }
 
 #[tauri::command]
 fn privacy_action_preview(action: String, amount: Option<String>, destination: Option<String>) -> Result<PrivacyActionPreview, String> {
-    let action_clean = action.trim().to_lowercase();
-    let amount = amount.unwrap_or_else(|| "0".into());
-    let destination = destination.unwrap_or_else(|| "not set".into());
-    let (title, summary, command_preview, requirements) = match action_clean.as_str() {
-        "shield" => (
-            "Shield transparent QUB",
-            format!("Move {} QUB from transparent balance into the optional shielded pool.", amount),
-            format!("qrx-cli shield {} <shielded_address>", amount),
-            vec![
-                "Transparent funds available".into(),
-                "Shielded address generated".into(),
-                "Core shield command implemented".into(),
-            ],
-        ),
-        "shielded-send" => (
-            "Send shielded QUB",
-            format!("Send {} shielded QUB to {}.", amount, destination),
-            format!("qrx-cli shielded-send {} {}", destination, amount),
-            vec![
-                "Shielded balance available".into(),
-                "Recipient shielded address".into(),
-                "Proof generation available".into(),
-            ],
-        ),
-        "unshield" => (
-            "Unshield QUB",
-            format!("Withdraw {} QUB from shielded pool to transparent address {}.", amount, destination),
-            format!("qrx-cli unshield {} {}", destination, amount),
-            vec![
-                "Shielded note available".into(),
-                "Transparent destination address".into(),
-                "Nullifier/proof verification available".into(),
-            ],
-        ),
-        _ => (
-            "Privacy action",
-            "Unknown privacy action preview.".into(),
-            "not available".into(),
-            vec!["Choose shield, shielded-send or unshield.".into()],
-        ),
-    };
-    Ok(PrivacyActionPreview {
-        action: action_clean,
-        title: title.into(),
-        summary,
-        requirements,
-        command_preview,
-        warning: "Preview only. This does not move funds until QUB Core shielded pool support is implemented and enabled.".into(),
-    })
+    let a=action.trim().to_lowercase(); let amount=amount.unwrap_or_default(); let destination=destination.unwrap_or_default();
+    let (title,summary,cmd)=match a.as_str(){
+      "privacy_shield"|"shield"=>("Shield transparent QUB",format!("Move {} QUB into the shielded pool.",amount),format!("PRIVACY_SHIELD amount={} destination={}",amount,destination)),
+      "privacy_transfer"|"shielded-send"=>("Send shielded QUB",format!("Send {} shielded QUB to {}.",amount,destination),format!("PRIVACY_TRANSFER destination={} amount={}",destination,amount)),
+      "privacy_unshield"|"unshield"=>("Unshield QUB",format!("Move {} QUB to transparent address {}.",amount,destination),format!("PRIVACY_UNSHIELD destination={} amount={}",destination,amount)),
+      _=>return Err("Choose PRIVACY_SHIELD, PRIVACY_TRANSFER or PRIVACY_UNSHIELD".into())};
+    Ok(PrivacyActionPreview{action:a,title:title.into(),summary,requirements:vec!["Wallet unlocked for signing".into(),"Active QRX network selected".into(),"Review amount and destination before execution".into()],command_preview:cmd,warning:"Phase 7.1: creates a chain-bound proof bundle, hybrid-signs a PRIVACY_* VELOCITY transaction and broadcasts it to QRX consensus.".into()})
 }
 
 #[tauri::command]
 fn privacy_get_status() -> Result<PrivacyStatus, String> {
-    let mode = read_setting("privacy_mode.txt", "standard");
-    let level = match mode.as_str() {
-        "coin_control" => "enhanced-wallet-controls",
-        "neutrino" => "enhanced-btc-light-privacy",
-        "shielded_future" => "research-planned",
-        _ => "standard",
-    };
-    Ok(PrivacyStatus {
-        mode,
-        level: level.into(),
-        active_features: vec!["local QUB keys".into(), "non-custodial UX".into(), "endpoint choice preparation".into()],
-        planned_features: vec!["coin control".into(), "address reuse warnings".into(), "BTC Neutrino/BIP157".into(), "QRX shielded layer research".into()],
-        disclaimer: "Privacy-enhanced does not mean anonymous, untraceable or guaranteed private. Network analysis and endpoint metadata may still reveal information.".into(),
-    })
+    let mode=read_setting("privacy_mode.txt","standard");
+    Ok(PrivacyStatus{mode,level:"core-backed-optional-privacy".into(),active_features:vec!["local QUB keys".into(),"coin/source control".into(),"address reuse warnings".into(),"shielded QUB commands".into(),"stealth addresses".into()],planned_features:vec![],disclaimer:"Privacy-enhanced does not mean anonymous or untraceable. Network and endpoint metadata can still reveal information.".into()})
 }
 
 #[tauri::command]
 fn privacy_set_mode(mode: String) -> Result<PrivacyStatus, String> {
-    let clean = match mode.as_str() {
-        "standard" | "coin_control" | "neutrino" | "shielded_future" => mode,
-        _ => "standard".into(),
-    };
-    write_setting("privacy_mode.txt", &clean).map_err(String::from)?;
-    privacy_get_status()
+ let clean=match mode.as_str(){"standard"|"coin_control"|"shielded"=>mode,_=>"standard".into()}; write_setting("privacy_mode.txt",&clean).map_err(String::from)?; privacy_get_status()
 }
 
 fn wallet_cli_is_read_only(command: &str) -> bool {
@@ -3347,7 +3254,7 @@ fn wallet_cli_is_read_only(command: &str) -> bool {
         "getvelocityinfo"|"getvelocityengineinfo"|"getblockchaininfo"|"getnetworkinfo"|
         "getnodestatus"|"getuptime"|"getbuildinfo"|"getmempoolinfo"|"getrecentblocks"|
         "getrecenttransactions"|"getvalidatorstatus"|"getblockproducerinfo"|"getfeeinfo"|
-        "getpeerinfo"|"getstakinginfo"|"getwalletinfo"|"getreward"|"getparams"|
+        "getpeerinfo"|"getstakinginfo"|"getwalletinfo"|"getreward"|"getparams"|"getprotocolinfo"|
         "gethalving"|"getforks"|"getactivefork"|"history"|"listpeers"|"peerstatus"|
         "banscores"|"validator-set"|"tokenomics"|"getdevaddress"|"getswap"|"listswaps"|
         "shielded-balance"|"shielded-history"|"stealth-history"|"privacy-feature-status"|
@@ -3491,6 +3398,117 @@ fn address_book_import_json(payload:String)->Result<usize,String>{
     write_address_book(&entries)?;Ok(added)
 }
 
+
+
+fn parse_kv_text(raw:&str)->serde_json::Map<String,Value>{
+    let mut m=serde_json::Map::new();
+    for line in raw.lines(){if let Some((k,v))=line.split_once('='){m.insert(k.trim().to_string(),Value::String(v.trim().to_string()));}}
+    m
+}
+fn generals_qrx_kv(app:&tauri::AppHandle,args:Vec<String>)->Result<Value,String>{
+    let refs=args.iter().map(String::as_str).collect::<Vec<_>>();
+    let raw=run_qrx(Some(app),&refs,None,None).map_err(String::from)?;
+    Ok(Value::Object(parse_kv_text(&raw)))
+}
+fn generals_address(network:&str,wallet:&str)->Result<String,String>{
+    let dir=wallet_dir(network,wallet).map_err(String::from)?;
+    read_address(&dir).ok_or_else(||"Wallet address unavailable".to_string()).map(|s|s.trim().to_string())
+}
+fn generals_public_keys(network:&str,wallet:&str)->Result<(String,String),String>{
+    let dir=wallet_dir(network,wallet).map_err(String::from)?;
+    let ed=fs::read(dir.join("ed25519_pub.pem")).map_err(|e|e.to_string())?;
+    let p=PKey::public_key_from_pem(&ed).map_err(|e|e.to_string())?;
+    let raw=p.raw_public_key().map_err(|e|e.to_string())?;
+    if raw.len()!=32{return Err("Ed25519 public key is not 32 bytes".into());}
+    let edhex=raw.iter().map(|b|format!("{b:02x}")).collect::<String>();
+    let ml=fs::read(dir.join("mldsa65_pub.pem")).map_err(|e|e.to_string())?;
+    let mlb64=general_purpose::STANDARD.encode(ml);
+    Ok((edhex,mlb64))
+}
+
+#[tauri::command]
+fn generals_order_commitment(canonical:String)->Result<String,String>{
+    if canonical.len()>8192{return Err("Order canonical text too large".into());}
+    let mut h=Hasher::new(MessageDigest::sha3_512()).map_err(|e|e.to_string())?;h.update(canonical.as_bytes()).map_err(|e|e.to_string())?;let d=h.finish().map_err(|e|e.to_string())?;
+    Ok(d.iter().map(|b|format!("{b:02x}")).collect())
+}
+
+#[tauri::command]
+fn generals_snapshot(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>)->Result<Value,String>{
+    let network=network.unwrap_or_else(||"alpha".into());
+    let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let ctx=ensure_context(&network,&wallet).map_err(String::from)?;
+    let address=generals_address(&network,&wallet)?;
+    let chain=ctx.data_dir.clone();
+    let world=generals_qrx_kv(&app,vec!["generals-world-info".into(),chain.clone()]).unwrap_or_else(|e|serde_json::json!({"error":e}));
+    let season=generals_qrx_kv(&app,vec!["generals-season-info".into(),chain.clone()]).unwrap_or_else(|e|serde_json::json!({"error":e}));
+    let player=generals_qrx_kv(&app,vec!["generals-player-info".into(),chain.clone(),address.clone()]).unwrap_or_else(|e|serde_json::json!({"error":e}));
+    let treasury=generals_qrx_kv(&app,vec!["generals-treasury-info".into(),chain.clone()]).unwrap_or_else(|e|serde_json::json!({"error":e}));
+    let sid=world.get("season_id").and_then(Value::as_str).and_then(|x|x.parse::<i64>().ok()).unwrap_or(0);
+    let mut units=Vec::new(); let mut army=serde_json::json!({});
+    let mut logistics=serde_json::json!({}); let mut economy=serde_json::json!({}); let mut research=serde_json::json!({}); let mut doctrine=serde_json::json!({}); let mut ranking=serde_json::json!({}); let mut clan=serde_json::json!({}); let mut clan_directive=serde_json::json!({}); let mut clan_ranking=serde_json::json!({}); let mut rewards=serde_json::json!({}); let mut tech_tree=serde_json::json!({});
+    let mut previous_season=serde_json::json!({});
+    let mut region=Vec::<Value>::new();
+    if sid>0 && player.get("error").is_none(){
+        army=generals_qrx_kv(&app,vec!["generals-player-army-info".into(),chain.clone(),address.clone(),sid.to_string()]).unwrap_or_else(|e|serde_json::json!({"error":e}));
+        if let Some(obj)=army.as_object(){
+            for (k,v) in obj{if (k.starts_with("unit_")||k.starts_with("support_unit_"))&&!k.ends_with("count"){if let Some(uid)=v.as_str(){if uid.is_empty(){continue} let u=generals_qrx_kv(&app,vec!["generals-unit-info".into(),chain.clone(),uid.to_string()]).unwrap_or_else(|e|serde_json::json!({"error":e,"unit_id":uid}));units.push(u);}}}
+        }
+        logistics=generals_qrx_kv(&app,vec!["generals-logistics-info".into(),chain.clone(),address.clone(),sid.to_string()]).unwrap_or_else(|e|serde_json::json!({"error":e}));
+        economy=generals_qrx_kv(&app,vec!["generals-economy-info".into(),chain.clone(),address.clone(),sid.to_string()]).unwrap_or_else(|e|serde_json::json!({"error":e}));
+        research=generals_qrx_kv(&app,vec!["generals-research-info".into(),chain.clone(),address.clone(),sid.to_string()]).unwrap_or_else(|e|serde_json::json!({"error":e}));
+        doctrine=generals_qrx_kv(&app,vec!["generals-doctrine-info".into(),chain.clone(),address.clone(),sid.to_string()]).unwrap_or_else(|e|serde_json::json!({"error":e}));
+        ranking=generals_qrx_kv(&app,vec!["generals-ranking-info".into(),chain.clone(),sid.to_string()]).unwrap_or_else(|e|serde_json::json!({"error":e}));
+        tech_tree=generals_qrx_kv(&app,vec!["generals-tech-tree".into(),chain.clone(),address.clone(),sid.to_string()]).unwrap_or_else(|e|serde_json::json!({"error":e}));
+        if let Some(cid)=player.get("clan_id").and_then(Value::as_str).filter(|x|!x.is_empty()){clan=generals_qrx_kv(&app,vec!["generals-clan-info".into(),chain.clone(),cid.to_string()]).unwrap_or_else(|e|serde_json::json!({"error":e}));clan_directive=generals_qrx_kv(&app,vec!["generals-clan-directive-info".into(),chain.clone(),cid.to_string(),sid.to_string()]).unwrap_or_else(|e|serde_json::json!({"error":e}));}
+        if sid>1{clan_ranking=generals_qrx_kv(&app,vec!["generals-clan-ranking-info".into(),chain.clone(),(sid-1).to_string()]).unwrap_or_else(|e|serde_json::json!({"error":e}));rewards=generals_qrx_kv(&app,vec!["generals-season-rewards-info".into(),chain.clone(),(sid-1).to_string()]).unwrap_or_else(|e|serde_json::json!({"error":e}));previous_season=generals_qrx_kv(&app,vec!["generals-season-result-info".into(),chain.clone(),(sid-1).to_string()]).unwrap_or_else(|e|serde_json::json!({"error":e}));}
+        let cx=units.iter().find_map(|u|u.get("type").and_then(Value::as_str).filter(|x|*x=="HQ").and_then(|_|u.get("x").and_then(Value::as_str)).and_then(|x|x.parse::<i64>().ok())).unwrap_or(8);
+        let cy=units.iter().find_map(|u|u.get("type").and_then(Value::as_str).filter(|x|*x=="HQ").and_then(|_|u.get("y").and_then(Value::as_str)).and_then(|x|x.parse::<i64>().ok())).unwrap_or(8);
+        let args=vec!["generals-region-info".into(),chain.clone(),sid.to_string(),(cx-9).max(0).to_string(),(cy-6).max(0).to_string(),"19".into(),"13".into()];
+        let refs=args.iter().map(String::as_str).collect::<Vec<_>>();
+        if let Ok(raw)=run_qrx(Some(&app),&refs,None,None){for line in raw.lines(){if let Some(v)=line.strip_prefix("tile="){let parts=v.split(',').collect::<Vec<_>>();if parts.len()>=6{region.push(serde_json::json!({"x":parts[0],"y":parts[1],"terrain":parts[2],"unit_id":parts[3],"owner":parts[4],"feature":parts[5]}));}}}}
+    }
+    Ok(serde_json::json!({"context":ctx,"address":address,"world":world,"season":season,"player":player,"army":army,"units":units,"logistics":logistics,"economy":economy,"research":research,"doctrine":doctrine,"treasury":treasury,"ranking":ranking,"clan":clan,"clan_directive":clan_directive,"clan_ranking":clan_ranking,"rewards":rewards,"tech_tree":tech_tree,"previous_season":previous_season,"region":region}))
+}
+
+#[tauri::command]
+fn generals_submit_action(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,tx_type:String,payload:String,amount_atoms:Option<String>,passphrase:Option<String>)->Result<Value,String>{
+    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    if !tx_type.starts_with("GAME_"){return Err("Only GAME_* transactions are allowed from Generals".into());}
+    if payload.len()>8192{return Err("Generals payload too large".into());}
+    let address=generals_address(&network,&wallet)?; let (ed,ml)=generals_public_keys(&network,&wallet)?;
+    let height=run_cli(Some(&app),&network,&wallet,&["getblockcount"],passphrase.as_deref()).map_err(String::from)?.result;
+    let h=height.as_i64().or_else(||height.as_str().and_then(|x|x.parse().ok())).unwrap_or(0); let expiry=(h+240).to_string(); let amount=amount_atoms.unwrap_or_else(||"0".into());
+    let created=run_cli(Some(&app),&network,&wallet,&["createvelocitytransaction",&address,&address,&amount,&ed,&ml,&tx_type,"7",&expiry,&payload],passphrase.as_deref()).map_err(String::from)?;
+    let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?;
+    let body_hash=raw.lines().find_map(|l|l.strip_prefix("body_hash_sha3_512=")).unwrap_or("").to_string();
+    let predicted_order_id=if tx_type=="GAME_ORDER_COMMIT" && body_hash.len()>=24{format!("ORD-{}",&body_hash[..24])}else{String::new()};
+    let broadcast=sign_and_broadcast_raw(&app,&network,&wallet,raw,passphrase.as_deref(),"generals")?;
+    Ok(serde_json::json!({"tx_type":tx_type,"payload":payload,"body_hash":body_hash,"predicted_order_id":predicted_order_id,"broadcast":broadcast}))
+}
+
+#[tauri::command]
+fn open_generals_window(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, demo: Option<bool>) -> Result<String, String> {
+    if let Some(window) = app.get_window("qrx-generals") {
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok("QRX Generals focused.".to_string());
+    }
+    tauri::WindowBuilder::new(
+        &app,
+        "qrx-generals",
+        tauri::WindowUrl::App(format!("generals/index.html?network={}&wallet={}&demo={}", network.unwrap_or_else(|| "alpha".into()), sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?, if demo.unwrap_or(false) { "1" } else { "0" }).into()),
+    )
+    .title("QRX Generals")
+    .inner_size(1440.0, 900.0)
+    .min_inner_size(1024.0, 680.0)
+    .resizable(true)
+    .center()
+    .build()
+    .map_err(|e| format!("Could not create QRX Generals window: {e}"))?;
+    Ok("QRX Generals opened in its own window.".to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(DaemonState {
@@ -3506,6 +3524,11 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_context,
+            generals_order_commitment,
+            generals_prepare_offline_reveal,
+            generals_snapshot,
+            generals_submit_action,
+            open_generals_window,
             generate_qr_svg,
             address_book_list,
             address_book_upsert,
@@ -3529,6 +3552,8 @@ fn main() {
             agent_manager_register,
             agent_manager_revoke,
             list_wallets,
+            validator_fleet_status,
+            set_validator_fleet_modes,
             list_legacy_network_wallets,
             migrate_legacy_network_wallet,
             list_legacy_gui_wallets,
@@ -3555,15 +3580,26 @@ fn main() {
             get_new_address,
             list_addresses,
             get_wallet_address_set,
+            get_address_privacy_context,
             get_history,
             get_staking_info,
             get_validators,
             get_tokenomics,
+            get_protocol_info,
             get_node_info,
+            markets_snapshot,
+            markets_place_order,
+            markets_cancel_order,
+            get_mainnet_health,
+            get_peer_info,
             list_peers,
             send_to_address,
             stake,
+            validator_safe_pause,
+            validator_safe_resume,
             delegate,
+            undelegate,
+            claim_undelegated,
             btc_get_status,
             btc_init_wallet,
             btc_backup_phrase,
@@ -3577,20 +3613,12 @@ fn main() {
             btc_start_neutrino,
             btc_new_address,
             btc_list_addresses,
-            htlc_safety_status,
-            htlc_set_safety,
-            quantum_guard_audit_log,
-            quantum_guard_preview_create,
-            quantum_guard_preview_redeem,
-            quantum_guard_preview_refund,
-            core_create_swap,
-            core_get_swap,
-            core_list_swaps,
-            core_redeem_swap,
-            core_refund_swap,
-            swap_create,
-            swap_status,
-            swap_refund,
+            crosschain_place_buy,
+            crosschain_place_sell,
+            crosschain_redeem,
+            crosschain_refund,
+            crosschain_submit_funding_proof,
+            crosschain_status,
             aura_plan_status,
             aura_checkout_quote,
             aura_local_help,
@@ -3598,6 +3626,8 @@ fn main() {
             exchange_ready_status,
             shielded_pool_status,
             privacy_action_preview,
+            privacy_action_execute,
+            shielded_address_create,
             privacy_get_status,
             privacy_set_mode,
             wallet_cli_capabilities,

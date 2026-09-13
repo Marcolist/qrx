@@ -16,8 +16,8 @@ class WalletFeatureParityTests(unittest.TestCase):
   core=(ROOT/'qrx-core'/'src'/'qrx.c').read_text();exporter=(ROOT/'qrx-core'/'tools'/'qrx-complete-ledger-export.py').read_text()
   self.assertNotIn('if(limit>1000000)',core);self.assertNotIn('"1000000000"',exporter);self.assertIn('!strcmp(argv[4],"all")',core);self.assertIn('!strcmp(argv[4], "all")',core)
  def test_tauri_and_cli_share_rust_bdk_service(self):
-  rust=(ROOT/'GUIWALLET'/'src-tauri'/'src'/'main.rs').read_text();service=(ROOT/'GUIWALLET'/'src-tauri'/'src'/'btc_wallet_service.rs').read_text();binary=(ROOT/'GUIWALLET'/'src-tauri'/'src'/'bin'/'qrx-btc-wallet-service.rs').read_text();cli=(ROOT/'qrx-core'/'tools'/'qrx-wallet-cli.py').read_text();config=(ROOT/'GUIWALLET'/'src-tauri'/'tauri.conf.json').read_text()
-  self.assertIn('shared_btc_service',rust);self.assertIn('Service::new(data_dir)?.execute(request)',binary);self.assertIn('Argon2id',service);self.assertIn('qrx-btc-wallet-service',cli);self.assertIn('bin/qrx-btc-wallet-service',config)
+  rust=(ROOT/'GUIWALLET'/'src-tauri'/'src'/'main.rs').read_text();service=(ROOT/'GUIWALLET'/'src-tauri'/'src'/'btc_wallet_service.rs').read_text();binary=(ROOT/'GUIWALLET'/'btc-wallet-service'/'src'/'main.rs').read_text();cli=(ROOT/'qrx-core'/'tools'/'qrx-wallet-cli.py').read_text();config=(ROOT/'GUIWALLET'/'src-tauri'/'tauri.conf.json').read_text()
+  self.assertIn('shared_btc_service',rust);self.assertIn('btc_wallet_service::Service::new(data_dir)?.execute(request)',binary);self.assertIn('Argon2id',service);self.assertIn('qrx-btc-wallet-service',cli);self.assertIn('bin/qrx-btc-wallet-service',config)
   self.assertIn('descriptor: String::new()',service);self.assertIn('wallet.descriptor.clear()',service)
  def test_period_controls_exist_in_both_wallets(self):
   rust=(ROOT/'GUIWALLET'/'src-tauri'/'src'/'main.rs').read_text();html=(ROOT/'GUIWALLET'/'src'/'index.html').read_text();cli=(ROOT/'qrx-core'/'tools'/'qrx-wallet-cli.py').read_text();exporter=(ROOT/'qrx-core'/'tools'/'qrx-complete-ledger-export.py').read_text()
