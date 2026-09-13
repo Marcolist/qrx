@@ -1,0 +1,29 @@
+QRX 0.0.9.36 FULL-TREE CONTINUITY AUDIT
+Date: 2026-09-10
+Baseline: canonical 0.0.9.35 full-tree release
+Build directories excluded from comparison.
+
+Baseline regular files: 1093
+0.0.9.36 pre-release regular files before release audit/manifest: 1100
+Removed baseline files: 0
+
+New implementation/release-prep files detected before final release audit/manifest:
+- IMPLEMENTATION_0.0.9.36.md
+- RELEASE_AUDIT_0.0.9.36_BUILD.log
+- RELEASE_AUDIT_0.0.9.36_CTEST_94_OF_94_PASS.log
+- qrx-core/IMPLEMENTATION_0.0.9.36.md
+- qrx-core/src/compute/qrx_aura_fabric_gossip.c
+- qrx-core/src/compute/qrx_aura_fabric_gossip.h
+- qrx-core/tests/compute_phase161_aura_pod_gossip_live_globe.c
+
+Changed baseline files:
+- QRX_0.0.8_0.0.10_ROADMAP_STORAGE_COMPUTE_OUROBOROS.txt
+- qrx-core/CMakeLists.txt
+- qrx-core/QRX_0.0.8_0.0.10_ROADMAP_STORAGE_COMPUTE_OUROBOROS.txt
+- qrx-core/src/compute/qrx_aura_model_fabric.c
+- qrx-core/src/compute/qrx_aura_model_fabric.h
+- qrx-core/src/qrx.c
+- qrx-core/src/qrx_cli.c
+- qrx-core/src/qrxd.c
+
+Result: PASS — no 0.0.9.35 release file was removed.

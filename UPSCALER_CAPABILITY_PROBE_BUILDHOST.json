@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "device_model": "Unknown device",
+  "os": "Linux",
+  "arch": "x86_64",
+  "memory_bytes": 6236913664,
+  "hardware_profile": "generic",
+  "ai_support": "unavailable",
+  "vulkan_loader_present": true,
+  "render_device_present": false,
+  "ai_runtime_ready": false,
+  "classical_available": true,
+  "recommended_tile": 256,
+  "recommended_threads": 2,
+  "status": "No usable Vulkan AI path detected; classical upscaling remains available."
+}

@@ -14,3 +14,6 @@ echo
 echo "PUBLIC descriptors to feed the Genesis finalizer:"
 for i in 1 2 3 4 5; do echo "$OUT/DEV_GOV_$i/governance.pub"; done
 echo "Keep governance.key files offline/private. Never copy them into QRX source or Genesis."
+echo
+echo "Recommended next step: create one OFFLINE five-key backup vault plus a max-two operational vault:"
+echo "  scripts/setup-mainnet-governance-vault.sh '$Q' '$OUT' <offline-backup-vault> <operational-vault>"

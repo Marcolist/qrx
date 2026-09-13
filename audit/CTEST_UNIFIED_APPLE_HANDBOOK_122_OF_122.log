@@ -1,0 +1,250 @@
+Internal ctest changing into directory: /mnt/data/qrx_handbook_update/build
+Test project /mnt/data/qrx_handbook_update/build
+        Start 119: apps_phase189_qrxapp_foundation
+        Start 107: compute_phase174_qrx_a_to_z_documentation_gate
+        Start 118: apps_phase188_upscaler_capabilities
+        Start   1: velocity_phase4_engine
+  1/122 Test #107: compute_phase174_qrx_a_to_z_documentation_gate ....................   Passed    0.00 sec
+  2/122 Test #118: apps_phase188_upscaler_capabilities ...............................   Passed    0.00 sec
+        Start   2: velocity_phase4b_mvcc
+        Start   3: velocity_phase4c_stateful_mvcc
+  3/122 Test   #1: velocity_phase4_engine ............................................   Passed    0.01 sec
+        Start   4: velocity_phase4d_dynamic_mvcc
+  4/122 Test   #3: velocity_phase4c_stateful_mvcc ....................................   Passed    0.02 sec
+        Start   5: velocity_phase4e_speculative_mvcc
+  5/122 Test   #2: velocity_phase4b_mvcc .............................................   Passed    0.04 sec
+        Start   6: velocity_phase4f_block_scheduler
+  6/122 Test   #6: velocity_phase4f_block_scheduler ..................................   Passed    0.00 sec
+        Start   7: bitcoin_spv_phase71_hardening
+  7/122 Test   #7: bitcoin_spv_phase71_hardening .....................................   Passed    0.03 sec
+        Start   8: resource_phase080_foundation
+  8/122 Test   #5: velocity_phase4e_speculative_mvcc .................................   Passed    0.06 sec
+        Start   9: storage_phase081_filesystem
+  9/122 Test   #8: resource_phase080_foundation ......................................   Passed    0.01 sec
+        Start  10: storage_phase082_capacity
+ 10/122 Test  #10: storage_phase082_capacity .........................................   Passed    0.00 sec
+        Start  11: storage_phase084_capacity_proof
+ 11/122 Test   #9: storage_phase081_filesystem .......................................   Passed    0.01 sec
+        Start  12: storage_phase085_pq_crypto
+ 12/122 Test  #11: storage_phase084_capacity_proof ...................................   Passed    0.00 sec
+        Start  13: storage_phase086_manifest
+ 13/122 Test  #12: storage_phase085_pq_crypto ........................................   Passed    0.01 sec
+ 14/122 Test  #13: storage_phase086_manifest .........................................   Passed    0.00 sec
+        Start  14: storage_phase087_erasure
+        Start  15: storage_phase088_placement
+ 15/122 Test   #4: velocity_phase4d_dynamic_mvcc .....................................   Passed    0.08 sec
+        Start  16: storage_phase089_postor
+ 16/122 Test  #15: storage_phase088_placement ........................................   Passed    0.00 sec
+        Start  17: storage_phase090_market
+ 17/122 Test  #17: storage_phase090_market ...........................................   Passed    0.00 sec
+        Start  18: storage_phase091_repair
+ 18/122 Test  #16: storage_phase089_postor ...........................................   Passed    0.00 sec
+        Start  19: storage_phase092_atlas
+ 19/122 Test  #19: storage_phase092_atlas ............................................   Passed    0.00 sec
+        Start  20: storage_phase093_transport
+ 20/122 Test  #18: storage_phase091_repair ...........................................   Passed    0.00 sec
+        Start  21: net_phase844_name
+ 21/122 Test  #20: storage_phase093_transport ........................................   Passed    0.00 sec
+        Start  22: net_phase844_registry
+ 22/122 Test  #21: net_phase844_name .................................................   Passed    0.00 sec
+        Start  23: net_phase846_resolver
+ 23/122 Test  #23: net_phase846_resolver .............................................   Passed    0.00 sec
+        Start  24: net_phase847_site
+ 24/122 Test  #22: net_phase844_registry .............................................   Passed    0.01 sec
+        Start  25: net_phase854_permissions
+ 25/122 Test  #25: net_phase854_permissions ..........................................   Passed    0.00 sec
+        Start  26: storage_phase094_consensus
+ 26/122 Test  #14: storage_phase087_erasure ..........................................   Passed    0.03 sec
+ 27/122 Test  #24: net_phase847_site .................................................   Passed    0.01 sec
+        Start  27: net_phase855_consensus
+        Start  28: storage_phase095_attestation
+ 28/122 Test  #26: storage_phase094_consensus ........................................   Passed    0.01 sec
+        Start  29: storage_phase096_p2p
+ 29/122 Test  #27: net_phase855_consensus ............................................   Passed    0.01 sec
+        Start  30: storage_phase097_large_object
+ 30/122 Test  #28: storage_phase095_attestation ......................................   Passed    0.01 sec
+        Start  31: storage_phase099_discovery
+ 31/122 Test  #29: storage_phase096_p2p ..............................................   Passed    0.01 sec
+        Start  32: storage_phase100_resource_dashboard
+ 32/122 Test  #32: storage_phase100_resource_dashboard ...............................   Passed    0.00 sec
+        Start  33: storage_phase101_live_dashboard
+ 33/122 Test  #33: storage_phase101_live_dashboard ...................................   Passed    0.01 sec
+        Start  34: storage_phase102_drive_live
+ 34/122 Test  #34: storage_phase102_drive_live .......................................   Passed    0.02 sec
+        Start  35: storage_phase103_network_transfer
+ 35/122 Test  #30: storage_phase097_large_object .....................................   Passed    0.05 sec
+        Start  36: storage_phase104_drive_runtime
+ 36/122 Test  #35: storage_phase103_network_transfer .................................   Passed    0.01 sec
+        Start  37: storage_phase105_drive_recovery
+ 37/122 Test  #31: storage_phase099_discovery ........................................   Passed    0.05 sec
+        Start  38: storage_phase106_gossip_streaming
+ 38/122 Test  #37: storage_phase105_drive_recovery ...................................   Passed    0.00 sec
+        Start  39: storage_phase107_identity_gossip
+ 39/122 Test  #39: storage_phase107_identity_gossip ..................................   Passed    0.01 sec
+        Start  40: storage_phase108_private_pq
+ 40/122 Test  #40: storage_phase108_private_pq .......................................   Passed    0.15 sec
+        Start  41: storage_phase109_prepare
+ 41/122 Test  #36: storage_phase104_drive_runtime ....................................   Passed    0.21 sec
+        Start  42: storage_phase110_prepared_runtime
+ 42/122 Test  #42: storage_phase110_prepared_runtime .................................   Passed    0.06 sec
+        Start  43: storage_phase111_contract_orchestration
+ 43/122 Test  #41: storage_phase109_prepare ..........................................   Passed    0.12 sec
+        Start  44: storage_phase098_multifetch
+ 44/122 Test  #43: storage_phase111_contract_orchestration ...........................   Passed    0.06 sec
+        Start  45: storage_phase112_provider_activation
+ 45/122 Test  #45: storage_phase112_provider_activation ..............................   Passed    0.03 sec
+        Start  46: storage_phase113_postor_runtime
+ 46/122 Test  #46: storage_phase113_postor_runtime ...................................   Passed    0.04 sec
+        Start  47: storage_phase114_repair_runtime
+ 47/122 Test  #47: storage_phase114_repair_runtime ...................................   Passed    0.08 sec
+        Start  48: net_phase115_domain_management
+ 48/122 Test  #48: net_phase115_domain_management ....................................   Passed    0.03 sec
+        Start  49: net_phase116_site_package
+ 49/122 Test  #44: storage_phase098_multifetch .......................................   Passed    0.23 sec
+        Start  50: net_phase117_directory_publisher
+ 50/122 Test  #49: net_phase116_site_package .........................................   Passed    0.02 sec
+        Start  51: net_phase118_hosting_activation
+ 51/122 Test  #50: net_phase117_directory_publisher ..................................   Passed    0.01 sec
+        Start  52: net_phase119_browser_fetch
+ 52/122 Test #119: apps_phase189_qrxapp_foundation ...................................   Passed    0.76 sec
+        Start  53: net_phase120_browser_sandbox
+ 53/122 Test  #53: net_phase120_browser_sandbox ......................................   Passed    0.00 sec
+        Start  54: net_phase121_dapp_bridge
+ 54/122 Test  #52: net_phase119_browser_fetch ........................................   Passed    0.04 sec
+        Start  55: net_phase122_ad_economy
+ 55/122 Test  #54: net_phase121_dapp_bridge ..........................................   Passed    0.00 sec
+        Start  56: net_phase123_youth_safety
+ 56/122 Test  #55: net_phase122_ad_economy ...........................................   Passed    0.01 sec
+        Start  57: net_phase124_hosting_missions
+ 57/122 Test  #57: net_phase124_hosting_missions .....................................   Passed    0.00 sec
+        Start  58: net_phase125_final_readiness
+ 58/122 Test  #58: net_phase125_final_readiness ......................................   Passed    0.00 sec
+        Start  59: compute_phase126_foundation
+ 59/122 Test  #59: compute_phase126_foundation .......................................   Passed    0.00 sec
+        Start  60: compute_phase127_capability_discovery
+ 60/122 Test  #60: compute_phase127_capability_discovery .............................   Passed    0.00 sec
+        Start  61: compute_phase128_benchmark_normalization
+ 61/122 Test  #61: compute_phase128_benchmark_normalization ..........................   Passed    0.00 sec
+        Start  62: compute_phase129_model_registry
+ 62/122 Test  #62: compute_phase129_model_registry ...................................   Passed    0.00 sec
+        Start  63: compute_phase130_job_protocol
+ 63/122 Test  #63: compute_phase130_job_protocol .....................................   Passed    0.00 sec
+        Start  64: compute_phase131_market_escrow
+ 64/122 Test  #64: compute_phase131_market_escrow ....................................   Passed    0.00 sec
+        Start  65: compute_phase132_secure_sandbox
+ 65/122 Test  #65: compute_phase132_secure_sandbox ...................................   Passed    0.00 sec
+        Start  66: compute_phase133_pouc_verification
+ 66/122 Test  #66: compute_phase133_pouc_verification ................................   Passed    0.00 sec
+        Start  67: compute_phase134_aura_runtime
+ 67/122 Test  #67: compute_phase134_aura_runtime .....................................   Passed    0.00 sec
+        Start  68: compute_phase135_aura_chat
+ 68/122 Test  #68: compute_phase135_aura_chat ........................................   Passed    0.00 sec
+        Start  69: compute_phase136_aura_artifacts
+ 69/122 Test  #69: compute_phase136_aura_artifacts ...................................   Passed    0.00 sec
+        Start  70: compute_phase137_aura_code_workspace
+ 70/122 Test  #70: compute_phase137_aura_code_workspace ..............................   Passed    0.00 sec
+        Start  71: compute_phase138_aura_code_lifecycle
+ 71/122 Test  #71: compute_phase138_aura_code_lifecycle ..............................   Passed    0.00 sec
+        Start  72: compute_phase139_moe_traffic_optimistic
+ 72/122 Test  #51: net_phase118_hosting_activation ...................................   Passed    0.11 sec
+        Start  73: compute_phase140_moe_coordinator_prefetch
+ 73/122 Test  #72: compute_phase139_moe_traffic_optimistic ...........................   Passed    0.00 sec
+        Start  74: compute_phase141_moe_batch_stream_aggregation
+ 74/122 Test  #73: compute_phase140_moe_coordinator_prefetch .........................   Passed    0.00 sec
+        Start  75: compute_phase142_moe_adaptive_scheduler_telemetry
+ 75/122 Test  #74: compute_phase141_moe_batch_stream_aggregation .....................   Passed    0.00 sec
+        Start  76: compute_phase143_moe_runtime_benchmark
+ 76/122 Test  #75: compute_phase142_moe_adaptive_scheduler_telemetry .................   Passed    0.00 sec
+        Start  77: compute_phase144_native_runtime_calibration
+ 77/122 Test  #76: compute_phase143_moe_runtime_benchmark ............................   Passed    0.00 sec
+        Start  78: compute_phase145_resource_globe
+ 78/122 Test  #77: compute_phase144_native_runtime_calibration .......................   Passed    0.00 sec
+        Start  79: compute_phase146_opportunity_engine
+ 79/122 Test  #78: compute_phase145_resource_globe ...................................   Passed    0.00 sec
+        Start  80: compute_phase147_task_globe
+ 80/122 Test  #79: compute_phase146_opportunity_engine ...............................   Passed    0.00 sec
+        Start  81: compute_phase148_qrx_os_compute
+ 81/122 Test  #80: compute_phase147_task_globe .......................................   Passed    0.00 sec
+        Start  82: compute_phase149_resource_provider_ux
+ 82/122 Test  #81: compute_phase148_qrx_os_compute ...................................   Passed    0.00 sec
+        Start  83: compute_phase150_provider_runtime_market
+ 83/122 Test  #82: compute_phase149_resource_provider_ux .............................   Passed    0.00 sec
+        Start  84: compute_phase151_adversarial_testnet
+ 84/122 Test  #83: compute_phase150_provider_runtime_market ..........................   Passed    0.00 sec
+        Start  85: compute_phase152_pouc_mainnet_activation
+ 85/122 Test  #84: compute_phase151_adversarial_testnet ..............................   Passed    0.00 sec
+        Start  86: compute_phase153_pouc_durable_journal
+ 86/122 Test  #85: compute_phase152_pouc_mainnet_activation ..........................   Passed    0.00 sec
+        Start  87: compute_phase154_pouc_block_pipeline
+ 87/122 Test  #86: compute_phase153_pouc_durable_journal .............................   Passed    0.01 sec
+        Start  88: compute_phase155_pouc_upstream_transactions
+ 88/122 Test  #87: compute_phase154_pouc_block_pipeline ..............................   Passed    0.04 sec
+        Start  89: compute_phase156_verifier_selection_rewards_slashing
+ 89/122 Test  #88: compute_phase155_pouc_upstream_transactions .......................   Passed    0.04 sec
+        Start  90: compute_phase157_verifier_timeout_reorg_penalty
+ 90/122 Test  #89: compute_phase156_verifier_selection_rewards_slashing ..............   Passed    0.04 sec
+        Start  91: compute_phase158_canonical_reorg_reward_governance
+ 91/122 Test  #91: compute_phase158_canonical_reorg_reward_governance ................   Passed    0.01 sec
+        Start  92: compute_phase159_pouc_upstream_undo_e2e_reorg
+ 92/122 Test  #90: compute_phase157_verifier_timeout_reorg_penalty ...................   Passed    0.06 sec
+        Start  93: compute_phase160_aura_adaptive_model_fabric
+ 93/122 Test  #93: compute_phase160_aura_adaptive_model_fabric .......................   Passed    0.01 sec
+        Start  94: compute_phase161_aura_pod_gossip_live_globe
+ 94/122 Test  #94: compute_phase161_aura_pod_gossip_live_globe .......................   Passed    0.01 sec
+        Start  95: compute_phase162_aura_live_admission_identity_cache_dispatch
+ 95/122 Test  #92: compute_phase159_pouc_upstream_undo_e2e_reorg .....................   Passed    0.04 sec
+        Start  96: compute_phase163_aura_remote_dispatch_leases_drive_anti_entropy
+ 96/122 Test  #38: storage_phase106_gossip_streaming .................................   Passed    0.80 sec
+        Start  97: compute_phase164_aura_provider_service_secure_durable_moe
+ 97/122 Test  #95: compute_phase162_aura_live_admission_identity_cache_dispatch ......   Passed    0.02 sec
+        Start  98: compute_phase165_aura_autobootstrap_pq_runtime_moe
+ 98/122 Test  #96: compute_phase163_aura_remote_dispatch_leases_drive_anti_entropy ...   Passed    0.02 sec
+        Start  99: compute_phase166_aura_host_runtime_journal_relay
+ 99/122 Test  #97: compute_phase164_aura_provider_service_secure_durable_moe .........   Passed    0.02 sec
+        Start 100: compute_phase167_aura_zero_config_model_fabric
+100/122 Test  #98: compute_phase165_aura_autobootstrap_pq_runtime_moe ................   Passed    0.02 sec
+        Start 101: compute_phase168_aura_autoplacement_repair_hot_expert
+101/122 Test #100: compute_phase167_aura_zero_config_model_fabric ....................   Passed    0.01 sec
+        Start 102: compute_phase169_aura_provider_supervisor_failover_health
+102/122 Test #101: compute_phase168_aura_autoplacement_repair_hot_expert .............   Passed    0.01 sec
+        Start 103: compute_phase170_aura_signed_runtime_oneclick
+103/122 Test #102: compute_phase169_aura_provider_supervisor_failover_health .........   Passed    0.01 sec
+        Start 104: compute_phase171_aura_model_governance_provenance_rollback
+104/122 Test #103: compute_phase170_aura_signed_runtime_oneclick .....................   Passed    0.01 sec
+        Start 105: compute_phase172_aura_production_wan_routing_telemetry
+105/122 Test #104: compute_phase171_aura_model_governance_provenance_rollback ........   Passed    0.01 sec
+        Start 106: compute_phase173_aura_mainnet_release_hardening
+106/122 Test #105: compute_phase172_aura_production_wan_routing_telemetry ............   Passed    0.01 sec
+        Start 108: compute_phase175_aura_real_model_origin_bootstrap
+107/122 Test #106: compute_phase173_aura_mainnet_release_hardening ...................   Passed    0.01 sec
+        Start 109: compute_phase176_aura_edge_models_zero_touch
+108/122 Test  #99: compute_phase166_aura_host_runtime_journal_relay ..................   Passed    0.11 sec
+        Start 110: compute_phase177_aura_runtime_delivery_matrix
+109/122 Test #110: compute_phase177_aura_runtime_delivery_matrix .....................   Passed    0.02 sec
+        Start 111: genesis_phase178_tokenomics_policy
+110/122 Test #111: genesis_phase178_tokenomics_policy ................................   Passed    0.00 sec
+        Start 112: genesis_phase179_memo_assetburn_ad_activation
+111/122 Test #112: genesis_phase179_memo_assetburn_ad_activation .....................   Passed    0.02 sec
+        Start 113: genesis_phase180_governance_vault
+112/122 Test  #56: net_phase123_youth_safety .........................................   Passed    0.67 sec
+        Start 114: genesis_phase181_drive_activation_readiness
+113/122 Test #114: genesis_phase181_drive_activation_readiness .......................   Passed    0.05 sec
+        Start 115: genesis_phase182_onchain_protocol_governance
+114/122 Test #113: genesis_phase180_governance_vault .................................   Passed    1.03 sec
+        Start 116: genesis_phase183_protocol_readiness_framework
+115/122 Test #116: genesis_phase183_protocol_readiness_framework .....................   Passed    0.09 sec
+        Start 117: apps_phase187_upscaler
+116/122 Test #117: apps_phase187_upscaler ............................................   Passed    0.00 sec
+        Start 120: genesis_phase184_untrusted_guard_semantics
+117/122 Test #120: genesis_phase184_untrusted_guard_semantics ........................   Passed    0.01 sec
+        Start 121: genesis_phase185_remote_malformed_tx_survival
+118/122 Test #109: compute_phase176_aura_edge_models_zero_touch ......................   Passed    1.34 sec
+        Start 122: genesis_phase186_untrusted_abort_reachability
+119/122 Test #115: genesis_phase182_onchain_protocol_governance ......................   Passed    1.07 sec
+120/122 Test #108: compute_phase175_aura_real_model_origin_bootstrap .................   Passed    1.70 sec
+121/122 Test #122: genesis_phase186_untrusted_abort_reachability .....................   Passed    0.93 sec
+122/122 Test #121: genesis_phase185_remote_malformed_tx_survival .....................   Passed    6.78 sec
+
+100% tests passed, 0 tests failed out of 122
+
+Total Test time (real) =   9.08 sec

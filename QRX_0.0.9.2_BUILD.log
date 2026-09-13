@@ -1,0 +1,143 @@
+[  1%] Building C object CMakeFiles/qrxcore.dir/src/compute/qrx_compute.c.o
+[  1%] Built target qrx-wallet-cli
+[  1%] Linking C static library libqrxcore.a
+[ 30%] Built target qrxcore
+[ 31%] Linking C executable qrx
+[ 31%] Linking C executable qrxd
+[ 31%] Built target qrx
+[ 32%] Built target qrxd
+[ 33%] Linking C executable qrx-cli
+[ 33%] Linking C executable qrxdb_verify
+[ 34%] Built target qrxdb_verify
+[ 34%] Built target qrx-cli
+[ 34%] Linking C executable qrxdb_salvage
+[ 34%] Linking C executable qrxdb_compact
+[ 35%] Built target qrxdb_salvage
+[ 36%] Built target qrxdb_compact
+[ 36%] Linking C executable qrxdb_snapshot
+[ 37%] Linking C executable qrx_velocity_engine_test
+[ 37%] Built target qrx_velocity_engine_test
+[ 38%] Built target qrxdb_snapshot
+[ 38%] Linking C executable qrx_velocity_stateful_mvcc_test
+[ 39%] Linking C executable qrx_velocity_mvcc_test
+[ 40%] Built target qrx_velocity_stateful_mvcc_test
+[ 40%] Built target qrx_velocity_mvcc_test
+[ 41%] Linking C executable qrx_velocity_dynamic_mvcc_test
+[ 41%] Linking C executable qrx_velocity_speculative_mvcc_test
+[ 42%] Built target qrx_velocity_speculative_mvcc_test
+[ 42%] Built target qrx_velocity_dynamic_mvcc_test
+[ 43%] Linking C executable qrx_btc_spv_hardening_test
+[ 44%] Linking C executable qrx_velocity_block_scheduler_test
+[ 44%] Built target qrx_btc_spv_hardening_test
+[ 44%] Built target qrx_velocity_block_scheduler_test
+[ 44%] Linking C executable qrx_resource_foundation_test
+[ 45%] Linking C executable qrx_storage_filesystem_test
+[ 46%] Built target qrx_resource_foundation_test
+[ 46%] Built target qrx_storage_filesystem_test
+[ 47%] Linking C executable qrx_storage_capacity_test
+[ 48%] Linking C executable qrx_capacity_proof_test
+[ 48%] Built target qrx_capacity_proof_test
+[ 48%] Built target qrx_storage_capacity_test
+[ 48%] Linking C executable qrx_drive_pq_crypto_test
+[ 48%] Linking C executable qrx_drive_manifest_test
+[ 49%] Built target qrx_drive_pq_crypto_test
+[ 50%] Built target qrx_drive_manifest_test
+[ 50%] Linking C executable qrx_erasure_test
+[ 51%] Linking C executable qrx_storage_placement_test
+[ 52%] Built target qrx_erasure_test
+[ 52%] Linking C executable qrx_postor_test
+[ 52%] Built target qrx_storage_placement_test
+[ 53%] Linking C executable qrx_storage_market_test
+[ 54%] Built target qrx_postor_test
+[ 55%] Linking C executable qrx_storage_repair_test
+[ 55%] Built target qrx_storage_market_test
+[ 56%] Linking C executable qrx_storage_atlas_test
+[ 56%] Built target qrx_storage_repair_test
+[ 57%] Linking C executable qrx_storage_transport_test
+[ 58%] Built target qrx_storage_atlas_test
+[ 58%] Linking C executable qrx_net_name_test
+[ 58%] Built target qrx_storage_transport_test
+[ 58%] Linking C executable qrx_net_registry_test
+[ 59%] Built target qrx_net_name_test
+[ 59%] Linking C executable qrx_net_resolver_test
+[ 60%] Built target qrx_net_registry_test
+[ 60%] Linking C executable qrx_net_site_test
+[ 61%] Built target qrx_net_resolver_test
+[ 61%] Linking C executable qrx_net_permissions_test
+[ 62%] Built target qrx_net_site_test
+[ 63%] Built target qrx_net_permissions_test
+[ 64%] Linking C executable qrx_storage_consensus_test
+[ 64%] Linking C executable qrx_net_consensus_test
+[ 64%] Built target qrx_storage_consensus_test
+[ 65%] Built target qrx_net_consensus_test
+[ 66%] Linking C executable qrx_storage_attestation_test
+[ 67%] Linking C executable qrx_storage_p2p_test
+[ 67%] Built target qrx_storage_attestation_test
+[ 67%] Built target qrx_storage_p2p_test
+[ 68%] Linking C executable qrx_storage_large_object_test
+[ 69%] Linking C executable qrx_storage_discovery_test
+[ 69%] Built target qrx_storage_large_object_test
+[ 69%] Linking C executable qrx_resource_dashboard_test
+[ 69%] Built target qrx_storage_discovery_test
+[ 69%] Linking C executable qrx_resource_live_test
+[ 70%] Built target qrx_resource_dashboard_test
+[ 70%] Linking C executable qrx_drive_live_test
+[ 71%] Built target qrx_resource_live_test
+[ 72%] Linking C executable qrx_storage_network_transfer_test
+[ 73%] Built target qrx_drive_live_test
+[ 73%] Linking C executable qrx_drive_runtime_test
+[ 73%] Built target qrx_storage_network_transfer_test
+[ 73%] Linking C executable qrx_drive_recovery_test
+[ 74%] Built target qrx_drive_runtime_test
+[ 75%] Linking C executable qrx_storage_gossip_streaming_test
+[ 76%] Built target qrx_drive_recovery_test
+[ 77%] Linking C executable qrx_storage_identity_gossip_test
+[ 77%] Built target qrx_storage_gossip_streaming_test
+[ 77%] Linking C executable qrx_drive_private_pq_test
+[ 77%] Built target qrx_storage_identity_gossip_test
+[ 77%] Linking C executable qrx_drive_prepare_test
+[ 78%] Built target qrx_drive_private_pq_test
+[ 78%] Linking C executable qrx_drive_prepared_runtime_test
+[ 79%] Built target qrx_drive_prepare_test
+[ 80%] Linking C executable qrx_drive_contract_orchestration_test
+[ 81%] Built target qrx_drive_prepared_runtime_test
+[ 82%] Linking C executable qrx_storage_multifetch_test
+[ 82%] Built target qrx_drive_contract_orchestration_test
+[ 82%] Linking C executable storage_phase112_provider_activation
+[ 82%] Built target qrx_storage_multifetch_test
+[ 82%] Linking C executable storage_phase113_postor_runtime
+[ 83%] Built target storage_phase112_provider_activation
+[ 84%] Linking C executable storage_phase114_repair_runtime
+[ 85%] Built target storage_phase113_postor_runtime
+[ 86%] Linking C executable net_phase115_domain_management
+[ 87%] Built target storage_phase114_repair_runtime
+[ 87%] Built target net_phase115_domain_management
+[ 88%] Linking C executable net_phase116_site_package
+[ 89%] Linking C executable net_phase117_directory_publisher
+[ 89%] Built target net_phase116_site_package
+[ 89%] Built target net_phase117_directory_publisher
+[ 90%] Linking C executable net_phase118_hosting_activation
+[ 91%] Linking C executable net_phase119_browser_fetch
+[ 91%] Built target net_phase118_hosting_activation
+[ 91%] Built target net_phase119_browser_fetch
+[ 92%] Linking C executable net_phase120_browser_sandbox
+[ 93%] Linking C executable net_phase121_dapp_bridge
+[ 93%] Built target net_phase120_browser_sandbox
+[ 93%] Built target net_phase121_dapp_bridge
+[ 94%] Linking C executable net_phase122_ad_economy
+[ 95%] Linking C executable net_phase123_youth_safety
+[ 95%] Built target net_phase122_ad_economy
+[ 95%] Built target net_phase123_youth_safety
+[ 96%] Linking C executable net_phase125_final_readiness
+[ 97%] Linking C executable net_phase124_hosting_missions
+[ 97%] Built target net_phase125_final_readiness
+[ 97%] Building C object CMakeFiles/compute_phase126_foundation.dir/tests/compute_phase126_foundation.c.o
+[ 97%] Built target net_phase124_hosting_missions
+[ 98%] Linking C executable compute_phase126_foundation
+[ 98%] Building C object CMakeFiles/compute_phase127_capability_discovery.dir/tests/compute_phase127_capability_discovery.c.o
+[ 98%] Built target compute_phase126_foundation
+[ 99%] Linking C executable compute_phase127_capability_discovery
+[ 99%] Building C object CMakeFiles/compute_phase128_benchmark_normalization.dir/tests/compute_phase128_benchmark_normalization.c.o
+[100%] Linking C executable compute_phase128_benchmark_normalization
+[100%] Built target compute_phase127_capability_discovery
+[100%] Built target compute_phase128_benchmark_normalization

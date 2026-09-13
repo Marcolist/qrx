@@ -2,6 +2,7 @@
 #include "core_frontend.h"
 #include "qrx_core.h"
 #include "chain_params.h"
+#include "economics/qrx_economics.h"
 #include "treasury/qrx_dev_addresses.h"
 #include "genesis/qrx_bootstrap_validators.h"
 #include "genesis/qrx_genesis_governance.h"
@@ -41,10 +42,10 @@ static int qrx_mainnet_genesis_material_ready(void){
 static const QrxProfile PROFILES[] = {
     /* name, chain_name, network_id, genesis_hash, protocol_version, magic, port, seeds, slash_threshold, redistribute_bps, max_supply, epoch_reward, faucet_cap,
        block_time, max_txs, max_block_bytes, max_tx_bytes, validator_pct, delegator_pct, network_pool_pct, default_commission_bps, allow_overrides */
-    {"alpha","QRX Public Alpha","qrx-alpha","9f1ad2e9e8c9f9b8a1d7e2c3456f7890abcdeffedcba09876543210fedcba98700112233445566778899aabbccddeeff11223344556677889900aabbccdd","62","QRXA62",26661,{"127.0.0.1:26661","127.0.0.1:26662","127.0.0.1:26663",NULL},"20","5000","2100000000000000","25000000","1000000000000",10,100,524288,8192,30,70,0,1000,0},
-    {"testnet","QRX Testnet","qrx-testnet","7c10c4f0a7ee488da5021d31f6b5f42423f94f8c1055d4e0c2a0f1e2d3c4b5a6112233445566778899aabbccddeeff00112233445566778899aabbccddeeff","62","QRXT62",26662,{"127.0.0.1:26662",NULL},"20","5000","2100000000000000","25000000","1000000000000",10,100,524288,8192,30,70,0,1000,0},
+    {"alpha","QRX Public Alpha","qrx-alpha","9f1ad2e9e8c9f9b8a1d7e2c3456f7890abcdeffedcba09876543210fedcba98700112233445566778899aabbccddeeff11223344556677889900aabbccdd","62","QRXA62",26661,{"127.0.0.1:26661","127.0.0.1:26662","127.0.0.1:26663",NULL},"20","5000","2100000000000000",QRX_INITIAL_BLOCK_REWARD_ATOMS_STR,"1000000000000",10,100,524288,8192,30,70,0,1000,0},
+    {"testnet","QRX Testnet","qrx-testnet","7c10c4f0a7ee488da5021d31f6b5f42423f94f8c1055d4e0c2a0f1e2d3c4b5a6112233445566778899aabbccddeeff00112233445566778899aabbccddeeff","62","QRXT62",26662,{"127.0.0.1:26662",NULL},"20","5000","2100000000000000",QRX_INITIAL_BLOCK_REWARD_ATOMS_STR,"1000000000000",10,100,524288,8192,30,70,0,1000,0},
     {"regtest","QRX Regtest","qrx-regtest","5b7f9c2a4e6d8b0c1f3a597b2d4e6f8091a2b3c4d5e6f77889900aabbccddeeff1234567890abcdef11223344556677889900aabbccddeeff001122334455","62","QRXR62",26663,{"127.0.0.1:26663",NULL},"10","5000","1000000000000","1000000","1000000000",2,100,262144,8192,30,70,0,1000,1},
-    {"mainnet","QRX Mainnet","qrx-mainnet","GENESIS_COMPUTED_FROM_FINAL_INPUTS","62","QRXM62",26660,{"seed1.qrxchain.org:26660","seed2.qrxchain.org:26660","seed3.qrxchain.org:26660",NULL},"20","5000","2100000000000000","50000000","0",10,100,524288,8192,30,70,0,1000,0}
+    {"mainnet","QRX Mainnet","qrx-mainnet","GENESIS_COMPUTED_FROM_FINAL_INPUTS","62","QRXM62",26660,{"seed1.qrxchain.org:26660","seed2.qrxchain.org:26660","seed3.qrxchain.org:26660",NULL},"20","5000","2100000000000000",QRX_INITIAL_BLOCK_REWARD_ATOMS_STR,"0",10,100,524288,8192,30,70,0,1000,0}
 };
 
 static int path_exists(const char *p){struct stat st; return stat(p,&st)==0;}

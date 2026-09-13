@@ -40,6 +40,11 @@
 #define QRXDB_WAL_PUT    2u
 #define QRXDB_WAL_COMMIT 3u
 
+static const char qrxdb_tombstone_value[] = "\x1eQRXDB_DELETE_V1\x1e";
+static int qrxdb_is_tombstone(const char *v, uint32_t vl){
+    return v && vl==(uint32_t)(sizeof(qrxdb_tombstone_value)-1) && memcmp(v,qrxdb_tombstone_value,sizeof(qrxdb_tombstone_value)-1)==0;
+}
+
 typedef struct {
     uint32_t magic;
     uint32_t type;
@@ -398,12 +403,19 @@ static int qrxdb_collect_live(QrxDB *db, uint64_t limit, uint64_t maxgen, QrxDBK
         if(hdr.timestamp <= maxgen) if(kv_upsert(&items,&count,&cap,k,hdr.key_len,v,hdr.value_len,off,hdr.timestamp)!=0){ kv_free(items,count); return -1; }
         off = align8(off + sizeof(hdr) + hdr.key_len + hdr.value_len);
     }
+    size_t w=0;
+    for(size_t i=0;i<count;i++){
+        if(qrxdb_is_tombstone(items[i].value,items[i].value_len)){ free(items[i].key); free(items[i].value); continue; }
+        if(w!=i) items[w]=items[i];
+        w++;
+    }
+    count=w;
     *out=items; *out_count=count; return 0;
 }
 
 static int qrxdb_recompute_merkle(QrxDB *db){
     QrxDBKV *items=NULL; size_t count=0; if(qrxdb_collect_live(db, db->write_offset, UINT64_MAX, &items, &count)!=0) return -1;
-    if(count==0){ qrxdb_zero_root(db->merkle_root); return 0; }
+    if(count==0){ free(items); qrxdb_zero_root(db->merkle_root); return 0; }
     qsort(items,count,sizeof(QrxDBKV),cmp_kv_key);
     uint8_t *level=(uint8_t*)malloc(count*QRXDB_MERKLE_HASH_SIZE); if(!level){ kv_free(items,count); return -1; }
     for(size_t i=0;i<count;i++) qrxdb_sha3_512_leaf(level+i*QRXDB_MERKLE_HASH_SIZE, items[i].key, items[i].key_len, items[i].value, items[i].value_len);
@@ -610,6 +622,10 @@ int qrxdb_batch_put(QrxDBBatch *batch, const char *key, const char *value){
     return 0;
 }
 
+int qrxdb_batch_delete(QrxDBBatch *batch, const char *key){
+    return qrxdb_batch_put(batch,key,qrxdb_tombstone_value);
+}
+
 int qrxdb_batch_commit(QrxDBBatch *batch){
     if(!batch || !batch->active || !batch->db || batch->count==0) return -1;
     QrxDB *db=batch->db;
@@ -671,6 +687,15 @@ int qrxdb_put(QrxDB *db, const char *key, const char *value){
     return 0;
 }
 
+int qrxdb_delete(QrxDB *db, const char *key){
+    QrxDBBatch b;
+    if(!db||!key||!*key) return -1;
+    if(qrxdb_batch_begin(db,&b)!=0) return -1;
+    if(qrxdb_batch_delete(&b,key)!=0){ qrxdb_batch_abort(&b); return -1; }
+    if(qrxdb_batch_commit(&b)!=0){ qrxdb_batch_abort(&b); return -1; }
+    return 0;
+}
+
 int qrxdb_merkle_root_hex(QrxDB *db, char out[129]){
     if(!db || !out) return -1;
     qrxdb_hex64(db->merkle_root,out);
@@ -679,9 +704,9 @@ int qrxdb_merkle_root_hex(QrxDB *db, char out[129]){
 
 int qrxdb_get_view_at(QrxDB *db, const QrxDBReadTxn *txn, const char *key, QrxDBView *view){
     if(!db || !db->map || !key || !view) return -1; memset(view,0,sizeof(*view)); uint32_t target=(uint32_t)strlen(key);
-    if(!txn){ uint64_t off=0; if(qrxdb_index_find(db,key,target,&off)==0){ QrxDBRecordHeader hdr; const char *k=NULL,*v=NULL; if(read_record_at(db,off,&hdr,&k,&v,db->write_offset)==0){ view->key=k; view->value=v; view->key_len=hdr.key_len; view->value_len=hdr.value_len; view->generation=hdr.timestamp; view->offset=off; return 0; } } }
+    if(!txn){ uint64_t off=0; if(qrxdb_index_find(db,key,target,&off)==0){ QrxDBRecordHeader hdr; const char *k=NULL,*v=NULL; if(read_record_at(db,off,&hdr,&k,&v,db->write_offset)==0){ if(qrxdb_is_tombstone(v,hdr.value_len)) return -1; view->key=k; view->value=v; view->key_len=hdr.key_len; view->value_len=hdr.value_len; view->generation=hdr.timestamp; view->offset=off; return 0; } } }
     uint64_t limit=txn?txn->write_offset:db->write_offset; uint64_t maxgen=txn?txn->generation:UINT64_MAX; uint64_t off=align8(sizeof(QrxDBFileHeader)); int found=0;
-    while(off + sizeof(QrxDBRecordHeader) <= limit){ QrxDBRecordHeader hdr; const char *k=NULL,*v=NULL; if(read_record_at(db,off,&hdr,&k,&v,limit)!=0) break; if(hdr.timestamp<=maxgen && hdr.key_len==target && memcmp(k,key,target)==0){ view->key=k; view->value=v; view->key_len=hdr.key_len; view->value_len=hdr.value_len; view->generation=hdr.timestamp; view->offset=off; found=1; } off=align8(off+sizeof(hdr)+hdr.key_len+hdr.value_len); }
+    while(off + sizeof(QrxDBRecordHeader) <= limit){ QrxDBRecordHeader hdr; const char *k=NULL,*v=NULL; if(read_record_at(db,off,&hdr,&k,&v,limit)!=0) break; if(hdr.timestamp<=maxgen && hdr.key_len==target && memcmp(k,key,target)==0){ if(qrxdb_is_tombstone(v,hdr.value_len)){memset(view,0,sizeof(*view));found=0;}else{view->key=k; view->value=v; view->key_len=hdr.key_len; view->value_len=hdr.value_len; view->generation=hdr.timestamp; view->offset=off; found=1;} } off=align8(off+sizeof(hdr)+hdr.key_len+hdr.value_len); }
     return found?0:-1;
 }
 int qrxdb_get_view(QrxDB *db, const char *key, QrxDBView *view){ return qrxdb_get_view_at(db,NULL,key,view); }
@@ -695,6 +720,7 @@ int qrxdb_scan_prefix(QrxDB *db, const char *prefix, QrxDBScanCallback callback,
         if(ie->key_len < plen || memcmp(ie->key,prefix,plen)!=0) continue;
         QrxDBRecordHeader hdr; const char *k=NULL,*v=NULL;
         if(read_record_at(db,ie->offset,&hdr,&k,&v,db->write_offset)!=0) return -1;
+        if(qrxdb_is_tombstone(v,hdr.value_len)) continue;
         char *ks=(char*)malloc((size_t)hdr.key_len+1), *vs=(char*)malloc((size_t)hdr.value_len+1);
         if(!ks || !vs){ free(ks); free(vs); return -1; }
         memcpy(ks,k,hdr.key_len); ks[hdr.key_len]=0;
@@ -750,7 +776,7 @@ int qrxdb_scan_prefix_at(QrxDB *db,const QrxDBReadTxn *txn,const char *prefix,Qr
         off=align8(off+sizeof(hdr)+hdr.key_len+hdr.value_len);
     }
     if(count>1) qsort(entries,count,sizeof(*entries),qrxdb_snapshot_scan_cmp);
-    int rc=0;for(size_t i=0;i<count;i++){rc=callback(entries[i].key,entries[i].value,entries[i].value_len,ctx);if(rc)break;}
+    int rc=0;for(size_t i=0;i<count;i++){if(qrxdb_is_tombstone(entries[i].value,entries[i].value_len))continue;rc=callback(entries[i].key,entries[i].value,entries[i].value_len,ctx);if(rc)break;}
     for(size_t i=0;i<count;i++){free(entries[i].key);free(entries[i].value);}free(entries);return rc;
 }
 int qrxdb_read_txn_begin(QrxDB *db, QrxDBReadTxn *txn){ if(!db||!txn) return -1; txn->generation=db->generation; txn->write_offset=db->write_offset; memcpy(txn->merkle_root,db->merkle_root,QRXDB_MERKLE_HASH_SIZE); return 0; }

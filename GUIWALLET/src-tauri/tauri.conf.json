@@ -47,7 +47,8 @@
         "bin/qrx",
         "bin/qrx-cli",
         "bin/qrxd",
-        "bin/qrx-btc-wallet-service"
+        "bin/qrx-btc-wallet-service",
+        "bin/qrx-upscaler"
       ],
       "icon": [
         "icons/32x32.png",
@@ -70,7 +71,8 @@
       "resources": [
         "resources/qrx-gateway-kraken.py",
         "resources/qrx-arbitrage-engine.py",
-        "resources/qrx-complete-ledger-export.py"
+        "resources/qrx-complete-ledger-export.py",
+        "resources/aura/*"
       ]
     },
     "security": {

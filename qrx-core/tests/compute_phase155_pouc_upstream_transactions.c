@@ -1,0 +1,48 @@
+#include "compute/qrx_pouc_pipeline.h"
+#include "compute/qrx_pouc_consensus.h"
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+static void hx(char x[65],char c){for(int i=0;i<64;i++)x[i]=c;x[64]=0;}
+static void commit_effect(QrxDB*d,QrxPoucPipelineEffect*e,const char*tx,uint64_t h){QrxDBBatch b;assert(!qrxdb_batch_begin(d,&b));assert(!qrx_pouc_pipeline_stage(d,&b,e,tx,h));assert(!qrxdb_batch_commit(&b));}
+static void bond(QrxDB*d,const char*a){char k[512];snprintf(k,sizeof(k),"staking:self:%s",a);assert(!qrxdb_put(d,k,"100000000"));}
+static void entropy_block(QrxDB*d,uint64_t h,char c){char bh[65];hx(bh,c);assert(!qrxdb_chain_put_block(d,h,bh,"finalized entropy block"));}
+static void lock_job(QrxDB*d,const char*owner,const char*gc,uint64_t h){char p[512];snprintf(p,sizeof(p),"graph_commitment=%s;max_compute_atoms=400000000;fasttrack_fee_atoms=100000000;expiry_height=5000",gc);QrxPoucPipelineEffect e;assert(!qrx_pouc_pipeline_prepare(d,"COMPUTE_ESCROW_LOCK",owner,owner,0,p,h,&e));assert(e.op==QRX_POUC_PIPELINE_ESCROW_LOCK&&e.debit_atoms==500000000);commit_effect(d,&e,"tx-lock",h);QrxComputeEscrow x;assert(!qrx_pouc_journal_get_escrow(d,gc,&x)&&x.state==QRX_COMPUTE_ESCROW_LOCKED);}
+static void assign_job(QrxDB*d,const char*owner,const char*provider,const char*gc,uint32_t mode,uint64_t h){char mc[65];hx(mc,'b');char p[1024];snprintf(p,sizeof(p),"graph_commitment=%s;node_id=7;quote_id=quote-1;quote_price_atoms=400000000;quote_expiry_height=4000;verification_mode=%u;assignment_nonce=1;runtime_id=qrx-ai-v1;model_commitment=%s",gc,mode,mc);QrxPoucPipelineEffect e;assert(!qrx_pouc_pipeline_prepare(d,"COMPUTE_ASSIGN",owner,provider,0,p,h,&e));assert(e.op==QRX_POUC_PIPELINE_ASSIGN&&!strcmp(e.assignment.provider,provider));commit_effect(d,&e,"tx-assign",h);QrxComputeEscrow x;assert(!qrx_pouc_journal_get_escrow(d,gc,&x)&&x.state==QRX_COMPUTE_ESCROW_ASSIGNED);}
+static void receipt_payload(char*out,size_t n,const char*gc,const char*provider,uint32_t mode,uint64_t started,uint64_t completed){char a[65],b[65],c[65],d[65];hx(a,'a');hx(b,'b');hx(c,'c');hx(d,'d');snprintf(out,n,"graph_commitment=%s;node_id=7;provider_id=%s;runtime_id=qrx-ai-v1;input_commitment=%s;model_commitment=%s;execution_params_commitment=%s;result_commitment=%s;verified_compute_atoms=270000000;started_height=%llu;completed_height=%llu;verification_mode=%u",gc,provider,a,b,c,d,(unsigned long long)started,(unsigned long long)completed,mode);}
+static void submit_receipt(QrxDB*d,const char*owner,const char*provider,const char*gc,uint32_t mode,uint64_t h,char rc[65]){char p[1600];receipt_payload(p,sizeof(p),gc,provider,mode,h-2,h-1);QrxPoucPipelineEffect e;assert(!qrx_pouc_pipeline_prepare(d,"COMPUTE_RECEIPT",provider,owner,0,p,h,&e));snprintf(rc,65,"%s",e.receipt_commitment);commit_effect(d,&e,"tx-receipt",h);QrxPoucReceipt r;assert(!qrx_pouc_pipeline_get_receipt(d,rc,&r)&&!strcmp(r.provider_id,provider));}
+static void verify_vote(QrxDB*d,const char*v,const char*provider,const char*rc,const char*observed,uint64_t h,const char*tx,QrxPoucPipelineEffect*out){char p[512];snprintf(p,sizeof(p),"receipt_commitment=%s;observed_result_commitment=%s",rc,observed);QrxPoucPipelineEffect e;assert(!qrx_pouc_pipeline_prepare(d,"COMPUTE_VERIFY",v,provider,0,p,h,&e));commit_effect(d,&e,tx,h);if(out)*out=e;}
+static void challenge_vote(QrxDB*d,const char*v,const char*provider,const char*rc,const char*observed,uint64_t h,const char*tx,QrxPoucPipelineEffect*out){char p[512];snprintf(p,sizeof(p),"receipt_commitment=%s;observed_result_commitment=%s",rc,observed);QrxPoucPipelineEffect e;assert(!qrx_pouc_pipeline_prepare(d,"COMPUTE_CHALLENGE",v,provider,0,p,h,&e));commit_effect(d,&e,tx,h);if(out)*out=e;}
+static void settlement_payload(char*out,size_t n,const char*gc,const char*provider,uint32_t mode,uint32_t vc,uint32_t mc,uint64_t nonce,uint64_t started,uint64_t completed){char a[65],b[65],c[65],d[65];hx(a,'a');hx(b,'b');hx(c,'c');hx(d,'d');snprintf(out,n,"graph_commitment=%s;node_id=7;provider_id=%s;runtime_id=qrx-ai-v1;input_commitment=%s;model_commitment=%s;execution_params_commitment=%s;result_commitment=%s;verified_compute_atoms=270000000;started_height=%llu;completed_height=%llu;verification_mode=%u;verifier_count=%u;matching_verifiers=%u;settlement_nonce=%llu",gc,provider,a,b,c,d,(unsigned long long)started,(unsigned long long)completed,mode,vc,mc,(unsigned long long)nonce);}
+
+int main(void){
+ char dir[]="/tmp/qrx-pouc-upstream-XXXXXX";assert(mkdtemp(dir));QrxDB db;assert(!qrxdb_init(&db,dir));
+ const char *validators[]={"qrx-v1","qrx-v2","qrx-v3","qrx-c1","qrx-c2","qrx-c3"};for(size_t i=0;i<6;i++)bond(&db,validators[i]);entropy_block(&db,19,'7');entropy_block(&db,39,'8');entropy_block(&db,59,'9');
+ char result[65],bad1[65],bad2[65],gh[65];hx(result,'d');hx(bad1,'e');hx(bad2,'f');hx(gh,'9');
+
+ /* Full high-assurance path: owner funds -> assigns -> provider receipt -> 3 bonded verifier attestations -> settlement. */
+ char gc1[65];hx(gc1,'1');lock_job(&db,"qrx-owner",gc1,10);assign_job(&db,"qrx-owner","qrx-provider",gc1,QRX_POUC_VERIFY_REDUNDANT_2_OF_3,11);char rc1[65];submit_receipt(&db,"qrx-owner","qrx-provider",gc1,QRX_POUC_VERIFY_REDUNDANT_2_OF_3,20,rc1);
+ QrxPoucVerifierSelection sel1;assert(!qrx_pouc_verifier_selection_get(&db,rc1,&sel1)&&sel1.primary_count==3);QrxPoucPipelineEffect ve;verify_vote(&db,sel1.primary[0],"qrx-provider",rc1,result,21,"tx-v1",NULL);verify_vote(&db,sel1.primary[1],"qrx-provider",rc1,result,22,"tx-v2",NULL);verify_vote(&db,sel1.primary[2],"qrx-provider",rc1,bad1,23,"tx-v3",&ve);assert(ve.verification.finalized&&ve.verification.verifier_count==3&&ve.verification.matching_verifiers==2&&!ve.has_adversarial_verdict);
+ char sp[1800];settlement_payload(sp,sizeof(sp),gc1,"qrx-provider",QRX_POUC_VERIFY_REDUNDANT_2_OF_3,3,2,101,18,19);QrxPoucConsensusEffect se;assert(!qrx_pouc_consensus_prepare(&db,"qrx-mainnet",gh,"9","POUC_SETTLEMENT","qrx-relayer","qrx-provider",0,sp,1,24,&se));assert(se.decision.outcome==QRX_POUC_SETTLEMENT_PAYOUT&&se.provider_credit_atoms==360000000&&se.owner_credit_atoms==130000000&&se.development_credit_atoms==500000&&se.network_credit_atoms==9500000);
+ QrxDBBatch b;assert(!qrxdb_batch_begin(&db,&b));assert(!qrx_pouc_consensus_stage(&db,&b,&se,"tx-settle-1",24));assert(!qrxdb_batch_commit(&b));
+
+ /* Settlement cannot lie about canonical verifier counts once an upstream assignment exists. */
+ settlement_payload(sp,sizeof(sp),gc1,"qrx-provider",QRX_POUC_VERIFY_REDUNDANT_2_OF_3,3,3,102,18,19);assert(qrx_pouc_consensus_prepare(&db,"qrx-mainnet",gh,"9","POUC_SETTLEMENT","qrx-relayer","qrx-provider",0,sp,1,25,&se)!=0);
+
+ /* RANDOM verification: 1 match / 1 mismatch is accepted only after a separate bonded challenge quorum. */
+ char gc2[65];hx(gc2,'2');lock_job(&db,"qrx-owner2",gc2,30);assign_job(&db,"qrx-owner2","qrx-provider2",gc2,QRX_POUC_VERIFY_RANDOM,31);char rc2[65];submit_receipt(&db,"qrx-owner2","qrx-provider2",gc2,QRX_POUC_VERIFY_RANDOM,40,rc2);QrxPoucVerifierSelection sel2;assert(!qrx_pouc_verifier_selection_get(&db,rc2,&sel2)&&sel2.primary_count==2&&sel2.challenge_count==3);verify_vote(&db,sel2.primary[0],"qrx-provider2",rc2,result,41,"tx-rv1",NULL);verify_vote(&db,sel2.primary[1],"qrx-provider2",rc2,bad1,42,"tx-rv2",&ve);assert(ve.verification.finalized&&ve.challenge_status==QRX_POUC_CHALLENGE_PENDING);
+ QrxPoucPipelineEffect ce;challenge_vote(&db,sel2.challenger[0],"qrx-provider2",rc2,result,43,"tx-c1",&ce);assert(ce.challenge_status==QRX_POUC_CHALLENGE_PENDING);challenge_vote(&db,sel2.challenger[1],"qrx-provider2",rc2,result,44,"tx-c2",&ce);assert(ce.challenge_status==QRX_POUC_CHALLENGE_PASSED);
+ settlement_payload(sp,sizeof(sp),gc2,"qrx-provider2",QRX_POUC_VERIFY_RANDOM,2,1,202,38,39);assert(!qrx_pouc_consensus_prepare(&db,"qrx-mainnet",gh,"9","POUC_SETTLEMENT","qrx-relayer","qrx-provider2",0,sp,1,45,&se));assert(se.decision.outcome==QRX_POUC_SETTLEMENT_PAYOUT);
+
+ /* Failed redundant quorum creates deterministic adversarial evidence and slash/jail candidates at settlement, but does not directly slash stake. */
+ char gc3[65];hx(gc3,'3');lock_job(&db,"qrx-owner3",gc3,50);assign_job(&db,"qrx-owner3","qrx-provider3",gc3,QRX_POUC_VERIFY_REDUNDANT_2_OF_3,51);char rc3[65];submit_receipt(&db,"qrx-owner3","qrx-provider3",gc3,QRX_POUC_VERIFY_REDUNDANT_2_OF_3,60,rc3);QrxPoucVerifierSelection sel3;assert(!qrx_pouc_verifier_selection_get(&db,rc3,&sel3)&&sel3.primary_count==3);verify_vote(&db,sel3.primary[0],"qrx-provider3",rc3,bad1,61,"tx-fv1",NULL);verify_vote(&db,sel3.primary[1],"qrx-provider3",rc3,bad2,62,"tx-fv2",NULL);verify_vote(&db,sel3.primary[2],"qrx-provider3",rc3,result,63,"tx-fv3",&ve);assert(ve.verification.finalized&&ve.verification.matching_verifiers==1&&ve.has_adversarial_verdict&&ve.adversarial.detected&&!ve.adversarial.consensus_slash_applied);
+ settlement_payload(sp,sizeof(sp),gc3,"qrx-provider3",QRX_POUC_VERIFY_REDUNDANT_2_OF_3,3,1,303,58,59);assert(!qrx_pouc_consensus_prepare(&db,"qrx-mainnet",gh,"9","POUC_SETTLEMENT","qrx-relayer","qrx-provider3",0,sp,1,64,&se));assert(se.decision.outcome==QRX_POUC_SETTLEMENT_REJECTED&&se.decision.slash_candidate&&se.decision.jail_candidate&&se.owner_credit_atoms==500000000);
+
+ /* Non-bonded identities cannot write canonical verifier/challenge state. */
+ char pbad[512];snprintf(pbad,sizeof(pbad),"receipt_commitment=%s;observed_result_commitment=%s",rc2,result);assert(qrx_pouc_pipeline_prepare(&db,"COMPUTE_VERIFY","qrx-sybil","qrx-provider2",0,pbad,46,&ve)!=0);
+
+ assert(!qrxdb_close(&db));char cmd[1200];snprintf(cmd,sizeof(cmd),"rm -rf '%s'",dir);system(cmd);puts("compute phase 155 PoUC upstream transactions: PASS");return 0;
+}

@@ -100,12 +100,13 @@ QRX release plan: $TARGET
   3. Stage Python wallet/export/arbitrage/Kraken tools
   4. Build qrx-btc-wallet-service for $RUST_TARGET
   5. Install target-suffixed Core and BTC sidecars
-  6. Build Tauri wallet using $TAURI_CONFIG
-  7. Verify and package one checksummed release
+  6. Stage signed AURA runtime trust/catalog resources
+  7. Build Tauri wallet using $TAURI_CONFIG
+  8. Verify and package one checksummed release
 EOF
 [[ "$PLAN_ONLY" -eq 1 ]] && exit 0
 
-echo "[0/7] Auditing GUI <-> Core/CLI compatibility"
+echo "[0/8] Auditing GUI <-> Core/CLI compatibility"
 python3 "$ROOT/scripts/audit-gui-core-compat.py"
 
 actual_os="$(uname -s)"
@@ -147,7 +148,7 @@ if [[ -e "$TARGET_OUT" ]]; then
   rm -rf -- "$TARGET_OUT"
 fi
 
-echo "[1/7] Building Core and native command-line tools"
+echo "[1/8] Building Core and native command-line tools"
 case "$TARGET" in
   linux-x64|linux-arm64)
     QRX_OPENSSL_PREFIX="${QRX_OPENSSL_PREFIX:-$BUILD_ROOT/deps/openssl-$TARGET}"
@@ -166,13 +167,13 @@ esac
 
 CORE_BIN_DIR="$CORE_BUILD"
 [[ -n "$CORE_SUBDIR" ]] && CORE_BIN_DIR="$CORE_BUILD/$CORE_SUBDIR"
-for binary in qrx qrx-cli qrxd qrxdb_verify qrxdb_salvage qrxdb_compact qrxdb_snapshot; do
+for binary in qrx qrx-cli qrxd qrx-upscaler qrxdb_verify qrxdb_salvage qrxdb_compact qrxdb_snapshot; do
   [[ -f "$CORE_BIN_DIR/$binary$CORE_EXT" ]] || { echo "Core output missing: $CORE_BIN_DIR/$binary$CORE_EXT" >&2; exit 6; }
 done
 
-echo "[2/7] Staging complete CLI and Python tool set"
+echo "[2/8] Staging complete CLI and Python tool set"
 mkdir -p "$TARGET_OUT/core" "$TARGET_OUT/tools" "$TARGET_OUT/wallet"
-for binary in qrx qrx-cli qrxd qrxdb_verify qrxdb_salvage qrxdb_compact qrxdb_snapshot; do
+for binary in qrx qrx-cli qrxd qrx-upscaler qrxdb_verify qrxdb_salvage qrxdb_compact qrxdb_snapshot; do
   cp "$CORE_BIN_DIR/$binary$CORE_EXT" "$TARGET_OUT/core/$binary$CORE_EXT"
 done
 cp "$CORE/tools/qrx-wallet-cli.py" "$TARGET_OUT/tools/"
@@ -180,7 +181,7 @@ cp "$CORE/tools/qrx-complete-ledger-export.py" "$TARGET_OUT/tools/"
 cp "$CORE/gateways/qrx-arbitrage-engine.py" "$TARGET_OUT/tools/"
 cp "$CORE/gateways/qrx-gateway-kraken.py" "$TARGET_OUT/tools/"
 
-echo "[3/7] Building shared Rust BTC wallet service"
+echo "[3/8] Building shared Rust BTC wallet service"
 rustup target add "$RUST_TARGET"
 export CARGO_TARGET_DIR="$TAURI_TARGET_DIR"
 # Keep the BTC service outside src-tauri. Tauri v1 scans src/bin as bundle
@@ -197,19 +198,50 @@ BTC_SERVICE="$TAURI_TARGET_DIR/$RUST_TARGET/release/qrx-btc-wallet-service$CORE_
 [[ -f "$BTC_SERVICE" ]] || { echo "BTC wallet service missing: $BTC_SERVICE" >&2; exit 7; }
 cp "$BTC_SERVICE" "$TARGET_OUT/core/qrx-btc-wallet-service$CORE_EXT"
 
-echo "[4/7] Installing exact target-suffixed Tauri sidecars"
+echo "[4/8] Installing exact target-suffixed Tauri sidecars"
 TAURI_BIN="$WALLET/src-tauri/bin"
 mkdir -p "$TAURI_BIN"
 cp "$CORE_BIN_DIR/qrx$CORE_EXT" "$TAURI_BIN/qrx-$RUST_TARGET$CORE_EXT"
 cp "$CORE_BIN_DIR/qrx-cli$CORE_EXT" "$TAURI_BIN/qrx-cli-$RUST_TARGET$CORE_EXT"
 cp "$CORE_BIN_DIR/qrxd$CORE_EXT" "$TAURI_BIN/qrxd-$RUST_TARGET$CORE_EXT"
+cp "$CORE_BIN_DIR/qrx-upscaler$CORE_EXT" "$TAURI_BIN/qrx-upscaler-$RUST_TARGET$CORE_EXT"
 cp "$BTC_SERVICE" "$TAURI_BIN/qrx-btc-wallet-service-$RUST_TARGET$CORE_EXT"
-[[ "$TARGET" == "windows-x64" ]] || chmod +x "$TAURI_BIN/qrx-$RUST_TARGET" "$TAURI_BIN/qrx-cli-$RUST_TARGET" "$TAURI_BIN/qrxd-$RUST_TARGET" "$TAURI_BIN/qrx-btc-wallet-service-$RUST_TARGET"
+[[ "$TARGET" == "windows-x64" ]] || chmod +x "$TAURI_BIN/qrx-$RUST_TARGET" "$TAURI_BIN/qrx-cli-$RUST_TARGET" "$TAURI_BIN/qrxd-$RUST_TARGET" "$TAURI_BIN/qrx-upscaler-$RUST_TARGET" "$TAURI_BIN/qrx-btc-wallet-service-$RUST_TARGET"
 
-echo "[5/7] Building Tauri desktop wallet after its Core dependencies"
+echo "[5/8] Staging signed AURA runtime catalog + pinned publisher key"
+AURA_RES="$WALLET/src-tauri/resources/aura"
+mkdir -p "$AURA_RES"
+CAT_SRC="${QRX_AURA_RUNTIME_CATALOG:-}"
+KEY_SRC="${QRX_AURA_RUNTIME_PUBLISHER_KEY:-}"
+if [[ -n "$CAT_SRC" && -n "$KEY_SRC" && -f "$CAT_SRC" && -f "$KEY_SRC" ]]; then
+  cp "$CAT_SRC" "$AURA_RES/official-runtime-catalog.qrx"
+  cp "$KEY_SRC" "$AURA_RES/official-runtime-publisher.pem"
+  openssl pkey -pubin -in "$AURA_RES/official-runtime-publisher.pem" -noout >/dev/null 2>&1 || { echo "Invalid AURA runtime publisher public key" >&2; exit 8; }
+  grep -qx 'QRXRUNTIME1' <(head -n 1 "$AURA_RES/official-runtime-catalog.qrx") || { echo "Invalid AURA runtime catalog header" >&2; exit 8; }
+else
+  rm -f "$AURA_RES/official-runtime-catalog.qrx" "$AURA_RES/official-runtime-publisher.pem"
+  if [[ "${QRX_REQUIRE_AURA_RUNTIME_RESOURCES:-0}" == "1" ]]; then
+    echo "Release build requires QRX_AURA_RUNTIME_CATALOG and QRX_AURA_RUNTIME_PUBLISHER_KEY" >&2
+    exit 8
+  fi
+  echo "Warning: AURA signed runtime resources not staged (development build; AUTO runtime remains pending)" >&2
+fi
+
+echo "[6/8] Building Tauri desktop wallet after its Core dependencies"
 (
   cd "$WALLET"
-  npm install --no-audit --no-fund
+  # Genesis hardening (Finding 10): reproducible dependency installation.
+  # "npm install" can silently resolve to newer transitive versions than the
+  # ones a release was tested and audited against. With a committed lock file
+  # "npm ci" installs exactly the locked tree and fails instead of drifting.
+  if [[ -f package-lock.json || -f npm-shrinkwrap.json ]]; then
+    npm ci --no-audit --no-fund
+  else
+    echo "Warning: no package-lock.json/npm-shrinkwrap.json in $WALLET." >&2
+    echo "         Falling back to 'npm install'; this build is NOT reproducible." >&2
+    echo "         Commit a lock file before producing release artifacts." >&2
+    npm install --no-audit --no-fund
+  fi
   npx tauri build --target "$RUST_TARGET" --config "$TAURI_CONFIG"
 )
 
@@ -309,8 +341,8 @@ esac
 
 cp -R "$BUNDLE_DIR"/. "$TARGET_OUT/wallet/"
 
-echo "[6/7] Verifying staged release"
-for binary in qrx qrx-cli qrxd qrx-btc-wallet-service; do
+echo "[7/8] Verifying staged release"
+for binary in qrx qrx-cli qrxd qrx-upscaler qrx-btc-wallet-service; do
   [[ -f "$TARGET_OUT/core/$binary$CORE_EXT" ]] || { echo "Release binary missing: $binary" >&2; exit 9; }
 done
 for tool in qrx-wallet-cli.py qrx-complete-ledger-export.py qrx-arbitrage-engine.py qrx-gateway-kraken.py; do
@@ -318,7 +350,7 @@ for tool in qrx-wallet-cli.py qrx-complete-ledger-export.py qrx-arbitrage-engine
 done
 find "$TARGET_OUT/wallet" -type f -print -quit | grep -q . || { echo "No Tauri installer was produced" >&2; exit 9; }
 
-echo "[7/7] Creating checksummed manifest and archive"
-python3 "$ROOT/scripts/package-target-release.py" --root "$TARGET_OUT" --target "$TARGET" --output "$DIST_ROOT/qrx-0.0.7.7-$TARGET.zip"
+echo "[8/8] Creating checksummed manifest and archive"
+python3 "$ROOT/scripts/package-target-release.py" --root "$TARGET_OUT" --target "$TARGET" --output "$DIST_ROOT/qrx-0.0.9-genesis-$TARGET.zip"
 
-echo "QRX target release complete: $DIST_ROOT/qrx-0.0.7.7-$TARGET.zip"
+echo "QRX target release complete: $DIST_ROOT/qrx-0.0.9-genesis-$TARGET.zip"

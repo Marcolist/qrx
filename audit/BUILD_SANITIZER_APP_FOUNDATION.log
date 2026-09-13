@@ -1,0 +1,8 @@
+Building C object CMakeFiles/apps_phase187_upscaler.dir/src/apps/qrx_upscaler.c.o
+Building C object CMakeFiles/apps_phase187_upscaler.dir/tests/apps_phase187_upscaler.c.o
+Linking C executable apps_phase187_upscaler
+Built target apps_phase187_upscaler
+[  0%] Building C object CMakeFiles/apps_phase188_upscaler_capabilities.dir/src/apps/qrx_upscaler_capabilities.c.o
+[100%] Building C object CMakeFiles/apps_phase188_upscaler_capabilities.dir/tests/apps_phase188_upscaler_capabilities.c.o
+[100%] Linking C executable apps_phase188_upscaler_capabilities
+[100%] Built target apps_phase188_upscaler_capabilities

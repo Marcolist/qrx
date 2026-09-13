@@ -1,0 +1,14 @@
+QRXAURA-ORIGIN-CATALOG-2
+# model_id|family|huggingface_repo|revision|expected_license|architecture_hint|runtime_id|quantization|tier|recommended|moe_hint|min_memory_mib|recommended_memory_mib|min_milli_tokens_per_second|quality_bps|coding_bps|reasoning_bps|rag_bps|tool_use_bps|auto_default|gated_optional|file_filter
+# Zero-touch NANO: direct GGUF, permissive/non-gated, llama.cpp compatible.
+qrx/qwen3-0.6b-q8|qwen|Qwen/Qwen3-0.6B-GGUF|main|apache-2.0|qwen3|llama.cpp|Q8_0|1|1|0|1536|3072|250|6500|5800|5600|6200|5800|1|0|Qwen3-0.6B-Q8_0.gguf
+qrx/deepseek-r1-distill-qwen-1.5b-q4|deepseek|ggml-org/DeepSeek-R1-Distill-Qwen-1.5B-Q4_0-GGUF|main|mit|qwen2|llama.cpp|Q4_0|1|1|0|2048|4096|300|6800|6500|7600|6200|6000|1|0|deepseek-r1-distill-qwen-1.5b-q4_0.gguf
+qrx/qwen3-1.7b-q8|qwen|Qwen/Qwen3-1.7B-GGUF|main|apache-2.0|qwen3|llama.cpp|Q8_0|1|1|0|3072|4096|600|7600|7200|6800|7300|7000|1|0|Qwen3-1.7B-Q8_0.gguf
+# Zero-touch EDGE: quantized GGUF for ~6-8 GiB class systems; AUTO decides by task and measured capacity.
+qrx/ministral3-3b-instruct-q4|mistral|mistralai/Ministral-3-3B-Instruct-2512-GGUF|main|apache-2.0|mistral3|llama.cpp|Q4_K_M|2|1|0|4096|6144|1800|8300|7800|7700|8000|8500|1|0|Ministral-3-3B-Instruct-2512-Q4_K_M.gguf
+qrx/qwen3-4b-q4|qwen|Qwen/Qwen3-4B-GGUF|main|apache-2.0|qwen3|llama.cpp|Q4_K_M|2|1|0|4096|6144|3500|8600|8400|8300|8200|8200|1|0|Qwen3-4B-Q4_K_M.gguf
+# Larger models stay discoverable by the same dynamic catalog and are chosen only when the local/aggregate fabric can support them.
+qrx/qwen3.8-27b|qwen|Qwen/Qwen3.8-27B|main|apache-2.0|qwen3_5|vllm|bf16|4|1|0|65536|81920|8000|9400|9400|9200|9200|9000|1|0|*
+qrx/kimi-k2-instruct|kimi|moonshotai/Kimi-K2-Instruct|main|modified-mit|kimi_k2|vllm|fp8|5|1|1|65536|131072|30000|9600|9500|9700|9300|9400|1|0|*
+qrx/kimi-k3|kimi|moonshotai/Kimi-K3|main|kimi-k3|kimi_k3|vllm|mxfp4|6|1|1|98304|196608|60000|9800|9700|9900|9500|9600|1|0|*
+qrx/deepseek-v3.2|deepseek|deepseek-ai/DeepSeek-V3.2|main|mit|deepseek_v32|sglang|fp8|5|1|1|65536|131072|30000|9700|9600|9900|9400|9300|1|0|*

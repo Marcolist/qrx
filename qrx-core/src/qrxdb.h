@@ -113,8 +113,10 @@ struct QrxDB {
 
 int qrxdb_init(QrxDB *db, const char *chain_dir);
 int qrxdb_put(QrxDB *db, const char *key, const char *value);
+int qrxdb_delete(QrxDB *db, const char *key);
 int qrxdb_batch_begin(QrxDB *db, QrxDBBatch *batch);
 int qrxdb_batch_put(QrxDBBatch *batch, const char *key, const char *value);
+int qrxdb_batch_delete(QrxDBBatch *batch, const char *key);
 int qrxdb_batch_commit(QrxDBBatch *batch);
 void qrxdb_batch_abort(QrxDBBatch *batch);
 int qrxdb_merkle_root_hex(QrxDB *db, char out[129]);

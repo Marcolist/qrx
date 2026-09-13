@@ -1,0 +1,6 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hello QRX</title></head><body>
+<main><h1>Hello QRX</h1><p>This app runs inside the QRX App Sandbox and only reaches the wallet through approved Mini SDK permissions.</p>
+<div class="grid"><section><h3>Wallet</h3><pre id="identity">—</pre><button id="identityBtn">Read public identity</button><button id="balanceBtn">Read balance</button></section><section><h3>Chain</h3><pre id="chain">—</pre><button id="heightBtn">Read height</button><button id="networkBtn">Network status</button></section></div>
+<section><h3>Scoped app storage</h3><input id="note" placeholder="A local app note"><button id="saveBtn">Save</button><button id="loadBtn">Load</button></section>
+<section><h3>Payment request</h3><input id="recipient" placeholder="qrx…"><input id="amount" placeholder="0.1"><button id="payBtn">Request wallet confirmation</button><p class="muted">The app never receives private keys and cannot sign or broadcast by itself.</p></section><pre id="log"></pre></main>
+</body></html>

@@ -15,8 +15,11 @@ int qrx_drive_contract_id(const char*owner,const QrxDrivePreparedUpload*p,char o
  int ok=c&&EVP_DigestInit_ex(c,EVP_sha3_256(),NULL)==1&&EVP_DigestUpdate(c,d,sizeof(d)-1)==1&&EVP_DigestUpdate(c,owner,strlen(owner))==1&&EVP_DigestUpdate(c,p->prepare_id,strlen(p->prepare_id))==1&&EVP_DigestUpdate(c,p->manifest_hash,64)==1&&EVP_DigestFinal_ex(c,h,&n)==1&&n==32;EVP_MD_CTX_free(c);if(!ok)return-1;char x[65];hex32(h,x);snprintf(out,129,"drv-%s",x);return 0;
 }
 int qrx_drive_contract_quote(const QrxDrivePreparedUpload*p,uint64_t epochs,uint64_t rate,uint64_t*out){if(!p||!epochs||!rate||!out||!p->total_shards||!p->shard_bytes)return-1;QrxStorageRewardInput ri={p->shard_bytes,1,rate,10000,10000,11500};uint64_t per=qrx_storage_provider_reward(&ri),all=0;if(!per||mul_u64(per,p->total_shards,&all)||mul_u64(all,epochs,&all))return-1;
- /* provider escrow is 97.5% (development 0.5%, resilience 2%). Round up gross amount so maximum performance rewards remain funded. */
- uint64_t gross=0,rem=all%9750ULL,extra=0;if(mul_u64(all/9750ULL,10000ULL,&gross))return-1;if(rem){if(mul_u64(rem,10000ULL,&extra))return-1;extra=(extra+9749ULL)/9750ULL;if(add_u64(gross,extra,&gross))return-1;}if(!gross)gross=1;*out=gross;return 0;}
+ /* Provider escrow is the market-funded remainder after the fixed 0.5% development
+    share and 2% resilience/repair reserve. Round up the gross contract amount so
+    maximum performance rewards remain fully funded without minting new QUB. */
+ const uint64_t provider_bps=QRX_STORAGE_PROVIDER_BUDGET_BPS;
+ uint64_t gross=0,rem=all%provider_bps,extra=0;if(mul_u64(all/provider_bps,QRX_BPS_DENOMINATOR,&gross))return-1;if(rem){if(mul_u64(rem,QRX_BPS_DENOMINATOR,&extra))return-1;extra=(extra+provider_bps-1ULL)/provider_bps;if(add_u64(gross,extra,&gross))return-1;}if(!gross)gross=1;*out=gross;return 0;}
 static int contract_matches(const QrxStorageContractState*c,const char*owner,const QrxDrivePreparedUpload*p,uint64_t rate){if(strcmp(c->owner,owner)||strcmp(c->profile,p->manifest.profile)||c->logical_bytes!=p->ciphertext_bytes||c->shard_count!=p->total_shards||c->shard_bytes!=p->shard_bytes||c->base_atoms_per_gib_epoch!=rate||CRYPTO_memcmp(c->manifest_root,p->manifest_hash,64))return-1;return 0;}
 int qrx_drive_contract_next_step(QrxDB*db,const char*owner,const QrxDrivePreparedUpload*p,uint64_t h,uint64_t epochs,uint64_t rate,QrxDriveContractStep*out){
  if(!db||!owner||!*owner||!p||!out||!h)return-1;if(!epochs)epochs=QRX_DRIVE_CONTRACT_DEFAULT_EPOCHS;if(!rate)rate=QRX_DRIVE_CONTRACT_DEFAULT_RATE_ATOMS;if(qrx_drive_prepared_upload_verify_files(p))return-1;memset(out,0,sizeof(*out));out->assignments_required=p->total_shards;out->base_atoms_per_gib_epoch=rate;if(qrx_drive_contract_id(owner,p,out->contract_id))return-1;

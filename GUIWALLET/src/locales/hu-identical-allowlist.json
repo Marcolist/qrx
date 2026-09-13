@@ -1,15 +1,12 @@
 {
-  "_meta": {
-    "locale": "hu",
-    "reviewed_for": "Phase 7.2.18.26",
-    "purpose": "Reviewed English-identical values that are intentional language names, brands, protocol/network terms, abbreviations, examples, paths, identifiers, conventional technical UI terms or technical literals."
-  },
   "keys": [
     "generals.auto.038bc41a7c6c",
     "generals.auto.473d5f3b0ad1",
     "generals.auto.50c3f10f5b1c",
     "generals.auto.6f36de0ab330",
     "generals.auto.950a39b6c293",
+    "qrx.apphost.sandbox",
+    "qrx.upscaler.compute",
     "wallet.attr.126f8e408960",
     "wallet.attr.56044d72c9ca",
     "wallet.attr.6d0e76ccebfd",
@@ -94,5 +91,6 @@
     "wallet.auto.fd2001151c98",
     "wallet.auto.fe035157cda2",
     "wallet.auto.ff90b88d9b1b"
-  ]
+  ],
+  "note": "Reviewed identical strings: product names, protocol identifiers, file formats and language-neutral technical labels may intentionally remain unchanged."
 }

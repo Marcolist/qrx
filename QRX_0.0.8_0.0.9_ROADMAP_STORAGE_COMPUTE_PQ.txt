@@ -3353,3 +3353,36 @@ NEXT BRANCH:
 - hardware capability discovery and CPU AI acceleration where available
 - deterministic job/result commitments, metering, rewards, sandboxing and abuse controls
 - preserve 0.0.8 Storage + QRX-Net feature parity as mandatory regression baseline
+
+IMPLEMENTATION STATUS — 2026-09-09
+----------------------------------
+- 0.0.9.0 Compute Foundation: DONE
+- 0.0.9.1 Cross-Platform Compute Runtime / Native Capability Discovery: DONE
+- 0.0.9.2 Standardized Compute Benchmark / Normalized Compute Units: DONE
+- Benchmark schema covers BF16, MXFP4, memory, storage, network, MoE expert execution and model inference
+- Deterministic fixed-point QRX Compute Score / NCU normalization added
+- Self-reported benchmark scores are NOT reward proofs; attestation/challenge remains later verification work
+- Regression: 61/61 tests PASS
+- Next: 0.0.9.3 QRX AI Model Registry
+
+
+0.0.9.6 – SECURE EXECUTION SANDBOX & RESUMABLE BUDGET GUARD — DONE 2026-09-09
+- deny-by-default portable sandbox policy
+- wallet keys / host secrets / host filesystem never grantable
+- raw network denied in V1; later only explicit allowlisted proxy
+- resource ceilings for memory/runtime/output/subprocesses
+- budget warning >=80%, checkpointing >=95%, hard pause at 100%
+- PAUSED_BUDGET_EXHAUSTED -> explicit BUDGET_EXTENDED -> RESUMING
+- verified spend can never exceed previously authorized budget
+- resumable QRX Drive checkpoint references
+- native OS isolation backends remain executor work; policy foundation does not falsely claim them
+
+0.0.9.7 – PROOF OF USEFUL COMPUTE VERIFICATION FOUNDATION — DONE 2026-09-09
+- deterministic PoUC execution receipts
+- binds graph/node/provider/input/model/runtime/parameters/result/verified amount/heights
+- domain-separated SHA3-256 receipt commitments
+- SPOT / RANDOM / REDUNDANT 2-of-3 verification profiles
+- settlement-ready accepted/rejected verification result
+- challenge transport, verifier assignment, partial recomputation and slashing remain follow-up hardening
+
+NEXT: 0.0.9.8 – AURA AGENT RUNTIME & TOOL API

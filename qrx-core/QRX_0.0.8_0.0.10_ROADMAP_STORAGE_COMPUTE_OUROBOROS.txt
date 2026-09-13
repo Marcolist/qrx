@@ -1,0 +1,4609 @@
+QRX ROADMAP 0.0.8 -> 0.0.9
+Storage, QRX-Net, Decentralized Internet Foundation, Proof of Useful Compute & Distributed AI
+===================================================================
+
+Stand: September 2026
+
+LEITBILD
+========
+
+QRX entwickelt sich in drei aufeinander aufbauenden Stufen:
+
+0.0.7
+Blockchain · Wallet · Staking · Privacy · Assets · Markets · VELOCITY · Cross-Chain
+
+↓
+
+0.0.8 – QRX DRIVE + QRX-NET
+Decentralized Storage · Proof of Storage · Resource Market · Quantum-Resistant Data-at-Rest · Decentralized Naming · Domain Hosting · WWW+QRX Browser
+
+↓
+
+0.0.9 – QRX COMPUTE
+Proof of Useful Compute · Distributed AI · Mixture of Experts · Kimi K3 · FastTrack
+
+Die Architektur muss von Anfang an so gestaltet werden, dass Storage und Compute dieselben grundlegenden Mechanismen für Provider, Contracts, Reputation, Escrow, Proofs, Settlement und Resource Discovery verwenden.
+
+
+============================================================
+QRX 0.0.8 – DRIVE + QRX-NET
+DECENTRALIZED STORAGE, RESOURCE NETWORK & INTERNET FOUNDATION
+============================================================
+
+0.0.8 RELEASE / ACTIVATION POLICY
+---------------------------------
+
+Genesis bleibt auf dem stabilen QRX-0.0.7.7-Konsens.
+Die 0.0.8-Storage-/QRX-Net-Regeln werden NICHT in die Genesis-Daten festgeschrieben.
+
+Geplanter Ablauf:
+- Genesis: 15.09.2026 mit QRX 0.0.7.7
+- 0.0.8.x wird nach Genesis entwickelt, getestet und als Mandatory Update verteilt
+- Ziel für die Aktivierung der 0.0.8-Funktionen: rund um den 30.11.2026
+- die konkrete Activation Height wird erst nach Genesis anhand realer Mainnet-Blockzeiten festgelegt
+- Consensus-Aktivierung erfolgt über den bestehenden threshold-signierten PROTOCOL_UPGRADE-Pfad
+- vorgesehene Upgrade-Generation: Protocol 9
+- vorgesehene Feature-Sets: DRIVE_V1 und QRX_NET_V1
+- Storage-/QRX-Net-TXs sind vor Activation Height ungültig bzw. fail-closed
+- alte Nodes müssen vor der Activation Height aktualisieren
+- veraltete Validatoren dürfen nach Aktivierung nicht als vollwertige Consensus-Teilnehmer weiterlaufen
+- keine Aktivierung allein per GUI-, RPC- oder Server-Schalter
+- keine Abhängigkeit von CURA-/Developer-Servern
+
+Grundsatz:
+Release früher, Aktivierung später.
+Validatoren und Nutzer erhalten vor der Activation Height eine deutliche Mandatory-Update-Warnung.
+
+
+0.0.8.0 – DECENTRALIZATION INVARIANTS
+-------------------------------------
+
+TODO:
+- Keine zentrale Storage-Steuerinstanz.
+- Kein globaler SeaweedFS Master.
+- Kein zentraler QRX Storage Coordinator.
+- Kein zentraler Repair Server.
+- Kein zentraler Scheduler für Storage Placement.
+- Kein zentraler Metadata Server.
+- CURA-/Developer-Server dürfen für den Betrieb nicht erforderlich sein.
+- Bootstrap Nodes dürfen ausschließlich Discovery erleichtern.
+- Storage muss weiter funktionieren, wenn sämtliche offiziellen QRX-/CURA-Nodes abgeschaltet werden.
+- Provider Discovery über QRX P2P/DHT/Gossip.
+- Blockchain als gemeinsame Trust-, Contract- und Settlement-Layer.
+- Große Daten niemals on-chain speichern.
+
+Mainnet-Invariant:
+CURA Server OFF
+Developer Nodes OFF
+Official Storage Nodes OFF
+Official Website/API OFF
+
+Erwartung:
+QRX Drive funktioniert weiter.
+
+
+0.0.8.1 – GENERIC QRX RESOURCE PROTOCOL
+---------------------------------------
+
+Nicht nur Storage-spezifisch implementieren.
+
+Resource Types:
+- STORAGE
+- COMPUTE vorbereitet
+- GPU vorbereitet
+- SPECIALIZED vorbereitet
+
+Gemeinsame Objekte:
+- ResourceProvider
+- ResourceCapability
+- ResourceOffer
+- ResourceContract
+- ResourceEscrow
+- ResourceProof
+- ResourceReceipt
+- ResourceReputation
+- ResourceSettlement
+- ResourceFailureDomain
+
+QRX 0.0.9 soll diese Infrastruktur wiederverwenden.
+
+
+0.0.8.2 – NATIVE FILESYSTEM STORAGE BACKEND
+-------------------------------------------
+
+Filesystem wird offizielles Reference Backend.
+
+Beispiel:
+
+[storage]
+enabled = true
+backend = "filesystem"
+path = "/var/lib/qrx/storage"
+max_usage = "2TB"
+min_free_space = "50GB"
+
+TODO:
+- konfigurierbares Storage Directory
+- max_usage
+- min_free_space
+- sichere Quotas
+- Crash Recovery
+- Atomic Writes
+- Temp-/Partial-File Handling
+- Disk-Full-Schutz
+- Content-addressed Blob Storage
+- Hash-basierte Directory-Struktur
+- Integrity Check
+- Storage Backend Interface
+
+Backend API:
+PUT
+GET
+DELETE
+PROVE
+CAPACITY
+HEALTH
+
+Optionale Backends:
+- SeaweedFS optional
+- ZFS später
+- Btrfs später
+- S3-compatible Backend später
+- QRX Packfile Backend später
+
+SeaweedFS darf niemals Teil des QRX-Konsenses sein.
+
+
+0.0.8.3 – CAPACITY ACCOUNTING
+-----------------------------
+
+Unterscheiden:
+- Configured Capacity
+- Raw Capacity
+- Proven Capacity
+- Allocated Physical Capacity
+- Logical User Data
+- Usable Capacity
+- Available Capacity
+- Reserve Capacity
+
+Beispiel:
+Raw Capacity        12.84 PB
+Proven Capacity     12.11 PB
+Usable Capacity      8.34 PB
+Allocated            3.17 PB
+Available            5.17 PB
+
+TODO:
+- Netzwerkweite Capacity Aggregation
+- Provider Capacity Accounting
+- Free Capacity Tracking
+- Logical-vs-Physical Storage Accounting
+- Netzwerk-Auslastungsgrad
+- Resilience Headroom
+
+
+0.0.8.4 – CAPACITY PROOF
+------------------------
+
+Ein Node darf Kapazität nicht nur behaupten.
+
+TODO:
+- initialer Capacity Proof
+- periodische Capacity Revalidation
+- zufällige Write Challenges
+- spätere Read Challenges
+- provider-spezifische Challenge-Daten
+- Schutz gegen Mehrfachanmeldung derselben Platte
+- Schutz gegen Fake Capacity
+- Proof Score
+- Proven Capacity darf von Config Capacity abweichen
+
+Nur Proven Capacity zählt für Rewards und Placement.
+
+
+0.0.8.5 – QUANTUM-RESISTANT DATA-AT-REST & CRYPTO AGILITY
+---------------------------------------------------------
+
+QRX Drive muss Nutzerdaten von Anfang an so ablegen, dass ein späterer starker Quantencomputer heute gespeicherte Daten nicht trivial nachträglich entschlüsseln kann.
+
+Ziel:
+Schutz gegen "harvest now, decrypt later".
+
+Vorgeschlagene Crypto Suite v1:
+- Dateiinhalte: AES-256-GCM oder final festgelegter 256-Bit-AEAD-Modus
+- Pro Datei/Objekt: eigener zufälliger 256-Bit File Encryption Key
+- Key Encapsulation / Sharing: ML-KEM, vorzugsweise zunächst hybrid mit klassischem ECDH
+- Manifest-/Ownership-Signaturen: ML-DSA
+- besonders langfristige Recovery-/Root-Signaturen optional zusätzlich SLH-DSA
+- Hashing/Merkle Trees: SHA-3 mit ausreichend großer Ausgabe
+- Provider sehen nur Ciphertext
+
+Ablauf:
+User File
+  ↓
+Random 256-bit File Key
+  ↓
+AES-256-GCM Encryption
+  ↓
+Encrypted Chunks
+  ↓
+Erasure Coding
+  ↓
+Encrypted Shards
+  ↓
+Independent QRX Storage Providers
+
+File Key:
+File Encryption Key
+  ↓
+ML-KEM / Hybrid PQ Key Wrapping
+  ↓
+Encrypted Key Envelope
+  ↓
+Encrypted Manifest
+
+TODO:
+- qrx-drive-pq-v1 Crypto Suite definieren
+- AES-256-GCM Data-at-Rest
+- individuellen File Key pro Objekt
+- ML-KEM Key Wrapping
+- ML-DSA-signierte Manifeste
+- optional SLH-DSA für Recovery-/Root-Artefakte
+- SHA3-basierte Merkle Commitments
+- Crypto-Suite-Versionierung
+- Key Rotation
+- Re-Wrapping ohne vollständigen Datei-Reupload
+- PQ-sicheres Sharing zwischen QRX Wallets
+- PQ-sichere Recovery-Artefakte
+- Migration qrx-drive-pq-v1 -> spätere Suites
+- Crypto Agility als Protokollpflicht
+- Tests gegen langfristige Harvest-Now-Decrypt-Later-Szenarien
+
+
+0.0.8.6 – CLIENT-SIDE ENCRYPTION & MANIFESTS
+--------------------------------------------
+
+QRX Storage Provider dürfen Nutzerdaten grundsätzlich nicht kennen müssen.
+
+TODO:
+- Verschlüsselung vor Upload
+- lokale Key-Verwaltung
+- verschlüsselte Manifests
+- verschlüsselte Dateinamen/Metadaten
+- File Root
+- Chunk Hashes
+- Merkle Tree
+- Versionierung
+
+Flow:
+File
+ ↓
+Client Encryption
+ ↓
+Chunking
+ ↓
+Erasure Coding
+ ↓
+Merkle Commitments
+ ↓
+Distributed Storage
+
+
+0.0.8.7 – MANDATORY REDUNDANCY
+------------------------------
+
+Storage ohne Redundancy wird nicht zugelassen.
+
+FAST:
+- 3 vollständige Replikate
+- 3 unabhängige Provider
+- 3 Failure Domains
+- Overhead ca. 3.0x
+- optimiert für häufige Reads
+
+STANDARD – DEFAULT:
+- 10 Data Shards
+- 4 Parity Shards
+- 14 total
+- 10 required
+- Overhead ca. 1.4x
+- bis zu 4 Shards dürfen fehlen
+
+ARCHIVE:
+- z. B. 16+4
+- später optimiertes EC-Profil
+
+TODO:
+- Reed-Solomon oder vergleichbares Erasure Coding
+- parallele Shard-Erstellung
+- Shard Integrity
+- Failure-Domain Placement
+- automatische Reconstruction
+- automatische Rebalancing-Regeln
+
+
+0.0.8.8 – FAILURE DOMAINS & DECENTRALIZED PLACEMENT
+---------------------------------------------------
+
+Nicht nur Länder betrachten.
+
+Berücksichtigen:
+- Provider Identity
+- Operator Cluster
+- ASN
+- Network Domain
+- Region
+- Latency Cluster
+- Storage Device Group
+- Provider Share
+
+Beispielregeln:
+- max 1 shard / provider
+- max 2 shards / ASN
+- max N shards / region
+
+Placement berücksichtigt:
+- Free Proven Capacity
+- Reliability
+- Proof History
+- Availability
+- Performance
+- Price
+- Failure Domain
+- Network Diversity
+- Regional Demand
+- Existing Provider Share
+
+Keine Zentralinstanz:
+Placement wird deterministisch aus Chain State und finalisierter Chain Randomness berechnet.
+
+
+0.0.8.9 – PROOF OF STORAGE (PoStor)
+-----------------------------------
+
+Challenge z. B. aus:
+- finalized_block_hash
+- contract_id
+- provider_id
+- epoch
+
+TODO:
+- Chain-derived unpredictable challenges
+- zufällige Shard-Auswahl
+- zufälliger Byte-/Segment-Bereich
+- Merkle Proof
+- Provider Signature
+- Contract Binding
+- Proof Deadline
+- Late-Proof Handling
+- Missing-Proof Handling
+- Fraud Detection
+- Slashing-Regeln
+
+Kein zentraler Challenge Server.
+
+
+0.0.8.10 – PERFORMANCE FROM DAY ONE
+-----------------------------------
+
+Storage Performance Metrics:
+- Read throughput
+- Write throughput
+- Proof latency
+- Network throughput
+- Transfer latency
+- Historical availability
+
+Transport:
+QRX Storage P2P bevorzugt QUIC.
+
+TODO:
+- parallele Streams
+- resumable Transfers
+- Chunk Retry
+- Connection Migration
+- Request Hedging
+- Parallel Shard Fetching
+
+Bei STANDARD 10+4:
+Client fragt mehrere Provider parallel an.
+Sobald 10 gültige Shards eingetroffen sind:
+- reconstruct
+- decrypt
+- cancel slow requests
+
+Ein langsamer Provider darf einen Download nicht blockieren.
+
+
+0.0.8.11 – PERFORMANCE COMPENSATION
+-----------------------------------
+
+Performance wird belohnt, darf Heimnodes aber nicht verdrängen.
+
+Beispiel:
+PerformanceFactor = 1.00 ... 1.15
+
+TODO:
+- capped Performance Bonus
+- kein unbegrenzter Datacenter-Vorteil
+- HDD-Nodes weiterhin wirtschaftlich sinnvoll
+- Storage- und Egress-Performance getrennt bewerten
+
+
+0.0.8.12 – PROVIDER REPUTATION
+------------------------------
+
+Score berücksichtigt:
+- Proof Success
+- Availability
+- Response Latency
+- Contract Completion
+- Repair Events
+- Slashing History
+- Performance
+- Provider Age
+
+Aber:
+- Reputation begrenzen
+- Newcomer-Chance garantieren
+- keine dauerhafte Oligopolisierung etablierter Provider
+
+
+0.0.8.13 – PROVIDER BOND / SYBIL PROTECTION
+-------------------------------------------
+
+Mehr gemeldete Ressourcen sollen einen angemessenen Bond benötigen.
+
+TODO:
+- Storage Provider Bond
+- Bond Scaling
+- Fraud Slashing
+- Missing-Data Slashing
+- schwere vs. leichte Verstöße
+- Provider Exit
+- Graceful Contract Migration
+
+Ziel:
+Eine physische Platte darf nicht trivial als Tausende Fake-Provider auftreten.
+
+
+0.0.8.14 – STORAGE CONTRACT ECONOMICS
+-------------------------------------
+
+User bezahlt Storage mit QUB.
+
+Beispiel:
+100 QUB Storage Contract
+
+Vorgeschlagene initiale Aufteilung:
+- 0.50 QUB -> QRX Development Treasury
+- 2.00 QUB -> Contract Resilience Reserve
+- 97.50 QUB -> Storage Provider Budget
+
+Die 2 % Resilience Reserve sind ein Ausgangswert und müssen wirtschaftlich simuliert werden.
+
+
+0.0.8.15 – QRX DEVELOPMENT TREASURY RULE
+----------------------------------------
+
+Storage Development Share:
+STORAGE_DEV_SHARE_BPS = 50
+= 0,5 %
+
+0,5 % wird erhoben auf:
+- neuen Storage Contract
+- Storage Contract Renewal
+- Storage Expansion auf den Mehrwert
+
+Keine erneute Dev Fee auf:
+- Proof Transactions
+- Repairs
+- Provider Replacement
+- Shard Migration
+- Settlement
+- interne Storage-TXs
+
+Grundsatz:
+0,5 % auf den wirtschaftlichen Storage-Umsatz, nicht auf jede technische Storage-TX.
+
+Empfänger:
+QRX Development Treasury
+
+Wallet zeigt die Gebühr transparent.
+
+
+0.0.8.16 – STORAGE PROVIDER PAYOUT
+---------------------------------
+
+Provider werden epochweise bezahlt, nicht im Voraus.
+
+Grundformel:
+ProviderReward =
+      StoredByteEpochs
+    × BaseStorageRate
+    × AvailabilityFactor
+    × ProofFactor
+    × PerformanceFactor
+  + VerifiedEgressReward
+  + RepairReward
+  + BootstrapCapacityReward
+
+Priorität:
+1. tatsächlich gespeicherte Daten
+2. Availability
+3. Proof Success
+4. Bandwidth
+5. capped Performance
+6. Repair Work
+7. Reserve Capacity nur subsidiär
+
+
+0.0.8.17 – USED STORAGE BEATS EMPTY STORAGE
+-------------------------------------------
+
+Belegter Storage muss deutlich stärker vergütet werden als ungenutzte Reservekapazität.
+
+Prinzip:
+1 TB used storage = 100 % economic weight
+1 TB free proven reserve = nur kleiner Bruchteil
+
+Damit finanziert QRX nicht dauerhaft ungenutzte Petabyte-Farmen.
+
+
+0.0.8.18 – CAPACITY BOOTSTRAP REWARDS
+-------------------------------------
+
+Während QRX Drive noch jung ist:
+- kleiner Protocol-/Blockreward-Pool für Proven Reserve Capacity
+- DemandFactor
+- bei Überversorgung sinkt Reward
+- bei Knappheit steigt Incentive
+- Begrenzung gegen Storage-Farming
+
+Wichtig:
+Proof of Storage verändert nicht die normale Validator-Blockchance.
+QRX Consensus und QRX Storage Economics bleiben getrennt.
+
+
+0.0.8.19 – MORE STORAGE = MORE ECONOMIC OPPORTUNITY
+---------------------------------------------------
+
+Mehr nachgewiesener Storage bedeutet:
+- mehr mögliche Assignments
+- mehr belegbare Daten
+- mehr erwartete Storage-Einnahmen
+
+Aber nicht:
+10x Storage = automatisch 10x Macht
+
+Capacity Weight soll leicht abflachen.
+Beispiel:
+capacity_weight proportional zu sqrt(proven_free_capacity)
+
+Ziel:
+Große Nodes belohnen, ohne Zentralisierung zu incentivieren.
+
+
+0.0.8.20 – BANDWIDTH / EGRESS COMPENSATION
+------------------------------------------
+
+Storage und Traffic getrennt bezahlen.
+
+TODO:
+- verified bytes delivered
+- Egress Receipt
+- Bandwidth Settlement
+- Abuse Protection
+- Rate Limits
+- User-defined bandwidth limits
+
+Wichtig für 0.0.9, da Model-/Expert-Shards hohen Traffic verursachen können.
+
+
+0.0.8.21 – AUTONOMOUS REPAIR
+----------------------------
+
+Keine zentrale Repair-Infrastruktur.
+
+Ablauf:
+failed provider
+ ↓
+contract degraded
+ ↓
+new provider selected deterministically
+ ↓
+remaining shards reconstruct missing shard
+ ↓
+new provider receives shard
+ ↓
+Proof succeeds
+ ↓
+contract healthy
+
+TODO:
+- automatic degraded state
+- replacement selection
+- reconstruction
+- transfer
+- verification
+- finalization
+- old provider payout stop
+- new provider payout start
+
+Grundsatz:
+Das Geld folgt der Ressource, nicht dauerhaft einer Adresse.
+
+
+0.0.8.22 – REPAIR REWARDS
+-------------------------
+
+Repair Provider erhalten QUB aus der Resilience Reserve.
+
+TODO:
+- Repair Job
+- Repair Receipt
+- verified reconstruction
+- Repair Reward
+- Repair Fraud Protection
+
+Option:
+Nicht verbrauchte Resilience Reserve am Vertragsende an den User zurückgeben.
+Vor Mainnet wirtschaftlich simulieren.
+
+
+0.0.8.23 – NETWORK REDUNDANCY METRICS
+-------------------------------------
+
+Netzwerkweit anzeigen:
+- Logical User Data
+- Physical Allocated Storage
+- Actual Redundancy Ratio
+- Target Redundancy Ratio
+- Healthy Shards
+- Degraded Shards
+- Repairing Shards
+
+Beispiel:
+Logical Data             3.17 PB
+Physical Allocated       4.51 PB
+Actual Redundancy        1.423x
+Target                   1.40x
+Healthy Shards           99.998 %
+
+
+0.0.8.24 – QRX DRIVE NETWORK HEALTH
+-----------------------------------
+
+Globaler Score aus:
+- Capacity Health
+- Redundancy Health
+- Proof Health
+- Repair Health
+- Provider Diversity
+- ASN Diversity
+- Region Diversity
+- Free Capacity
+- Performance
+
+Wallet:
+QRX DRIVE HEALTH
+98.9 / 100
+
+
+0.0.8.25 – DYNAMIC DEMAND / CAPACITY ECONOMICS
+----------------------------------------------
+
+Wenn freie Kapazität knapp wird:
+Storage demand steigt
+Free Capacity sinkt
+-> Provider compensation steigt
+-> mehr Storage kommt online
+
+Wenn massiv überversorgt:
+Capacity subsidy sinkt.
+
+TODO:
+- DemandFactor
+- UtilizationFactor
+- ResilienceHeadroomFactor
+- regionale Knappheit
+- Preisglättung
+- Manipulationsschutz
+
+
+0.0.8.26 – REGIONAL DIVERSITY BONUS
+-----------------------------------
+
+Regionen mit zu wenig unabhängiger Infrastruktur bekommen zusätzliche Assignment-Chancen bzw. gedeckelten Bonus.
+
+Beispiel:
+DiversityFactor 1.00 ... 1.20
+
+Keine garantierte Rendite.
+
+Wallet formuliert:
+"Current assignment potential: +17 % above network average"
+
+Nicht:
+"Guaranteed +17 % profit"
+
+
+0.0.8.27 – GEOGRAPHIC / NETWORK VERIFICATION
+--------------------------------------------
+
+Node darf Land nicht einfach selbst behaupten.
+
+Berücksichtigen:
+- ASN
+- observed network path
+- latency relationships
+- Peer observations
+- coarse regional inference
+- Sybil resistance
+
+Keine GPS-Pflicht.
+
+Protokoll arbeitet bevorzugt mit Failure Domains, nicht politischen Landesgrenzen.
+
+
+0.0.8.28 – QRX RESOURCE GLOBE
+-----------------------------
+
+Statt 2D-Weltkarte:
+interaktiver 3D-Globus ähnlich Google Earth.
+
+Der Globe wird visuelles Markenzeichen der Wallet.
+
+Layer:
+- Providers
+- Raw Capacity
+- Proven Capacity
+- Usable Capacity
+- Available Capacity
+- Storage Demand
+- Redundancy
+- Network Health
+- Network Latency
+- Opportunity
+
+Darstellung:
+- futuristische Storage Warehouses
+- Data Vaults
+- Storage Hubs
+- Größe repräsentiert aggregierte Kapazität
+
+
+0.0.8.29 – GLOBE PRIVACY
+------------------------
+
+Keine exakten Heimnode-Standorte.
+
+TODO:
+- regionale Aggregation
+- Privacy Cells
+- Mindestzahl unabhängiger Provider für Anzeige
+- kleinere Gruppen in größere Region mergen
+- keine exakten IP-/GPS-Daten veröffentlichen
+- keine individuelle Node-Lokalisierung über GUI
+
+
+0.0.8.30 – GLOBE REDUNDANCY VISUALIZATION
+-----------------------------------------
+
+Regionen zeigen:
+- HEALTHY
+- MEDIUM
+- LOW
+- CRITICAL
+
+Details z. B.:
+Southern Africa
+Proven Capacity       184 TB
+Independent Providers     61
+Independent ASNs          18
+Redundancy Score       72/100
+
+
+0.0.8.31 – OPPORTUNITY ENGINE
+-----------------------------
+
+Wallet empfiehlt Regionen, in denen zusätzliche Nodes:
+1. wirtschaftlich interessant sind
+2. gleichzeitig QRX sicherer/dezentraler machen
+
+Need Score berücksichtigt:
+- Capacity Scarcity
+- Provider Diversity
+- Geographic Diversity
+- Failure-Domain Diversity
+- Storage Demand
+- Latency Benefit
+- ASN Diversity
+- Redundancy Deficit
+- Available Capacity
+- Reliability
+
+Beispiel:
+Recommended Storage Locations
+South Africa       94/100
+Brazil             87/100
+Indonesia          82/100
+Germany            31/100
+
+Liste wird dynamisch aus echtem Network State berechnet.
+
+
+0.0.8.32 – NODE PLANNER
+-----------------------
+
+User kann vor Deployment simulieren:
+- Country / Region
+- Storage
+- Upload
+- Download
+- Expected Availability
+
+Ausgabe:
+- Capacity Impact
+- Redundancy Impact
+- Diversity Impact
+- Latency Benefit
+- Opportunity Score
+
+Keine garantierten Ertragsversprechen.
+
+
+0.0.8.33 – STORAGE MISSIONS
+---------------------------
+
+Netzwerk kann automatisch Ressourcenengpässe veröffentlichen.
+
+Beispiel:
+QRX NETWORK MISSION
+Southern Africa
+
+Wanted:
+50 TB additional proven capacity
+
+Current:
+18 TB
+
+Diversity Bonus:
++15 %
+
+Oder:
+South America East
+Need:
+12 additional independent providers
+
+Keine zentrale Person legt die Mission fest.
+Sie entsteht aus Network State und Protocol Rules.
+
+
+0.0.8.34 – ANIMATED SHARD VISUALIZATION
+---------------------------------------
+
+Bei Upload eigener Dateien:
+Encrypt
+ ↓
+Create shards
+ ↓
+Globe
+ ↓
+animated paths to regions
+
+Anzeige:
+- 14/14 shards distributed
+- 14 independent providers
+- Redundancy healthy
+
+Repair kann bei eigenen Dateien ebenfalls visualisiert werden.
+
+
+0.0.8.35 – QRX DRIVE GUI
+------------------------
+
+Neue Wallet-Hauptsektion:
+QRX DRIVE
+
+Nutzeransicht:
+- Used Storage
+- Purchased Storage
+- Available Storage
+- Files
+- Storage Cost
+- Encryption Status
+- Redundancy
+- Providers
+- Contracts
+- Download/Upload
+- Contract Renewal
+- Storage Profile
+- File Health
+
+Bei Datei:
+Encrypted             ✓
+Profile               Standard 10+4
+Healthy Shards        14/14
+Required              10
+Independent Providers 14
+Last Proof            ...
+
+
+0.0.8.36 – BEGINNER STORAGE UX
+------------------------------
+
+Standardnutzer sehen keine komplizierten EC-Parameter.
+
+FAST
+Maximum read performance
+
+STANDARD
+Recommended
+High redundancy
+
+ARCHIVE
+Lower storage cost
+
+Advanced Mode zeigt technische Details.
+
+
+0.0.8.37 – STORAGE PROVIDER GUI
+------------------------------
+
+Beispiel:
+Provide storage to QRX       ON
+Storage directory            /mnt/qrx
+Maximum usage                2 TB
+Minimum free space           100 GB
+Upload limit                 100 Mbit/s
+Download limit               500 Mbit/s
+
+Modes:
+- Eco
+- Balanced
+- Maximum Performance
+
+Dashboard:
+- Configured
+- Proven
+- Allocated
+- Free
+- Proof Success
+- Availability
+- Performance
+- Storage Revenue
+- Bandwidth Revenue
+- Repair Revenue
+- Capacity Rewards
+
+
+0.0.8.38 – QRXSCAN INTEGRATION
+------------------------------
+
+Öffentlich aggregiert anzeigen:
+- Storage Providers
+- Proven Capacity
+- Usable Capacity
+- Available Capacity
+- Logical Stored Data
+- Redundancy Ratio
+- Healthy Contracts
+- Proofs/24h
+- Repairs/24h
+- Network Health
+- Resource Globe oder vereinfachte Webversion
+
+
+0.0.8.39 – QRX OS INTEGRATION
+-----------------------------
+
+QRX Drive wird Storage-Layer für:
+- Workspaces
+- Builds
+- QRX Retro artifacts
+- Documents
+- Backups
+- RAG data
+- AI artifacts
+- project files
+
+
+0.0.8.40 – MODEL REGISTRY STORAGE FOUNDATION
+--------------------------------------------
+
+Vorbereitung auf 0.0.9.
+
+Model Manifest:
+- Model ID
+- Version
+- Architecture
+- Model Root
+- Tokenizer Root
+- Config Root
+- Shard Roots
+- Expert Mapping
+- Runtime Requirements
+- License Metadata
+
+Große AI-Modelle liegen in QRX Drive.
+Blockchain speichert nur Commitments und Metadaten.
+
+
+0.0.8.41 – EXPERT STORAGE / MODEL CACHE
+---------------------------------------
+
+Storage Provider können spezielle AI-Shards cachen.
+
+TODO:
+- Model Shard Cache
+- Expert Pack Cache
+- Demand Tracking
+- Popularity Tracking
+- regional replicas
+- verified availability
+- separate bandwidth accounting
+
+Grundsatz für später:
+Move compute to the model shard instead of continuously moving model shards to compute.
+
+
+0.0.8.42 – ADVERSARIAL STORAGE TESTNET
+--------------------------------------
+
+Testfälle:
+- Fake Capacity
+- Fake Providers
+- Same Disk / Multiple Identities
+- Corrupted Shards
+- Slow Nodes
+- Node Disappearance
+- Mass Failure
+- Region Failure
+- ASN Failure
+- Network Partition
+- Dishonest Proof
+- Repair Spam
+- Bandwidth Fraud
+- Location Fraud
+- Reward Manipulation
+- Provider Cartel
+- Oversupply Farming
+- Disk Full
+- Crash during Write
+- Crash during Repair
+- PQ crypto downgrade attempts
+- invalid ML-KEM envelopes
+- invalid ML-DSA manifests
+- crypto-suite downgrade
+- key-rotation failure cases
+
+
+0.0.8.43 – DRIVE STORAGE SUBSYSTEM READINESS
+-------------------------------------------
+
+Erst aktivieren, wenn:
+- Proof system adversarial getestet
+- Capacity Fraud abgesichert
+- Redundancy stabil
+- Repair autonom
+- Provider Economics simuliert
+- QUB Distribution validiert
+- Development Share transparent
+- Globe Privacy geprüft
+- Storage funktioniert ohne QRX-Offizielle Infrastruktur
+- PQ Data-at-Rest Suite validiert
+- Crypto Agility getestet
+- Key Rotation und Re-Wrapping funktionieren
+- Harvest-Now-Decrypt-Later-Risiko berücksichtigt
+
+
+0.0.8.44 – QRX NAME REGISTRY
+----------------------------
+
+Native dezentrale QRX-Namen als eigener Namespace, z. B.:
+- qrxchain.qrx
+- lattemining.qrx
+- generals.qrx
+- pascal.qrx
+
+Keine Übernahme oder Ersetzung von ICANN-Domains wie .com, .de oder .org.
+
+TODO:
+- on-chain QRX Name Registry
+- DomainRecord / NameRecord
+- Name Hash über SHA-3
+- Owner Binding
+- sequence / nonce gegen Replay
+- Manifest Root
+- Resolver Records
+- Created Height
+- Expiry Height
+- Renew
+- Transfer
+- Owner Change
+- optional Subdomains
+- Domain History
+- deterministic conflict handling
+- expiry / grace period
+- reclaim nach Ablauf
+
+Vorgeschlagene Records:
+- QUB
+- BTC
+- WEB
+- SERVICE
+- NODE
+- API
+- TEXT
+- DRIVE
+- COMPUTE vorbereitet
+
+Große Inhalte werden niemals on-chain gespeichert.
+Die Chain speichert nur Ownership, Commitments und Resolver-Informationen.
+
+
+0.0.8.45 – DOMAIN ECONOMICS, EXPIRY & ANTI-SQUATTING
+----------------------------------------------------
+
+Domains werden nicht für immer kostenlos reserviert.
+
+TODO:
+- 1-, 2- und 5-Jahres-Registrierungen
+- Renewal
+- Expiry
+- Grace Period
+- kurze Namen teurer als lange Namen
+- hochknappe Namen ggf. über deterministische Auction
+- Mass-Registration-Schutz
+- steigender Reservation Bond für große Domain-Portfolios prüfen
+- Bot-/Front-Running-Schutz
+- Commitment/Reveal für begehrte Registrierungen prüfen
+
+Development Treasury:
+- 0,5 % auf wirtschaftlichen Domain-Umsatz
+- REGISTER
+- RENEW
+- ggf. kostenpflichtige Domain-Auction
+
+Keine 0,5-%-Development-Fee auf:
+- Resolver Lookup
+- Website Request
+- Content Fetch
+- normale Browser-Navigation
+
+Hosting-/Storage-Kosten bleiben von Domain-Kosten getrennt.
+
+
+0.0.8.46 – QRX RESOLVER PROTOCOL
+--------------------------------
+
+Dezentrale Auflösung:
+
+name.qrx
+  ↓
+SHA3(name)
+  ↓
+QRX Name Registry
+  ↓
+signed NameRecord
+  ↓
+Manifest Root / Wallet / Service Record
+
+TODO:
+- kein zentraler DNS-Server
+- Chain-State-basierte Resolution
+- QRX P2P/DHT-Unterstützung
+- resolver cache
+- cache invalidation über sequence / finalized state
+- proof-verifizierte Resolution
+- mehrere Record Types
+- fallback-frei für .qrx
+
+Privacy-Regel:
+.qrx-Namen dürfen niemals zuerst an normalen DNS, ISP-DNS, Google DNS, Cloudflare DNS oder andere klassische Resolver geleakt werden.
+
+
+0.0.8.47 – PUBLIC_SIGNED QRX DRIVE OBJECTS
+------------------------------------------
+
+QRX Drive erhält neben privaten verschlüsselten Objekten einen öffentlichen, signierten Content-Modus für Websites und öffentliche Artefakte.
+
+Object Classes:
+- PRIVATE_PQ
+- PUBLIC_SIGNED
+
+PUBLIC_SIGNED:
+- content-addressed
+- SHA-3-verifiziert
+- Owner-signiert
+- redundant gespeichert
+- ohne privaten Entschlüsselungsschlüssel abrufbar
+
+TODO:
+- Public Website Objects
+- Public Asset Objects
+- Signed Manifest
+- Content-Type Metadata
+- immutable Content IDs
+- Version Metadata
+- MIME-Sicherheitsregeln
+- Integrity Verification vor Rendering
+
+
+0.0.8.48 – DECENTRALIZED WEBSITE HOSTING
+----------------------------------------
+
+Website-Dateien liegen auf QRX Drive, nicht auf einem zentralen Webserver.
+
+Beispiel:
+index.html
+css/app.css
+js/app.js
+img/logo.webp
+
+Flow:
+Website Folder
+  ↓
+PUBLIC_SIGNED objects
+  ↓
+Erasure Coding / Replication
+  ↓
+QRX Storage Providers
+  ↓
+Website Manifest
+  ↓
+DomainRecord -> Manifest Root
+
+TODO:
+- Static Site Manifest
+- relative Path Resolution
+- default index document
+- asset lookup
+- range requests
+- cache policy
+- immutable asset versioning
+- website deployment transaction
+- Domain -> Manifest update
+- content integrity check before execution
+
+Keine zentrale Hosting-Plattform ist für den Betrieb erforderlich.
+
+
+0.0.8.49 – WEBSITE VERSIONING & ROLLBACK
+----------------------------------------
+
+Jedes Deployment erzeugt einen neuen Manifest Root.
+
+Beispiel:
+mysite.qrx
+- deployment #43 -> current
+- deployment #42
+- deployment #41
+
+TODO:
+- Deployment History
+- signed deployment sequence
+- current Manifest pointer
+- Previous Version list
+- Rollback durch neuen signierten Domain Pointer
+- keine Mutation alter content-addressed Objekte
+- optional Pin/Unpin Policy
+- Garbage Collection nur wenn keine aktiven Referenzen/Contracts mehr bestehen
+
+Kein FTP, SSH oder zentraler Webserver für Rollback erforderlich.
+
+
+0.0.8.50 – PQ DOMAIN OWNERSHIP & CRYPTO AGILITY
+------------------------------------------------
+
+Domain Ownership muss langfristig post-quantenresistent sein.
+
+TODO:
+- ML-DSA-signierte Domain Updates
+- crypto-agile Domain Signature Suite
+- Key Rotation
+- Recovery Key / Recovery Policy
+- Owner-Key Migration
+- Hybrid-Modus wo sinnvoll
+- optional SLH-DSA für besonders langfristige Recovery-/Root-Artefakte
+- Downgrade Protection
+- Suite Version Binding
+- Replay Protection
+
+Ziel:
+Ein zukünftiger Quantencomputer darf nicht durch Brechen eines alten klassischen Domain-Schlüssels eine langlebige .qrx-Domain übernehmen können.
+
+
+0.0.8.51 – DOMAIN -> WALLET / IDENTITY UX
+-----------------------------------------
+
+QRX-Namen dienen nicht nur Websites.
+
+Beispiel:
+send 50 QUB to pascal.qrx
+
+TODO:
+- Domain -> QUB Address
+- Domain -> BTC Address optional
+- Wallet Resolution Preview
+- Owner Verification
+- Domain Age
+- Record History
+- Send Confirmation
+- Record Change Warning
+- Address-change risk warning
+- QRX Drive Share Record
+- Node / Service Identity
+
+Private Keys werden niemals im DomainRecord gespeichert.
+
+
+0.0.8.52 – QRX BROWSER CORE: WWW + QRX
+--------------------------------------
+
+Die GUI Wallet erhält eine integrierte Browser-App, die normales WWW und QRX-Net in derselben Oberfläche öffnen kann.
+
+Unterstützte Schemes:
+- http://
+- https://
+- qrx://
+
+Adressleisten-Regeln:
+- .qrx oder qrx:// -> ausschließlich QRX Resolver
+- normale Domains -> HTTPS/WWW
+- freie Suchbegriffe -> vom Nutzer gewählte Suchmaschine
+
+Beispiele:
+https://qrxchain.org
+wikipedia.org
+qrx://qrxchain.qrx
+lattemining.qrx
+
+TODO:
+- Back
+- Forward
+- Reload
+- Tabs
+- Address Bar
+- Downloads
+- History optional
+- Bookmarks
+- Website Permissions
+- WWW rendering
+- QRX rendering
+- QRX verified-site indicator
+- site security panel
+- separate Browser App in GUI Wallet
+
+Der Browser soll sich für Nutzer wie ein normaler Browser verhalten, aber QRX-Net nativ verstehen.
+
+
+0.0.8.53 – BROWSER SECURITY SANDBOX
+-----------------------------------
+
+Wichtigste Sicherheitsregel:
+Der Browser ist optisch Teil der Wallet, aber NICHT Teil des Wallet-Key-Kontexts.
+
+Untrusted Website JavaScript darf niemals direkten Zugriff erhalten auf:
+- Private Keys
+- Seed Phrase
+- Wallet Files
+- Tauri privileged IPC
+- Node Admin RPC
+- Filesystem
+- Wallet Database
+- unlocked signer
+
+Default Browser Sandbox:
+- Wallet access: DENIED
+- Filesystem: DENIED
+- Tauri privileged IPC: DENIED
+- Node admin RPC: DENIED
+- Private keys: IMPOSSIBLE
+- Clipboard: restricted / permission based
+- Camera: permission based
+- Microphone: permission based
+- Location: permission based
+
+TODO:
+- getrennte WebView-/Browser-Sandbox
+- origin isolation
+- process isolation soweit Plattform unterstützt
+- Content Security Policy
+- download sandbox
+- navigation policy
+- popup policy
+- mixed-content policy
+- certificate handling für WWW
+- no privileged bridge by default
+- browser crash darf Wallet Core nicht beschädigen
+
+
+0.0.8.54 – QRX DAPP PERMISSION BRIDGE
+-------------------------------------
+
+QRX-DApps können über eine stark begrenzte Permission API mit der Wallet interagieren.
+
+Beispielmethoden:
+- wallet_connect
+- get_public_address
+- request_signature
+- request_payment
+- resolve_name
+- open_drive_share
+
+Jede privilegierte Aktion läuft über die Wallet und niemals über direkten Key-Zugriff des Browsers.
+
+TODO:
+- per-site permission model
+- Allow / Ask / Deny
+- public address getrennt von payment permission
+- explicit transaction confirmation
+- amount / recipient / network anzeigen
+- permission expiry
+- revoke all
+- per-domain permission storage
+- phishing-resistant origin binding
+- qrx:// origin binding
+- WWW-DApps optional mit strengem Permission-Modell
+
+Kein DApp-Code erhält jemals den privaten Schlüssel.
+
+
+0.0.8.55 – QRX-NET CACHE & OFFLINE VERIFIED SITES
+-------------------------------------------------
+
+Content Addressing ermöglicht verifizierbaren lokalen Cache.
+
+TODO:
+- Local QRX Site Cache
+- Manifest Cache
+- Content Hash Validation
+- Signature Validation
+- Offline Mode
+- cached version indicator
+- cache size limit
+- LRU / retention policy
+- manual pinning
+- invalidate on newer finalized Domain sequence
+
+Anzeige z. B.:
+QRX Cached
+Offline verified copy
+Version 184
+
+Offline-Inhalt wird nur gerendert, wenn Manifest- und Content-Verifikation erfolgreich sind.
+
+
+0.0.8.56 – QRX SITE PUBLISHER
+-----------------------------
+
+Website-Publishing direkt aus GUI Wallet / Browser.
+
+Flow:
+Choose folder
+  ↓
+hash files
+  ↓
+create PUBLIC_SIGNED objects
+  ↓
+store redundantly on QRX Drive
+  ↓
+create/sign manifest
+  ↓
+UPDATE_DOMAIN
+  ↓
+site live
+
+GUI:
+- Choose Site Folder
+- Select .qrx Domain
+- Storage Profile
+- Estimated Physical Storage
+- Estimated QUB Cost
+- Publish
+- Deployment Progress
+- Current Version
+- Rollback
+
+TODO:
+- preflight validation
+- invalid path protection
+- symlink policy
+- no artificial logical file-size cap; enforce only chunk/range/quota/capacity bounds
+- forbidden/unsafe local references
+- atomic deployment pointer switch
+- deploy failure leaves previous site live
+
+
+
+0.0.8.56.1 – UNBOUNDED LOGICAL OBJECTS / HIERARCHICAL CHUNK INDEX
+------------------------------------------------------------------
+
+QRX Drive MUST NOT impose an arbitrary product-level file-size limit such as
+2 GB, 100 GB, 1 TB or similar. Large files are logical objects composed of
+bounded independently processable chunks.
+
+Protocol rules:
+- logical plaintext length uses uint64_t
+- default chunk size: 8 MiB
+- supported chunk range: 64 KiB .. 64 MiB
+- hierarchical content-addressed 64-way index pages
+- bounded-memory upload/download
+- streamed restore
+- each private chunk encrypted independently with AES-256-GCM
+- one 256-bit file key per logical object
+- file key wrapped using X25519MLKEM768 hybrid KEM
+- SHA3-256 CAS integrity for descriptor, index pages and chunks
+- per-chunk AAD binds object salt, chunk index and plaintext length
+- P2P transfer remains range-bounded and resumable
+
+There is no artificial QRX product cap on total object size. Practical limits
+come only from uint64_t protocol representation, host filesystem limits, user
+quota, available proven network capacity and contract economics.
+
+0.0.8.57 – QRX RESOURCE GLOBE: QRX-NET LAYER
+--------------------------------------------
+
+Der bestehende 3D Resource Globe erhält QRX-Net-Ebenen.
+
+Neue Layer:
+- Hosted Sites
+- Active Domains
+- Website Storage
+- Serving Providers
+- Web Demand
+- Regional Availability
+- QRX-Net Redundancy
+- QRX-Net Opportunity
+
+Aggregierte Kennzahlen z. B.:
+- Active .qrx Domains
+- Hosted Sites
+- Website Logical Data
+- Physical Redundant Storage
+- Serving Providers
+- Requests / 24h
+- Cache Hit Ratio
+- Healthy Site Manifests
+
+Privacy-Regeln des Resource Globe gelten unverändert:
+Keine exakten Heimnode-/Provider-Standorte veröffentlichen.
+
+
+0.0.8.58 – QRX-NET OPPORTUNITY & HOSTING MISSIONS
+-------------------------------------------------
+
+Opportunity Engine wird auch für Web Hosting verwendet.
+
+TODO:
+- Regionen mit zu wenig Serving Capacity erkennen
+- Regionen mit zu wenig unabhängigen Host Providern erkennen
+- regionalen Web Demand berücksichtigen
+- Latency Benefit berücksichtigen
+- ASN-/Failure-Domain-Diversität berücksichtigen
+- Hosting Missions erzeugen
+- Storage + Hosting Opportunity gemeinsam anzeigen
+
+Beispiel:
+Southern Africa
+Web Serving Opportunity: 91/100
+Storage Opportunity: 94/100
+Recommended: additional independent QRX Drive/Hosting providers
+
+Keine garantierten Ertragsversprechen.
+
+
+0.0.8.59 – QRX-NET GATEWAY COMPATIBILITY
+----------------------------------------
+
+Optionale Gateways können QRX-Net-Inhalte normalen Browsern zugänglich machen.
+
+Wichtig:
+Gateways sind Komfort und dürfen niemals Voraussetzung für QRX-Net sein.
+
+TODO:
+- optional HTTPS -> qrx:// gateway
+- read-only verified rendering
+- Manifest-/Content-Verifikation
+- aggressive isolation
+- gateway cache
+- no privileged wallet functions
+- mehrere unabhängige Gateways möglich
+- QRX-native Clients umgehen Gateways vollständig
+
+
+0.0.8.60 – HOMOGRAPH / PHISHING PROTECTION
+------------------------------------------
+
+Naming und Browser benötigen Anti-Phishing-Schutz.
+
+TODO:
+- Unicode normalization
+- confusable detection
+- mixed-script warning
+- canonical display
+- suspicious-name warning
+- optional punycode/safe representation
+- signed-owner identity display
+- recently transferred domain warning
+- recently changed wallet record warning
+- browser security indicator
+
+Keine zentral kontrollierte Domain-Zensur als Grundlage des Systems.
+
+
+0.0.8.61 – QRX-NET ADVERSARIAL TESTNET
+--------------------------------------
+
+Zusätzliche Testfälle:
+- Domain front-running
+- registration spam
+- mass squatting
+- commitment/reveal abuse
+- expired-domain takeover edge cases
+- replayed domain update
+- forged ML-DSA domain update
+- crypto downgrade
+- malicious website manifest
+- modified HTML/JS object
+- poisoned cache
+- stale manifest replay
+- malicious redirect
+- QRX->DNS leak
+- homograph phishing
+- malicious DApp permission request
+- browser sandbox escape attempts
+- privileged IPC access attempts
+- drive/path traversal
+- malicious download
+- compromised optional gateway
+- provider censorship
+- regional hosting outage
+- domain owner key rotation failure
+- rollback abuse
+
+
+0.0.8.62 – DRIVE_V1 + QRX_NET_V1 MAINNET READINESS
+--------------------------------------------------
+
+0.0.8 darf als vollständige Mainnet-Funktion erst aktiviert werden, wenn sowohl Drive als auch QRX-Net die Readiness Gates erfüllen.
+
+DRIVE_V1 Gates:
+- Proof system adversarial getestet
+- Capacity Fraud abgesichert
+- Redundancy stabil
+- Repair autonom
+- Economics simuliert
+- QUB Distribution validiert
+- Development Share transparent
+- PQ Data-at-Rest validiert
+- Crypto Agility getestet
+- keine zentrale Pflichtinfrastruktur
+
+QRX_NET_V1 Gates:
+- Name Registry deterministisch
+- Registration/Renew/Expiry sicher
+- Domain Economics simuliert
+- Resolver ohne Zentralserver funktionsfähig
+- .qrx DNS-Leak-Schutz validiert
+- PUBLIC_SIGNED content verification stabil
+- Website rollback stabil
+- PQ Domain Ownership validiert
+- Browser Sandbox auditiert
+- DApp Permission Bridge auditiert
+- Homograph/Phishing-Schutz aktiv
+- QRX-Net funktioniert ohne offizielle QRX/CURA-Gateways
+
+Mandatory Upgrade:
+- post-Genesis PROTOCOL_UPGRADE
+- Protocol 9
+- DRIVE_V1 + QRX_NET_V1 Feature Set
+- Activation Height nach realen Mainnet-Blockzeiten festlegen
+- Ziel weiterhin ungefähr 30.11.2026
+- Release ausreichend vor Activation Height verteilen
+- GUI/CLI/Daemon warnen veraltete Nodes deutlich
+
+Dezentralisierungs-Abschlusstest:
+CURA Server OFF
+Developer Nodes OFF
+Official Gateways OFF
+Official Storage Nodes OFF
+Official Website OFF
+
+Erwartung:
+- QRX Chain läuft
+- QRX Drive läuft
+- .qrx Resolution läuft
+- .qrx Websites laden
+- Provider werden bezahlt
+- Repairs funktionieren
+- Nutzer können eigene Sites veröffentlichen
+
+
+QRX-NET VISION NACH 0.0.8
+-------------------------
+
+0.0.8 liefert:
+QRX Chain
++
+QRX Drive
++
+Decentralized Naming
++
+Domain Hosting
++
+QRX Resolver
++
+PUBLIC_SIGNED Websites
++
+PQ Domain Ownership
++
+WWW + QRX Browser
++
+DApp Permission Bridge
++
+Resource Globe
+
+Damit entsteht:
+
+QRX-NET – DECENTRALIZED INTERNET FOUNDATION
+
+0.0.9 erweitert dieselbe Grundlage um:
+- QRX Compute
+- dynamische dezentrale Anwendungen
+- dezentrale APIs
+- AI Services
+- AI Agents
+- Model / Expert Execution
+
+Zielbild ab 0.0.9:
+Static Frontend  -> QRX Drive
+Dynamic Backend  -> QRX Compute
+AI               -> QRX Compute / Model Registry
+Identity         -> QRX Wallet / .qrx Name
+Payments         -> QUB
+Naming           -> QRX Name Registry
+Storage          -> QRX Drive
+Settlement       -> QRX Chain
+
+
+
+============================================================
+QRX 0.0.9 – COMPUTE
+PROOF OF USEFUL COMPUTE & DISTRIBUTED AI
+============================================================
+
+0.0.9.0 – COMPUTE RESOURCE TYPE
+-------------------------------
+
+0.0.9 verwendet dieselbe Resource-, Storage- und QRX-Net-Infrastruktur aus 0.0.8.
+QRX-Net-Websites bleiben statisch auf QRX Drive; dynamische Anwendungen können ab 0.0.9 QRX Compute als dezentralen Backend-/AI-Layer verwenden.
+
+Erweitern:
+ResourceProvider
+resource_type = COMPUTE
+
+Provider meldet:
+- CPU architecture
+- cores/threads
+- RAM
+- memory bandwidth
+- storage bandwidth
+- network bandwidth
+- accelerator features
+- local models
+- local expert shards
+- current load
+- compute price
+- availability
+
+
+0.0.9.1 – CROSS-PLATFORM COMPUTE RUNTIME
+----------------------------------------
+
+x86-64:
+- SSE fallback wenn sinnvoll
+- AVX2
+- FMA
+- AVX-512
+- BF16
+- AMX wo verfügbar
+
+ARM64:
+- NEON
+- SVE
+- SVE2
+
+Plattformen:
+- Linux x86-64
+- Linux ARM64
+- Windows x86-64
+- macOS Intel
+- macOS Apple Silicon
+
+Runtime Dispatch:
+qrx-compute doctor
+ ↓
+detect hardware
+ ↓
+benchmark
+ ↓
+select fastest verified kernels
+
+
+0.0.9.2 – COMPUTE BENCHMARK
+---------------------------
+
+Nicht GHz bezahlen.
+
+Standardisierte Benchmarks:
+- MXFP4 matmul
+- BF16 matmul
+- memory bandwidth
+- storage streaming
+- network throughput
+- MoE expert execution
+- model inference test
+
+Ausgabe:
+- QRX Compute Score
+- Normalized Compute Units
+
+
+0.0.9.3 – QRX AI MODEL REGISTRY
+-------------------------------
+
+Modelle on-chain registrieren.
+Große Daten liegen in QRX Drive.
+
+Model Registry:
+- Model ID
+- Version
+- Architecture
+- Runtime
+- Manifest Root
+- Tokenizer Root
+- Expert Manifest
+- Memory Requirements
+- Storage Requirements
+- Verification Profile
+- License Metadata
+
+Kimi K3 wird erstes High-End-MoE-Zielmodell.
+
+
+0.0.9.4 – COMPUTE JOB PROTOCOL & JOB GRAPHS
+-------------------------------------------
+
+AURA Chat ist nicht selbst der Compute Job. AURA plant eine Nutzeranfrage als
+einen oder mehrere deterministische, voneinander referenzierbare Jobs.
+
+Job Types V1:
+- AI_INFERENCE
+- CODE_GENERATION
+- CODE_EXECUTION
+- DOCUMENT_GENERATION
+- DATA_ANALYSIS
+- COMPILE
+- TEST
+- CONVERSION
+- RESEARCH
+- CUSTOM_SANDBOXED
+
+Job Descriptor:
+- task_id / parent_job_id / graph_id
+- model_id + version
+- encrypted input / QRX Drive references
+- input commitment
+- requested runtime / architecture / accelerator class
+- memory / storage / max runtime / max output
+- max compute units / max fee / deadline
+- verification mode
+- sandbox permissions
+- artifact output policy
+
+Prompts, private files and source code are not published on-chain.
+On-chain / settlement-visible data uses commitments and minimum metadata.
+
+Job Graphs allow PLAN -> GENERATE -> COMPILE -> TEST -> PACKAGE without making
+AURA a centralized Compute gatekeeper. External clients may submit jobs directly.
+
+
+0.0.9.5 – COMPUTE MARKET, QUOTES & ESCROW  [IMPLEMENTED 0.0.9.5]
+-----------------------------------------
+
+Provider selection uses capabilities, NCU benchmark, model locality, price,
+reliability, latency and verification requirements.
+
+User sets a maximum cost before execution.
+Example:
+Maximum Compute Fee    4 QUB
+FastTrack Fee          1 QUB
+Wallet locks           5 QUB
+Actual Compute         2.7 QUB
+FastTrack              1.0 QUB
+Refund                 1.3 QUB
+
+No surprise costs. Quote expiry, max slippage and deterministic settlement.
+Standard jobs receive anti-starvation/fair scheduling. FastTrack is optional.
+FASTTRACK_DEV_SHARE_BPS = 50 = 0.5% only of FastTrack fee; no development share
+on normal compute execution.
+
+
+0.0.9.6 – SECURE EXECUTION SANDBOX
+----------------------------------
+
+Every executable job runs in a declared sandbox profile.
+Default deny:
+- host command access
+- host filesystem writes
+- arbitrary external network
+- wallet private keys / seed / raw signer
+- provider secrets
+
+Explicit capabilities can be granted per job and must be visible before user
+approval. Resource limits: CPU/accelerator time, RAM, disk, output, network,
+wall-clock deadline and child-process policy.
+
+Code generation is separate from code execution: generated code never receives
+automatic host execution rights.
+
+
+0.0.9.7 – PROOF OF USEFUL COMPUTE & VERIFICATION
+------------------------------------------------
+
+PoUC rewards user-requested useful work, not meaningless hashing.
+Execution commitment includes input/model/runtime/parameters/result/receipt and
+provider signature.
+
+Verification modes:
+LOW      -> spot verification
+STANDARD -> worker + random verification
+HIGH     -> redundant / 2-of-3 where appropriate
+
+Planned: seeded deterministic execution where possible, challenge verification,
+partial recomputation, fraud proofs/slashing and benchmark attestation.
+Provider settlement can use NCU x rate x valid result x reliability/performance
+plus legitimate cache/bandwidth/verification rewards.
+
+
+0.0.9.8 – AURA AGENT RUNTIME & TOOL API [DONE]
+----------------------------------------------
+
+AURA becomes the user-facing agent/orchestration layer on top of QRX Compute.
+It may plan jobs and use narrowly scoped tools, but is not required for direct
+Compute API access.
+
+Tool classes:
+- model inference
+- QRX Drive read/write through user grants
+- job submit/status/cancel
+- artifact creation
+- code generation
+- sandboxed compile/test
+- research connectors subject to permissions
+
+AURA never receives seed/private keys and cannot silently raise cost limits.
+
+
+0.0.9.9 – AURA CHAT
+-------------------
+
+First-class AURA Chat in the QRX Wallet / GUI.
+
+Features:
+- streaming token/result delivery
+- conversations and project context
+- model/router selection
+- visible estimated/max cost
+- cancel / retry / branch
+- privacy mode and encrypted context references
+- direct links to generated jobs and artifacts
+
+AURA Chat is a client of the Compute Job API, not a privileged consensus path.
+
+
+0.0.9.10 – FILES, PROJECTS & ARTIFACT CREATION
+----------------------------------------------
+
+AURA Workspace:
+- Chats
+- Projects
+- Files
+- Code
+- Compute Jobs
+- Generated Artifacts
+
+Generated artifacts can include text, Markdown, CSV, structured data, documents,
+presentations, spreadsheets, archives and other formats supported by installed
+sandboxed generators. Outputs can be stored in QRX Drive with content roots and
+explicit user-controlled sharing.
+
+No claim that every file format is available until its generator backend exists.
+
+
+0.0.9.11 – CODE GENERATION, BUILD & TEST JOBS
+---------------------------------------------
+
+AURA can operate on user-approved source trees / QRX Drive projects:
+ANALYZE -> PLAN -> GENERATE PATCH -> BUILD -> TEST -> SECURITY CHECK -> ARTIFACT.
+
+Requirements:
+- no automatic execution outside sandbox
+- source snapshot / dependency lock / toolchain identity
+- build and test logs
+- changed-file / patch review
+- user approval before publishing/deploying externally
+- reproducible-build metadata where supported
+
+This is also the technical foundation later reused by 0.0.10 Ouroboros: AURA may
+research and produce candidate QRX changes, but Mainnet protocol activation still
+requires the 0.0.10 governance process.
+
+
+0.0.9.12 – TASK-LEVEL DISTRIBUTED COMPUTE V1
+--------------------------------------------
+
+Nicht sofort jedes MoE-Expert über das WAN verteilen.
+
+Zunächst:
+Task A -> Node A
+Task B -> Node B
+Task C -> Node C
+Task D -> Compute Cluster D
+
+Das gibt früh echte horizontale Skalierung.
+
+
+0.0.9.13 – INTELLIGENT AI ROUTER
+--------------------------------
+
+Nicht jeder Task braucht Kimi K3.
+
+Router:
+Simple Task -> small local model
+Coding -> coding-specialized model
+RAG -> specialist model
+Hard reasoning -> larger model
+Extreme task -> Kimi K3 / high-end MoE
+
+Ziele:
+- Kosten reduzieren
+- Latenz reduzieren
+- Netzwerk entlasten
+- passende Hardware auswählen
+
+
+0.0.9.14 – KIMI K3 RUNTIME INTEGRATION
+--------------------------------------
+
+Auf dem besprochenen Kimi-K3-in-C/MoE-Ansatz aufbauen.
+
+TODO:
+- QRX Runtime Adapter
+- Model Manifest
+- Expert Manifest
+- shard-aware loading
+- storage streaming
+- local caching
+- CPU capability dispatch
+- Windows/Linux/macOS/ARM support
+- benchmark suite
+- deterministic verification mode
+
+
+0.0.9.15 – MoE EXPERT DISTRIBUTION V2
+-------------------------------------
+
+Später echte Expert-Verteilung.
+
+MoE Router
+ |
+ +-> Expert Group A
+ +-> Expert Group B
+ +-> Expert Group C
+ +-> Expert Group D
+
+Scheduler berücksichtigt:
+- expert locality
+- compute performance
+- network latency
+- storage bandwidth
+- current cache
+- load
+- price
+
+
+0.0.9.16 – EXPERT LOCALITY SCHEDULING
+-------------------------------------
+
+Grundprinzip:
+Compute zum Expert-Shard bringen.
+
+Nicht bei jedem Request gigantische Model-Shards verschieben.
+
+TODO:
+- expert-aware scheduling
+- local shard preference
+- nearby shard preference
+- cache warming
+- demand prediction
+- hot expert replication
+
+
+0.0.9.17 – EXPERT CACHE MARKET
+------------------------------
+
+Storage und Compute verschmelzen.
+
+Provider können bereitstellen:
+- Storage
+- AI Expert Cache
+- Compute
+
+Belohnung für:
+- gespeicherte Expert Packs
+- hohe Availability
+- schnelle Auslieferung
+- hohe Nachfrage
+- regionale Knappheit
+
+
+0.0.9.18 – DISTRIBUTED MoE WAN SAFETY
+-------------------------------------
+
+Nicht einfach 16 Experts über beliebige Kontinente verteilen.
+
+Scheduler berücksichtigt:
+- latency clusters
+- nearby compute pods
+- local model cache
+- expert distribution cost
+- timeout
+- fallback experts/nodes
+
+Ziel:
+WAN-Latenz darf den MoE-Vorteil nicht zerstören.
+
+
+0.0.9.19 – QRX COMPUTE PODS
+---------------------------
+
+Mehrere Nodes können lokale Hochgeschwindigkeitscluster bilden.
+
+QRX Compute Pod:
+- Node A
+- Node B
+- Node C
+- Node D
+
+Intern:
+schnelles LAN / lokale Expert-Verteilung
+
+Extern:
+ein QRX Resource Provider Cluster
+
+Damit können Datacenter und private Homelab-Cluster effizient teilnehmen, ohne das Netzwerk zu zentralisieren.
+
+
+0.0.9.20 – QRX RESOURCE GLOBE EXPANSION
+---------------------------------------
+
+Der 0.0.8-Globe wird weiterverwendet.
+
+Neue Ebenen:
+- STORAGE
+- COMPUTE
+- AI
+- MODEL CACHE
+- NETWORK
+- OPPORTUNITY
+
+Visualisierung:
+- Storage Vaults
+- Compute Nodes
+- AI Nodes
+- Model Cache
+- Opportunity
+
+
+0.0.9.21 – COMPUTE OPPORTUNITY ENGINE
+-------------------------------------
+
+Wallet kann sagen:
+Your Region
+Storage Opportunity       42
+Compute Opportunity       87
+Kimi Expert Cache         95
+
+Empfehlung:
+Recommended Configuration
+Storage             2 TB
+AI Expert Cache   500 GB
+Compute          12 threads
+
+Ziel:
+User wird für Ressourcen belohnt, die das Netzwerk tatsächlich benötigt.
+
+
+0.0.9.22 – ANIMATED AI TASK GLOBE [DONE 2026-09-09]
+---------------------------------------------------
+
+Bei eigenen Tasks:
+Task submitted
+ ↓
+scheduler
+ ↓
+compute providers
+ ↓
+expert groups
+ ↓
+result
+
+IMPLEMENTIERT 0.0.9.22:
+- deterministischer Task-Event-Stream SUBMITTED / SCHEDULED / COMPUTE / EXPERT / RESULT / FAILED
+- privacy-sichere Animation Frames als Core-Datenfeed
+- aggregierte Counts fuer Compute Providers, Regionen, Pods, Expert Groups und Experts
+- FastTrack Status + deterministischer Fortschritt in basis points
+- Default Privacy Gate >=3 unterschiedliche Provider; darunter werden die oeffentlichen Counts unterdrueckt
+- Provider-/Pod-IDs bleiben interne Deduplication Keys und werden nicht in Public Frames ausgegeben
+- strikt monotone Sequenzen, Single-Task Timeline, keine Events nach RESULT/FAILED
+- SHA3-256 Commitment QRX/TASK-GLOBE/FRAME/V1
+- Test compute_phase147_task_globe; kompletter registrierter Core-Testbestand 80/80 PASS
+
+Globe kann aggregiert anzeigen:
+- 8 Compute Providers
+- 4 Regions
+- 16 Expert Groups
+- FastTrack ON
+
+Keine sensiblen Node-Standorte.
+
+Scope-Grenze: 0.0.9.22 liefert den Core-Datenfeed fuer die animierte Darstellung. Ein produktiver Live-P2P-Telemetrie-Transport und die finale Wallet-Renderer-Wiring sind damit nicht behauptet.
+
+
+0.0.9.23 – QRX OS COMPUTE INTEGRATION
+-------------------------------------
+
+QRX OS nutzt:
+QRX Wallet -> identity / payment
+QRX Drive -> data / artifacts / model storage
+QRX Compute -> computation
+QRX Chain -> contracts / proofs / settlement
+
+Anwendungen:
+- Chat
+- Coding
+- Documents
+- Research
+- RAG
+- Build Tasks
+- AI Agents
+- Batch Compute
+
+
+0.0.9.24 – RESOURCE PROVIDER UNIFIED UX
+---------------------------------------
+
+Gemeinsamer Bereich:
+
+QRX RESOURCE NODE
+
+Storage
+[ON]
+4 TB
+
+AI Expert Cache
+[ON]
+500 GB
+
+Compute
+[ON]
+12 Threads
+
+Bandwidth
+500 Mbit/s
+
+Revenue:
+- Storage Revenue
+- Bandwidth Revenue
+- Repair Revenue
+- Compute Revenue
+- Verification Revenue
+- Expert Cache Revenue
+
+
+0.0.9.26 – COMPUTE ADVERSARIAL TESTNET
+--------------------------------------
+
+Testen:
+- Fake Compute
+- Wrong Results
+- Partial Execution
+- Model Mismatch
+- Runtime Mismatch
+- Result Collusion
+- Verifier Collusion
+- Slow Worker
+- Task Theft
+- Prompt Leakage
+- FastTrack Spam
+- Queue Starvation
+- Sybil Compute Nodes
+- Cache Fraud
+- Expert Unavailability
+- WAN Latency Failures
+- Compute Pod Failure
+
+
+0.0.9.27 – MAINNET PoUC ACTIVATION
+----------------------------------
+
+Erst wenn:
+- Compute Verification stabil
+- Rewards wirtschaftlich simuliert
+- FastTrack fair
+- Standard Tasks nicht verhungern
+- FastTrack Development Share transparent
+- Model Integrity verifiziert
+- Provider Fraud beherrschbar
+- Resource Globe Privacy geprüft
+- Compute funktioniert ohne offizielle QRX Server
+
+
+============================================================
+ENDARCHITEKTUR
+============================================================
+
+QRX CHAIN
+  |
+  +-- Contracts / Escrow / Proofs / Settlement / Reputation
+       |
+       +-- QRX RESOURCE MARKET
+            |
+            +-- QRX STORAGE 0.0.8
+            |    +-- Proof of Storage
+            |    +-- PQ-safe encrypted shards
+            |
+            +-- QRX COMPUTE 0.0.9
+                 +-- Proof of Useful Compute
+                 +-- AI / CPU jobs
+
+Alles über QRX P2P / DHT und visualisiert im QRX RESOURCE GLOBE.
+
+
+============================================================
+WIRTSCHAFTLICHE GRUNDREGELN
+============================================================
+
+STORAGE
+-------
+
+User bezahlt QUB.
+
+Davon grundsätzlich:
+- 0,5 % -> QRX Development Treasury
+- ca. 2 % -> Resilience Reserve
+- Rest -> tatsächlich leistende Storage Provider
+
+Die konkreten Reserve-Prozentsätze müssen vor Mainnet simuliert werden.
+
+Provider werden nach tatsächlicher Leistung bezahlt.
+Mehr nachgewiesener Storage erhöht erwartete Assignment- und Einkommenschancen.
+Kein Storage-Anteil erhöht die normale Validator-Blockchance.
+
+Storage-Development-Share nur auf wirtschaftliche Storage-Aktionen:
+- CREATE
+- RENEW
+- EXPAND
+
+Keine erneute Dev Fee auf:
+- Proof
+- Repair
+- Migration
+- Provider Replacement
+- Settlement
+
+
+COMPUTE
+-------
+
+User bezahlt tatsächlichen Compute.
+
+Normaler Compute:
+- Provider Revenue
+- normale QRX Network Economics
+
+Optional:
+FastTrack Fee
+
+Nur davon:
+- 0,5 % -> QRX Development Treasury
+
+Standardtasks besitzen Anti-Starvation-Schutz.
+
+
+============================================================
+QRX GRUNDPRINZIP
+============================================================
+
+QRX bezahlt langfristig nicht einfach:
+"Hardware vorhanden"
+
+sondern:
+Hardware vorhanden
++
+Ressource nachgewiesen
++
+Ressource verfügbar
++
+Ressource tatsächlich nützlich
++
+Leistung korrekt erbracht
+
+Damit entsteht:
+Proof of Storage
+        ↓
+Proof of Useful Resources
+        ↓
+Proof of Useful Compute
+
+Und für gespeicherte Nutzerdaten gilt zusätzlich:
+Client-side encrypted
++
+post-quantum key protection
++
+crypto agility
++
+mandatory redundancy
++
+autonomous repair
+
+Damit sind QRX Drive und QRX-Net 0.0.8 gleichzeitig die technische, wirtschaftliche, kryptographische und netzwerkseitige Grundlage für QRX Compute 0.0.9.
+0.0.8 bildet Storage + Naming + Hosting + Browser; 0.0.9 ergänzt verteiltes Compute und dynamische dezentrale Anwendungen.
+
+
+
+============================================================
+QRX 0.0.10 – CODENAME: OUROBOROS
+DAO GOVERNANCE · AURA AUTONOMOUS R&D · SEPA ACCESS LAYER
+SELF-IMPROVING, HUMAN-GOVERNED QRX
+============================================================
+
+LEITBILD
+--------
+
+0.0.10 "Ouroboros" schließt den Kreis:
+
+QRX Chain
+  -> QRX Drive / QRX-Net
+  -> QRX Compute / Distributed AI
+  -> AURA analysiert das reale Netzwerk und den Stand der Technik
+  -> AURA erstellt überprüfbare Verbesserungsvorschläge
+  -> Community / Governance entscheidet
+  -> freigegebene Änderungen werden reproduzierbar gebaut, getestet und aktiviert
+  -> AURA misst die reale Wirkung
+  -> neuer Optimierungszyklus
+
+WICHTIGER GRUNDSATZ:
+AURA darf das Protokoll NICHT eigenmächtig verändern.
+"Self-improving" bedeutet Proposal-Autonomie, nicht unkontrollierte Deployment-Autonomie.
+
+Die QRX DAO soll als Non-Profit-Protokollorganisation aufgebaut werden.
+Als Zieljurisdiktion wird eine Marshall Islands Non-Profit DAO LLC geprüft.
+Die endgültige Struktur ist vor Umsetzung durch qualifizierte Rechts-/Steuerberatung
+in RMI, Deutschland und den relevanten EU-Märkten zu bestätigen.
+
+AURA = Autonomous Upgrade & Research Agent
+Arbeitstitel; finaler Name/Backronym per Governance festlegbar.
+
+
+0.0.10.0 – OUROBOROS GOVERNANCE INVARIANTS
+------------------------------------------
+
+- AURA kann beobachten, analysieren, simulieren, testen und Proposals erzeugen.
+- AURA kann niemals allein Consensus-Code aktivieren.
+- Keine selbstsignierten AURA-Upgrades.
+- Keine versteckten Auto-Update-Kanäle.
+- Jede Änderung besitzt Source Commit, Build Manifest, Tests und reproduzierbare Artefakte.
+- Consensus-/Tokenomics-/Treasury-/Security-Änderungen benötigen Governance.
+- Nutzer müssen vor Mandatory Upgrades ausreichend gewarnt werden.
+- Emergency-Pfade sind eng begrenzt, transparent, zeitlich befristet und nachprüfbar.
+- Governance selbst ist versioniert und upgradebar, aber niemals stillschweigend.
+
+
+0.0.10.1 – QRX DAO LEGAL WRAPPER
+--------------------------------
+
+Ziel:
+Marshall Islands Non-Profit DAO LLC als rechtlicher Wrapper der
+Open-Source-Protokoll-/Governance-Infrastruktur prüfen und – nach Legal Review –
+gründen.
+
+DAO-Zweck:
+- QRX Open-Source-Protokoll pflegen
+- Security Audits finanzieren
+- Infrastruktur / öffentliche Güter finanzieren
+- Grants / Bounties finanzieren
+- Forschung und AURA betreiben
+- Community Governance rechtlich abbilden
+- Marken/IP/öffentliche Repositories halten, soweit sinnvoll
+
+Non-Profit-Invariant:
+- keine Dividenden / Gewinnverteilung an Mitglieder
+- Treasury-Ausgaben nur für den festgelegten Organisationszweck
+- angemessene Vergütung realer Dienstleistungen bleibt möglich
+- Governance-/Utility-Rechte nicht automatisch mit wirtschaftlichen Eigentumsrechten koppeln
+
+TODO:
+- MIDAO / RMI Legal Review
+- deutsches Steuer-Gutachten zur tatsächlichen Geschäftsleitung / Betriebsstätte
+- EU/MiCA/VASP/CASP/AML-Prüfung
+- Operating Agreement
+- Membership / Governance Definition
+- Treasury Policy
+- Conflict-of-Interest Policy
+- Service-Provider Procurement Policy
+- Annual Filing / Compliance Process
+- Dissolution / Asset-Lock-Regeln für Non-Profit
+
+
+0.0.10.2 – DAO TREASURY & TRANSPARENCY
+--------------------------------------
+
+On-chain Treasury Dashboard:
+- Treasury Balance
+- Einnahmequelle
+- genehmigte Budgets
+- Grants
+- Audit-Ausgaben
+- Infrastruktur-Ausgaben
+- AURA-Ausgaben
+- Dienstleister-Rechnungen / Hashes
+- Abstimmungsreferenz
+- Auszahlung / TxID
+
+Große oder personenbezogene Dokumente nicht öffentlich on-chain:
+nur Hash/Commitment + geeignete Off-chain-/QRX-Drive-Ablage.
+
+Treasury-Ausgaben oberhalb definierter Schwellen:
+- Proposal
+- Timelock
+- Governance Approval
+- Multi-Party / Threshold Execution
+
+
+0.0.10.3 – AURA OBSERVATION LAYER
+---------------------------------
+
+AURA untersucht regelmäßig:
+
+QRX intern:
+- Consensus Health
+- Fork-/Finality-Risiken
+- P2P Topologie
+- Latenz
+- Storage Health
+- Repair Rate
+- Compute-Auslastung
+- Provider-Konzentration
+- Failure Domains
+- Gebühren
+- Queue Times
+- Slashing / False Positives
+- Software Crash-/Error-Telemetrie nur opt-in / privacy-preserving
+
+Öffentliche externe Forschung:
+- neue kryptographische Verfahren
+- PQC-Standards und Kryptanalyse
+- Consensus-/BFT-Forschung
+- P2P-/QUIC-/Transport-Optimierungen
+- Storage / Erasure Coding
+- Distributed Compute / MoE
+- Compiler / Runtime Optimierungen
+- bekannte CVEs und Supply-Chain-Risiken
+- ökonomische Angriffsmodelle
+- regulatorische Änderungen mit technischer Relevanz
+
+Keine heimliche Datensammlung.
+Keine privaten Nutzerinhalte als Trainings-/Analysequelle ohne ausdrückliche Zustimmung.
+
+
+0.0.10.4 – AURA INNOVATION / PROPOSAL ENGINE
+--------------------------------------------
+
+AURA erzeugt strukturierte QRX Improvement Proposals (QIPs).
+
+Jeder Vorschlag enthält mindestens:
+- Problem Statement
+- messbare Ausgangslage
+- erwarteter Sicherheitsnutzen
+- erwarteter Performance-/Kosten-Nutzen
+- finanzieller / tokenomischer Effekt
+- Privacy Impact
+- Dezentralisierungs-Impact
+- Kompatibilitätsrisiken
+- neue Attack Surface
+- Implementierungsplan
+- Rollback-Plan
+- Testplan
+- Simulationsergebnisse
+- Quellen / Research References
+- Confidence / Unknowns
+- Alternative Lösungen
+- "Do Nothing"-Vergleich
+
+AURA muss ausdrücklich zwischen:
+FACT / MEASUREMENT / ESTIMATE / HYPOTHESIS
+unterscheiden.
+
+
+0.0.10.5 – AURA SANDBOX & ADVERSARIAL LAB
+-----------------------------------------
+
+AURA darf Vorschläge zunächst nur in isolierten Umgebungen ausführen:
+
+- deterministic simulator
+- local devnet
+- fuzzing
+- property tests
+- differential tests
+- adversarial network simulation
+- economic attack simulation
+- Byzantine-node simulation
+- packet loss / latency / partition tests
+- corrupted storage / provider-loss tests
+- malicious compute-provider tests
+- rollback rehearsal
+
+Kein Mainnet-Key und keine Mainnet-Treasury-Schreibrechte im Research-Sandbox.
+
+
+0.0.10.6 – GOVERNANCE: COMMUNITY APPROVAL
+-----------------------------------------
+
+Ziel des Users:
+wesentliche AURA-/Protocol-Updates benötigen mindestens 51 % Zustimmung.
+
+Sicherheitsdefinition:
+"51 % der Nutzer" darf NICHT als 51 % beliebiger Wallet-Adressen implementiert werden,
+weil Wallets kostenlos vervielfältigt werden können (Sybil-Angriff).
+
+Vor Mainnet-Aktivierung muss Governance exakt definieren:
+- wer stimmberechtigt ist
+- wie Voting Power entsteht
+- Quorum
+- Approval Threshold
+- Abstimmungsdauer
+- Delegation
+- Anti-Sybil-Regeln
+- Whale-/Oligarchie-Schutz
+- Validator-/Provider-/User-Balance
+
+Empfohlener Startpunkt:
+- 51 % Approval der abgegebenen gültigen Governance Power
+- zusätzlich Mindest-Quorum
+- zusätzlich Sicherheitsquorum für Consensus-/Crypto-/Tokenomics-Änderungen
+- Timelock nach erfolgreicher Abstimmung
+- öffentliche Upgrade-Artefakte vor Aktivierung
+
+Keine reine "1 Wallet = 1 Stimme"-Governance ohne Sybil-Schutz.
+
+
+0.0.10.7 – DEVELOPER UPDATE PATH
+--------------------------------
+
+Der Entwickler darf weiterhin Updates entwickeln und vorschlagen.
+
+Normale Updates:
+Developer -> QIP -> Tests -> Governance -> Timelock -> Activation
+
+Nicht-konsensrelevante Client-/GUI-/Tooling-Updates:
+dürfen schneller veröffentlicht werden, solange sie keine Governance-Regeln,
+Tokenomics oder Consensus-Wirkung heimlich verändern.
+
+Emergency Security Path:
+- nur für klar definierte kritische Sicherheitsfälle
+- minimale Änderung
+- threshold-signierte Maintainer-Freigabe statt einzelner Dev-Key
+- automatische Ablaufzeit / Sunset
+- vollständige nachträgliche Offenlegung sobald verantwortbar
+- Governance-Ratifikation innerhalb eines definierten Fensters
+- kein permanenter "Developer Override"
+
+Ziel:
+Entwicklungsfähigkeit erhalten, ohne eine zentrale Hintertür zu schaffen.
+
+
+0.0.10.8 – GOVERNANCE SAFETY: TWO-CHAMBER OPTION
+------------------------------------------------
+
+Für besonders kritische Änderungen prüfen:
+
+Chamber A – Community:
+Nutzer / Governance Members
+
+Chamber B – Network Security:
+aktive Validatoren / Resource Provider mit nachgewiesener Teilnahme
+
+Kritische Consensus-/Crypto-Änderung:
+- Mehrheit Community
+UND
+- definierte Mehrheit Security Chamber
+UND
+- Quorum
+UND
+- Timelock
+
+Vorteil:
+Ein reiner Token-/Account-Angriff kann nicht allein das Protokoll übernehmen.
+
+
+0.0.10.9 – SEPA ACCESS LAYER
+----------------------------
+
+Ziel:
+User können in der QRX Wallet SEPA / SEPA Instant als bequemen Fiat-Zugang verwenden.
+
+WICHTIG:
+SEPA ist kein trustless HTLC-System.
+Eine Bankzahlung besitzt keine native On-chain-Atomicity.
+Daher keine falsche Bezeichnung als "trustless atomic SEPA swap".
+
+Architektur:
+Wallet
+  -> regulierter Banking / Payment / CASP Partner
+  -> SEPA / SEPA Instant
+  -> bestätigter Fiat Settlement Event
+  -> QRX Escrow / Swap Settlement
+
+QRX darf kryptographisch den On-chain-Teil absichern.
+Der Fiat-Teil benötigt einen rechtlich/regulatorisch zulässigen Zahlungs-/Exchange-Rail.
+
+
+0.0.10.10 – SEPA SWAP ESCROW
+-----------------------------
+
+Swap State Machine:
+OFFERED
+ -> CRYPTO_LOCKED
+ -> FIAT_PAYMENT_INITIATED
+ -> FIAT_CONFIRMED
+ -> CRYPTO_RELEASED
+
+Timeout:
+CRYPTO_LOCKED
+ -> FIAT_NOT_CONFIRMED
+ -> REFUND
+
+TODO:
+- unique payment reference
+- amount / currency binding
+- beneficiary binding
+- expiry
+- duplicate-payment protection
+- replay protection
+- final settlement confirmation
+- dispute state
+- refund state
+- audit trail
+- AML/sanctions hooks where legally required
+
+Keine Freigabe nur aufgrund eines vom User hochgeladenen Screenshots oder
+einer unbestätigten "payment initiated"-Meldung.
+
+
+0.0.10.11 – AURA SEPA RESOURCE MARKET
+-------------------------------------
+
+AURA soll QRX-Leistung gegen SEPA anbieten können, aber rechtlich sauber getrennt:
+
+Variante A – bevorzugt:
+User kauft eine konkrete QRX-Leistung in EUR
+(Storage / Compute / AI / Domain / Hosting).
+Ein regulierter Payment-Partner nimmt SEPA entgegen.
+Die DAO/AURA beschafft bzw. vergütet die zugrunde liegende Netzwerkleistung
+nach transparenten Regeln.
+
+Variante B – echter EUR <-> QUB Swap:
+nur über einen dafür regulatorisch geeigneten / lizenzierten CASP-/VASP-/Banking-Partner,
+sofern die jeweilige Jurisdiktion dies verlangt.
+
+AURA darf:
+- Preise vergleichen
+- Angebote routen
+- Escrow überwachen
+- Settlement vorschlagen/automatisieren
+- Provider auswählen
+
+AURA darf nicht:
+- regulatorische Pflichten "wegautomatisieren"
+- Bankbestätigungen erfinden
+- KYC/AML-Anforderungen umgehen
+- ohne Mandat Kundengelder kontrollieren
+
+
+0.0.10.12 – EUR-DENOMINATED RESOURCE PRICING
+--------------------------------------------
+
+Für Mainstream-Nutzer:
+Preis kann in EUR angezeigt und begrenzt werden.
+
+Beispiel:
+AI Task          max 0.40 EUR
+Storage          1.20 EUR / month
+Domain Renewal   3.00 EUR / year
+
+Settlement kann intern in QUB erfolgen, ohne dass der Nutzer zwingend
+QUB-Volatilität tragen muss, sofern der gewählte regulatorische Zahlungsweg
+dies zulässt.
+
+TODO:
+- quote expiry
+- FX / QUB price source diversity
+- max slippage
+- circuit breakers
+- stale-price protection
+- oracle manipulation protection
+- transparent fee breakdown
+
+
+0.0.10.13 – AURA PROCUREMENT & FAIR MARKET
+------------------------------------------
+
+AURA darf Netzwerkleistung einkaufen, aber keine bevorzugten Insider schaffen.
+
+Provider Selection berücksichtigt:
+- Preis
+- Qualität
+- Reliability
+- Latenz
+- Dezentralisierung
+- Failure Domain
+- Reputation
+- nachgewiesene Leistung
+
+Regeln:
+- deterministisch / auditierbar wo möglich
+- Related-Party-Transaktionen markieren
+- Interessenkonflikte offenlegen
+- große Aufträge governance-/budgetgebunden
+- keine verdeckten Zahlungen an Entwickler
+
+
+0.0.10.14 – SELF-IMPROVEMENT LOOP
+---------------------------------
+
+Observe
+  ↓
+Measure
+  ↓
+Research
+  ↓
+Propose
+  ↓
+Simulate
+  ↓
+Adversarial Test
+  ↓
+Independent Review
+  ↓
+Governance Vote
+  ↓
+Timelock
+  ↓
+Reproducible Build
+  ↓
+Canary / Staged Activation
+  ↓
+Mainnet Activation
+  ↓
+Measure Outcome
+  ↓
+Rollback or Keep
+  ↺
+
+Das ist der Ouroboros-Kreislauf.
+
+
+0.0.10.15 – REPRODUCIBLE AUTONOMOUS DEVELOPMENT
+-----------------------------------------------
+
+AURA-generierte Patches benötigen:
+- deterministic source snapshot
+- exact toolchain manifest
+- dependency hashes
+- SBOM
+- reproducible build target
+- signed test report
+- fuzz corpus/result
+- benchmark delta
+- security delta
+- protocol compatibility matrix
+
+Mindestens unabhängige Reproduktion durch mehrere Nodes vor Governance-Freigabe
+für kritische Releases.
+
+
+0.0.10.16 – AURA MODEL / AGENT GOVERNANCE
+-----------------------------------------
+
+AURA selbst ist versioniert.
+
+On-chain / governance-bound:
+- model/runtime version
+- system policy hash
+- tool permission manifest
+- allowed data sources
+- proposal schema version
+- max autonomous budget
+- sandbox permissions
+- release signing policy
+
+AURA darf sich nicht selbst eine neue Berechtigung geben.
+Permission Escalation benötigt Governance.
+
+
+0.0.10.17 – AURA SECURITY RESEARCH MODE
+---------------------------------------
+
+AURA darf kontinuierlich nach Verbesserungen suchen, inklusive:
+- CVE Monitoring
+- dependency risk
+- cryptographic deprecation
+- consensus edge cases
+- economic exploits
+- storage attacks
+- compute fraud
+- routing attacks
+- eclipse/Sybil risks
+- MEV / market manipulation
+- oracle manipulation
+
+Responsible Disclosure:
+kritische Zero-Days zunächst privat an definierte Security Maintainer,
+danach koordinierte Offenlegung.
+Keine automatische Veröffentlichung exploitierbarer Details vor Fix/Schutz.
+
+
+0.0.10.18 – FINANCIAL INNOVATION GUARDRAILS
+-------------------------------------------
+
+AURA darf finanzielle Innovationen vorschlagen, aber keine Tokenomics autonom ändern.
+
+Jede Tokenomics-Änderung enthält:
+- Emission impact
+- validator impact
+- storage provider impact
+- compute provider impact
+- user cost impact
+- treasury impact
+- concentration/Gini impact
+- attack economics
+- 1/2/5-year simulations
+- worst-case stress test
+
+Aktuelle Basisannahmen müssen aus Chain-Parametern gelesen werden,
+nicht aus hartcodierten AURA-Annahmen.
+
+
+0.0.10.19 – GOVERNANCE ATTACK RESISTANCE
+----------------------------------------
+
+TODO:
+- Sybil resistance
+- vote buying analysis
+- flash-loan / borrowed-voting protection falls relevant
+- snapshot height
+- delegation safety
+- quorum griefing protection
+- proposal spam bond / rate limit
+- malicious proposal simulation
+- social recovery / constitutional emergency process
+- governance key compromise response
+
+AURA darf Governance niemals als "51 % = automatisch sicher" behandeln.
+
+
+0.0.10.20 – CONSTITUTION / IMMUTABLE PRINCIPLES
+-----------------------------------------------
+
+Prüfen, ob eine kleine Menge besonders wichtiger Grundsätze nur mit
+Supermajority geändert werden darf:
+
+- keine konfiszatorische Änderung fremder Guthaben
+- keine heimliche Inflation
+- keine versteckte Developer-Mint-Funktion
+- keine zentrale Pflicht-Infrastruktur
+- keine AURA-Selbstaktivierung
+- keine Deaktivierung kryptographischer Verifikation ohne Governance
+- Schutz privater Schlüssel / privater Drive-Daten
+- transparente Treasury-Regeln
+
+Änderung dieser Constitution:
+z. B. 2/3 oder 3/4 + hohes Quorum + langer Timelock.
+
+
+0.0.10.21 – RELEASE / ACTIVATION POLICY
+---------------------------------------
+
+0.0.10 ist ein späterer Post-Genesis-Upgrade-Zweig nach stabiler 0.0.9 Compute-Basis.
+
+Vor Aktivierung:
+- DAO-Struktur rechtlich validiert
+- Governance auf Testnet adversarial getestet
+- SEPA-Partner / regulatorische Rollen geklärt
+- AURA Sandbox isoliert
+- kein autonomer Mainnet-Write-Pfad
+- reproducible builds
+- rollback tested
+- mandatory update distributed before activation
+
+Protocol-/Feature-Generation erst nach 0.0.9 stabil festlegen.
+
+
+0.0.10.22 – OUROBOROS ACCEPTANCE TEST
+-------------------------------------
+
+Test:
+Developer offline
+Official QRX servers offline
+AURA primary instance offline
+ein SEPA-/Payment-Partner offline
+
+Erwartung:
+- Chain bleibt funktionsfähig
+- Storage/Compute bleiben funktionsfähig
+- Governance bleibt prüfbar
+- AURA kann von unabhängigen Nodes reproduzierbar neu gestartet werden
+- kein einzelner AURA-Host ist Autorität
+- keine Proposal-Historie geht verloren
+- kein automatischer Protocol-Change ohne gültige Governance
+- SEPA-Funktion fällt sauber auf "unavailable"/anderen zugelassenen Partner zurück
+- Krypto-Funktionen bleiben unabhängig vom SEPA-Rail verfügbar
+
+
+OUROBOROS ZIELBILD
+-----------------
+
+QRX 0.0.10 Ouroboros ist NICHT:
+"Eine KI kontrolliert die Blockchain."
+
+QRX 0.0.10 Ouroboros IST:
+"Eine dezentrale Blockchain besitzt einen autonomen Research- und
+Engineering-Agenten, der das System kontinuierlich untersucht und verbessert,
+während Menschen/Netzwerkteilnehmer die souveräne Freigabe behalten."
+
+AURA THINKS.
+THE NETWORK DECIDES.
+QRX EVOLVES.
+
+0.0.10.23 – ARES / DAO FINANCIAL SEPARATION
+--------------------------------------------
+
+Ziel:
+QRX DAO und ARES Computer werden wirtschaftlich, technisch und buchhalterisch
+klar voneinander getrennt.
+
+Grundmodell:
+
+QRX DAO / PROTOCOL
+- Protocol Reserve
+- DAO Treasury
+- Grants / Security / Audits / Public Goods
+- AURA Budgets
+- Community-approved expenditures
+
+ARES COMPUTER / GERMANY
+- bestehende, transparent im QRX-Protokoll definierte Development Fees
+- separat beauftragte Entwicklungs-, Wartungs-, Research- und Supportleistungen
+- eigene Buchhaltung und deutsche steuerliche Behandlung
+- kein Eigentumsanspruch auf DAO Treasury allein aufgrund der Entwicklerrolle
+
+WICHTIG:
+Eine Development Fee ist nicht mit Protocol Reserve oder DAO Treasury
+gleichzusetzen. Alle drei Kategorien müssen technisch und im Accounting
+eindeutig unterscheidbar sein.
+
+
+0.0.10.24 – DEVELOPMENT FEE REGISTRY
+------------------------------------
+
+Für jede protocol-defined Development Fee werden versioniert dokumentiert:
+
+- fee_id
+- protocol version / activation height
+- wirtschaftliches Ereignis, auf das die Fee anfällt
+- fee rate / Berechnungsformel
+- Empfänger bzw. empfangende Rolle
+- Zweck
+- Chain / Asset
+- gültiger Zeitraum
+- Governance Proposal / Aktivierungsreferenz
+- Änderungshistorie
+
+Keine versteckte Fee.
+Keine nachträgliche einseitige Erhöhung durch ARES, Developer-Key oder AURA.
+
+Änderungen an protocol-defined Development Fees:
+QIP -> Governance -> Timelock -> Activation.
+
+Bestehende Dev-Fee-Rechte werden bei Einführung von Ouroboros nicht
+stillschweigend in DAO Treasury umklassifiziert.
+
+
+0.0.10.25 – SEPARATE TREASURY / ACCOUNTING IDENTITIES
+-----------------------------------------------------
+
+Mindestens logisch, vorzugsweise kryptographisch getrennte Accounting-Rollen:
+
+1. QRX_PROTOCOL_RESERVE
+2. QRX_DAO_TREASURY
+3. ARES_DEVELOPMENT_FEES
+4. DAO_GRANTS
+5. DAO_SECURITY_AUDITS
+6. AURA_OPERATING_BUDGET
+
+Jede Auszahlung erhält:
+- category
+- reason_code
+- source mechanism
+- related QIP / contract / invoice reference where applicable
+- amount / asset
+- timestamp / block height
+- transaction ID
+- counterparty role
+
+Keine Vermischung von ARES-Wallets mit DAO-Treasury-Keys.
+
+
+0.0.10.26 – ARES AS INDEPENDENT GERMAN SERVICE PROVIDER
+-------------------------------------------------------
+
+ARES Computer kann der QRX DAO reale Leistungen anbieten, z. B.:
+
+- Protocol Engineering
+- Wallet / GUI Development
+- QRX-Net Development
+- Compute / AURA Engineering
+- Security Engineering
+- Maintenance
+- Testing
+- Documentation
+- Support
+- Research
+
+Diese Leistungen sind von protocol-defined Development Fees zu unterscheiden.
+
+Für separat beauftragte Leistungen:
+- Scope / Leistungsbeschreibung
+- Angebot / Preis
+- Auftrag / Governance- oder Budgetgrundlage
+- Leistungsnachweis
+- Rechnung
+- Zahlung
+- Accounting Record
+
+Ziel der Struktur:
+ARES behandelt seine eigenen Einnahmen nach den in Deutschland geltenden
+steuerlichen und buchhalterischen Regeln. Die DAO bleibt eine davon getrennte
+Organisation.
+
+Diese Roadmap trifft keine verbindliche steuerliche Qualifikation einzelner
+Zahlungen; diese ist vor Produktivbetrieb mit qualifizierter deutscher und
+RMI-Beratung zu dokumentieren.
+
+
+0.0.10.27 – RELATED-PARTY TRANSACTION CONTROL
+---------------------------------------------
+
+Da der QRX-Gründer/Lead Developer mit ARES verbunden sein kann, werden
+ARES-Aufträge transparent als Related-Party-Transaktionen behandelt.
+
+Pflichtfelder:
+- related_party = true
+- Auftragnehmer
+- Scope
+- Preis / Pricing Basis
+- Auswahlgrund
+- Interessenkonflikt
+- Abstimmungs-/Freigabereferenz
+
+Bei Entscheidungen über zusätzliche ARES-Aufträge:
+- betroffene Personen dürfen nicht allein die Freigabe kontrollieren
+- AURA darf ARES nicht aufgrund einer hardcodierten Präferenz auswählen
+- marktgerechte Preis-/Leistungsprüfung
+- größere Aufträge: Governance bzw. definierte Multi-Party-Freigabe
+- öffentliche Nachvollziehbarkeit, soweit Datenschutz/Geschäftsgeheimnisse
+  dies zulassen
+
+Bestehende protocol-defined Dev Fees sind keine neue Beschaffungsentscheidung,
+müssen aber vollständig offengelegt und versioniert sein.
+
+
+0.0.10.28 – AURA PROCUREMENT NEUTRALITY
+---------------------------------------
+
+AURA darf Entwicklungsbedarf erkennen und Ausschreibungs-/Beschaffungsvorschläge
+erzeugen.
+
+AURA bewertet Anbieter nach vorher veröffentlichten Kriterien:
+- technische Kompetenz
+- QRX-Erfahrung
+- Security Track Record
+- Lieferfähigkeit
+- Preis
+- Qualität
+- Wartbarkeit
+- Zeitplan
+
+ARES darf aufgrund nachweisbarer QRX-Spezialkenntnis einen legitimen
+Qualitätsvorteil besitzen.
+
+Verboten:
+- versteckte ARES-Bevorzugung
+- manipulierte Vergleichsangebote
+- AURA-Regel, die ausschließlich ARES zulässt
+- Zahlung ohne dokumentierte Gegenleistung bei Service-Aufträgen
+
+
+0.0.10.29 – TAX / AUDIT EVIDENCE PACKAGE
+----------------------------------------
+
+Ouroboros erzeugt exportierbare Nachweise, die die tatsächliche Trennung
+zwischen DAO-Governance und deutschem Dienstleister dokumentieren können:
+
+- Governance votes
+- QIPs
+- Timelocks
+- AURA proposal logs
+- Treasury decisions
+- Development Fee Registry
+- Related-Party disclosures
+- ARES contracts / invoice hashes
+- payment transaction references
+- abstention / conflict-of-interest records
+- release approvals
+- emergency actions
+- governance membership / voting rules
+- AURA permission manifests
+
+Ziel:
+Dezentralisierung und wirtschaftliche Trennung nicht nur behaupten,
+sondern anhand der tatsächlichen Systemabläufe nachweisen können.
+
+Keine vertraulichen Steuer-/Personendaten ungefiltert öffentlich on-chain.
+Private Unterlagen können verschlüsselt gespeichert werden; on-chain genügt
+wo sinnvoll ein Commitment/Hash.
+
+
+0.0.10.30 – NO DE FACTO GERMAN MANAGEMENT BY DESIGN
+---------------------------------------------------
+
+Architekturziel, vorbehaltlich rechtlicher Würdigung:
+
+- ARES entwickelt Software, führt aber nicht automatisch die DAO.
+- ARES besitzt keine alleinige Verfügungsmacht über DAO Treasury.
+- ARES kann keine Consensus-/Tokenomics-/Treasury-Regel allein ändern.
+- AURA ist kein bloßes Frontend für Weisungen eines einzelnen Entwicklers.
+- Community-/Network-Governance muss tatsächlich funktionieren.
+- Emergency Authority bleibt threshold-basiert, eng begrenzt und auditierbar.
+- operative DAO-Entscheidungen müssen den dokumentierten Governance-Regeln
+  entsprechen.
+
+WICHTIG:
+Diese technische Gestaltung garantiert keine bestimmte deutsche
+Steuerqualifikation. Maßgeblich bleibt insbesondere die tatsächliche
+Geschäftsführung in der Praxis. Vor Gründung/Produktivbetrieb:
+deutsche und RMI-Rechts-/Steuerprüfung und Prüfung einer verbindlichen
+Auskunft bzw. geeigneten Vorabklärung mit der deutschen Finanzverwaltung.
+
+
+0.0.10.31 – FINANCIAL SEPARATION ACCEPTANCE TEST
+------------------------------------------------
+
+Testfall:
+- AURA schlägt ein neues QRX-Feature vor.
+- ARES bietet die Implementierung an.
+- weitere Anbieter dürfen grundsätzlich ebenfalls anbieten.
+- Related-Party-Status von ARES wird erkannt.
+- die zuständige Freigabe erfolgt ohne alleinige ARES-/Founder-Kontrolle.
+- Auftrag und Rechnung werden referenziert.
+- DAO-Zahlung und protocol-defined Development Fees bleiben getrennte
+  Accounting-Kategorien.
+- ARES kann DAO Treasury nicht bewegen.
+- AURA kann Development Fee Rate nicht autonom ändern.
+- Developer kann Development Fee Rate nicht autonom ändern.
+- Änderung der Fee erfordert gültige Governance + Timelock.
+- Audit Export rekonstruiert den vollständigen Entscheidungs- und Zahlungsweg.
+
+PASS:
+ARES kann transparent für QRX bezahlt werden, ohne mit QRX DAO,
+Protocol Reserve oder DAO Treasury wirtschaftlich/technisch vermischt zu werden.
+
+IMPLEMENTATION STATUS — 2026-09-09
+----------------------------------
+- 0.0.9.0 Compute Foundation: DONE
+- 0.0.9.1 Cross-Platform Compute Runtime / Native Capability Discovery: DONE
+- 0.0.9.2 Standardized Compute Benchmark / Normalized Compute Units: DONE
+- Benchmark schema covers BF16, MXFP4, memory, storage, network, MoE expert execution and model inference
+- Deterministic fixed-point QRX Compute Score / NCU normalization added
+- Self-reported benchmark scores are NOT reward proofs; attestation/challenge remains later verification work
+- Regression: 61/61 tests PASS
+- 0.0.9.3 QRX AI Model Registry: DONE
+- Deterministic SHA3-256 domain-separated model commitments
+- QRX Drive roots for model/tokenizer/expert manifests; model weights stay off registry
+- Verification profile, memory/storage and license metadata included
+- Kimi K3 remains a target model; no performance/licensing availability claim
+- Regression: 62/62 tests PASS
+- Roadmap expanded: 0.0.9.4 Job Protocol through 0.0.9.11 AURA Chat/Files/Code workflow
+- 0.0.9.4 Compute Job Protocol & Job Graphs: DONE
+- Unified bounded DAG format for AURA, Wallet, dApps and external API clients
+- Job types cover AI, code, documents, analysis, images, compile/test, conversion, research and custom sandboxed work
+- Deterministic topological ordering, cycle/duplicate/missing-edge rejection and graph-level fee ceilings
+- Domain-separated SHA3-256 graph commitments canonical across node/edge insertion order
+- Sandbox execution required for code execution / compile / test / custom jobs
+- Focused Compute regression 126–130: 5/5 PASS; incoming 0.0.9.3 full suite was 62/62 PASS
+- Full all-target 0.0.9.4 rebuild exceeded the execution window, therefore no unverified 63/63 claim is made
+- DONE: 0.0.9.5 Compute Market, Quotes & Escrow
+- Next: 0.0.9.6 Secure Execution Sandbox
+
+
+IMPLEMENTATION CHECKPOINT — 2026-09-09
+0.0.9.6 Secure Execution Sandbox & Resumable Budget Guard: DONE
+0.0.9.7 Proof of Useful Compute Verification Foundation: DONE
+0.0.9.8 AURA Agent Runtime & Tool API: DONE
+- Versioned AURA agent manifests bind agent/model identity, scoped capabilities, max steps, per-job and per-session spend ceilings
+- Deterministic domain-separated SHA3-256 agent-manifest and tool-call commitments
+- Session runtime enforces authorized budget, warning/pause states and bounded agent steps
+- Code execution / compile / test can require explicit user approval before a tool call becomes a sandbox job
+- AURA tool calls convert only to ordinary QRX Compute Job Nodes; no privileged consensus/execution path
+- Wallet keys, host secrets, host filesystem and unrestricted networking remain unavailable through AURA
+- Focused Compute regression phases 126–134: 9/9 PASS
+NEXT: 0.0.9.9 AURA Chat
+Budget invariant: no job may exceed prior user authorization; at exhaustion it checkpoints and pauses until explicit extension/authorized auto-extend policy.
+
+0.0.9.9 – QRX DRIVE S3 COMPATIBILITY GATEWAY
+---------------------------------------------
+Status: FOUNDATION / NEXT IMPLEMENTATION TRACK
+
+Ziel:
+QRX Drive als praktisch S3-kompatiblen Storage-Endpunkt nutzbar machen, damit
+bestehende S3-Software mit minimaler Umstellung QRX Drive verwenden kann.
+
+V1:
+- AWS Signature Version 4
+- Bucket Create/Delete/List
+- Put/Get/Head/Delete Object
+- ListObjectsV2
+- Range Requests + Metadata
+- Multipart Upload
+- Presigned GET/PUT
+- Version IDs
+- scoped + revocable S3 credentials
+- S3 -> QRX Drive namespace/object mapping
+- Migration/Sync-Workflows
+
+Security:
+- niemals Wallet Seed/Private Key als S3 Secret
+- Credentials nur als eingeschränkte, widerrufbare Capability
+- PRIVATE_PQ bleibt unterhalb des Gateways aktiv
+- S3 Gateway darf QRX-native Owner Policy nicht erweitern
+- ETag ersetzt niemals QRX Content-/Merkle-Commitments
+
+Native QRX Drive API bleibt parallel bestehen für Provider Policy, Proofs,
+Resilience, .qrx Hosting, PUBLIC_SIGNED und weitere QRX-native Funktionen.
+
+Nicht V1:
+vollständiges AWS IAM, S3 Select, Lambda, Glacier, AWS Billing/Replication APIs.
+
+Release-Gate:
+Keine pauschale S3-Kompatibilitätsbehauptung vor Interop-Tests mit realen
+S3-SDKs/Clients.
+
+0.0.9.11 – AURA FILES, PROJECTS & ARTIFACT CREATION
+----------------------------------------------------
+Status: DONE – FOUNDATION
+
+AURA kann erzeugte Ergebnisse als versionierte Artefakte referenzieren:
+- Text / Markdown
+- Dokumente
+- Tabellen
+- Präsentationen
+- Code
+- Archive / ZIP
+- Bilder
+- Datenartefakte
+- weitere MIME-basierte Dateien
+
+Umgesetzt:
+- immutable Artifact Metadata
+- QRX Drive References
+- PRIVATE_PQ Flag
+- MIME / Extension / Type
+- Source Job Binding
+- Content Commitment
+- domain-separated SHA3-256 Artifact Commitment
+- Project Manifests
+- sichere relative Project Paths
+- Duplicate-/Traversal-/Absolute-Path-Schutz
+- Artifact -> Project Binding
+- Project Commitment
+- WRITE_ARTIFACT Tool-Call Preparation
+- direkte AURA-Chat Artifact-Verknüpfung
+
+Inhalt der Dateien bleibt außerhalb von Consensus-Metadaten und kann
+PRIVATE_PQ in QRX Drive gespeichert werden.
+
+Wichtig:
+AURA schreibt nicht beliebig auf das Host-Dateisystem. Erzeugte Dateien werden
+als kontrollierte Job-/Artifact-Ausgaben behandelt und anschließend in QRX
+Drive bzw. später über das S3 Compatibility Gateway verfügbar gemacht.
+
+Focused Tests:
+- compute_phase136_aura_artifacts PASS
+- compute_phase135_aura_chat PASS
+- compute_phase134_aura_runtime PASS
+
+NÄCHSTER SCHRITT:
+0.0.9.12 – AURA Code Generation, Build & Test Workspace
+
+0.0.9.12 – AURA CODE GENERATION, BUILD & TEST WORKSPACE
+--------------------------------------------------------
+Status: DONE – FOUNDATION
+
+AURA kann Projekte aus QRX Drive als immutable Project Snapshot binden und
+Code-Arbeit als kontrollierten Stage-Plan ausführen:
+
+- GENERATE
+- EXECUTE
+- COMPILE
+- TEST
+
+Jede Stage enthält:
+- Input-/Output-Referenz
+- Runtime
+- Maximalbudget
+- Runtime-Limit
+- Output-Limit
+- Approval-Anforderung
+
+Security:
+- Code Generation erteilt keine Host-Ausführungsrechte.
+- EXECUTE / COMPILE / TEST benötigen explizite User-Freigabe.
+- Danach läuft die Stage weiterhin durch die normale AURA Tool API,
+  Secure Sandbox, Compute Job Protocol und Budget Guard.
+- Workspace-Gesamtbudget ist hart gedeckelt.
+- Source und Outputs bleiben QRX-Drive-/Artifact-Referenzen.
+- keine Wallet-Key-/Seed-Rechte.
+
+Determinismus:
+- domain-separated SHA3-256 Workspace Commitment
+- Project Snapshot Commitment wird gebunden
+- Stage-Reihenfolge und Limits sind Teil des Commitments
+
+Focused Tests:
+- compute_phase134_aura_runtime PASS
+- compute_phase135_aura_chat PASS
+- compute_phase136_aura_artifacts PASS
+- compute_phase137_aura_code_workspace PASS
+
+NÄCHSTER SCHRITT:
+0.0.9.13 – AURA Workspace Execution Lifecycle / Patch-Diff / Build-Test Results
+
+0.0.9.13 – AURA WORKSPACE EXECUTION LIFECYCLE / PATCH-DIFF / BUILD-TEST RESULTS
+--------------------------------------------------------------------------------
+Status: DONE – FOUNDATION
+
+- Runtime Execution State getrennt vom unveränderlichen Workspace Plan
+- Stage Lifecycle: PENDING -> RUNNING -> PASSED / FAILED / CANCELLED
+- sequentielle Dependency Enforcement
+- tatsächliche Kosten je Stage + gesamter Workspace
+- kein Überschreiten des freigegebenen Stage-/Workspace-Budgets
+- Output-/Log-Artefakt je Stage
+- Result Commitment, Exit Code, Summary und Laufzeit
+- Patch Artifact + Diff Artifact
+- Build Report + Test Report
+- Completion nur wenn alle geplanten Stages PASS
+- finale Nutzerfreigabe bleibt von Build/Test-Erfolg getrennt
+- domain-separated SHA3-256 Execution Commitment
+
+Focused Tests 134–138: 5/5 PASS.
+
+NÄCHSTER AI-INFRASTRUKTUR-TRACK:
+0.0.9.14 – Kimi K3 Expert-Pack Manifest / Compute-Pod Placement Foundation
+
+Architekturprinzip für Kimi K3:
+- Routed Experts werden als (Layer, Expert-ID)-gebundene Expert Packs adressiert.
+- Dense/Attention/Shared-Hot-State wird nicht über beliebige WAN-Nodes pro Token verteilt.
+- Per-Token Expert Parallelism gehört in Low-Latency Compute Pods.
+- Das globale QRX-Netz verteilt Jobs zwischen Pods und repliziert/cachet Expert Packs.
+- QRX Drive hält Model/Expert Manifests und immutable Content Roots.
+- Hot Experts dürfen bedarfsgesteuert repliziert werden.
+- Kleine ARM/CPU-Nodes können Cache-, Storage-, Verification- und Spezialrollen übernehmen,
+  ohne dass sie zwingend den kritischen K3 Token-Hot-Path ausführen.
+
+0.0.9.14 – HETEROGENEOUS MoE PODS / TRAFFIC OPTIMIZATION / OPTIMISTIC PoUC
+----------------------------------------------------------------------------
+Status: DONE – FOUNDATION
+
+Implemented:
+- heterogeneous ARM64 + x86-64 node profiles
+- MICRO / LIGHT / STANDARD / HOT memory classes
+- CPU/GPU/NPU/Metal/MLX/CUDA/NEON/AVX2/AVX512/BF16 capability flags
+- routing/expert/verify/prepost/small-model/cache/aggregator roles
+- variable expert residency; even one fragment slot is a valid contribution
+- model/layer/expert/fragment identities with immutable content roots
+- RAM/VRAM/NVMe/REMOTE residency
+- HOT/WARM/COLD expert cache state
+- replica and pod binding
+- deterministic SHA3-256 placement commitment
+- topology-aware latency/bandwidth/residency/cache placement score
+- activation wire accounting for FP16/BF16/FP8/INT8/INT4
+- optimistic PoUC FAST/STANDARD/HIGH/CONSENSUS policies
+- reliability-adaptive challenge rates
+- asynchronous verification and optimistic-forward on non-consensus tiers
+- synchronous strict verification retained for consensus tier
+
+Architecture rule:
+- Expert Parallelism first
+- dynamic cache/migration second
+- Tensor/Expert Fragmentation only when necessary
+- hot-path sends activations/results, not model weights repeatedly
+- pod/locality scheduling is preferred over WAN expert fan-out
+- optimistic PoUC accelerates verification/finality separation but does not
+  eliminate mandatory model forward-pass communication
+
+Focused regression 134–139: 6/6 PASS.
+No fresh full historical suite claimed.
+
+NEXT:
+0.0.9.15 – MoE Pod Coordinator, Expert Co-Activation Locality & Predictive Prefetch
+
+
+0.0.9.15 – MoE POD COORDINATOR / CO-ACTIVATION LOCALITY / PREDICTIVE PREFETCH
+-------------------------------------------------------------------------------
+Status: DONE – FOUNDATION
+
+Implemented:
+- deterministic model/layer/expert co-activation statistics
+- basis-point affinity scoring
+- locality-aware placement score layered on 0.0.9.14 topology/residency score
+- coordinator request binds pod + current/next layer + selected experts
+- predictive prefetch count and byte ceilings
+- REMOTE->RAM, NVMe->RAM, RAM->VRAM prefetch actions
+- VRAM-resident no-op handling
+- remote wire-byte accounting separated from local cache movement
+- duplicate expert/placement rejection
+- canonical deterministic prefetch ordering
+- domain-separated SHA3-256 prefetch-plan commitment
+
+Hard architecture rule:
+- QRX never changes Kimi/model router expert selection to improve locality.
+- Co-activation is used to replicate/place/prefetch the already-valid expert set.
+- Prefetch is bounded and advisory; PoUC verification remains independent.
+- WAN weight fetches are avoided in the hot path whenever a resident/cached replica exists.
+
+Focused regression 134–140: 7/7 PASS.
+No fresh full historical suite claimed.
+
+NEXT:
+0.0.9.16 – MoE Micro-Batching, Persistent Pod Streams & Hierarchical Aggregation
+- batch same-expert activations across concurrent sessions
+- persistent binary pod streams instead of per-token request setup
+- local pod aggregation before WAN return
+- bounded queue-delay/latency targets
+- activation compression negotiation per link
+- throughput/latency accounting for heterogeneous nodes
+
+
+0.0.9.16 — MoE Micro-Batching, Persistent Pod Streams & Hierarchical Aggregation [DONE — FOUNDATION]
+- compatible expert/fragment activation micro-batches with bounded item/token/wire budgets
+- earliest-deadline deterministic canonical ordering
+- persistent pod stream lifecycle and in-flight backpressure foundation
+- transport feature negotiation foundation: compression / zero-copy / RDMA / multiplex
+- pod-local hierarchical result aggregation and uplink traffic savings accounting
+- SHA3-256 commitments for batch and aggregation plans
+- no claim of production QUIC/JACCL/RDMA transport yet
+
+NEXT: 0.0.9.17 — MoE Adaptive Batch Scheduler, Backpressure & End-to-End Throughput Telemetry
+
+
+0.0.9.17 — MoE Adaptive Batch Scheduler, Backpressure & End-to-End Throughput Telemetry [DONE — FOUNDATION]
+------------------------------------------------------------------------------------------------------------
+- deterministic adaptive min/target/max micro-batch policy
+- bounded batch wait with explicit deadline guard
+- WAIT / DISPATCH_NOW / REROUTE / REJECT decisions
+- queue + in-flight pressure in basis points
+- NORMAL / ELEVATED / HIGH / CRITICAL backpressure states
+- critical overload reroutes to a valid replica when available
+- deterministic replica scoring from pressure, latency, bandwidth, reliability,
+  residency and cache state
+- end-to-end per-pod request/token throughput telemetry
+- activation/result/local-aggregation/WAN byte counters
+- compute-time and queue-wait accounting
+- batch/reroute/reject/failure counters
+- fixed-point requests/sec and tokens/sec reporting
+- WAN traffic share metric
+- SHA3-256 `QRX/MOE/THROUGHPUT/V1` telemetry commitment
+
+Hard architecture rules:
+- batching may delay only inside the explicit max-wait/deadline envelope
+- replica choice never changes the model-selected expert/fragment
+- telemetry is not PoUC proof and does not replace challenge verification
+- no production Kimi K3 throughput number is claimed until real backend + hardware
+  benchmark runs are available
+
+Focused regression 134–142: 9/9 PASS.
+No fresh full historical suite claimed.
+
+NEXT:
+0.0.9.18 — Runtime Transport Adapters & Reproducible MoE Throughput Benchmark Harness
+- pluggable local/TCP transport adapter contract
+- backend hooks for MLX/Metal, CPU and future CUDA workers
+- deterministic synthetic expert workload generator
+- latency/bandwidth/failure injection
+- single-session tok/s vs aggregate tok/s separation
+- batch-efficiency, WAN-byte and queue-delay reports
+- repeatable topology profiles for small mixed-device swarms and larger pods
+- no performance marketing claim without recorded benchmark evidence
+
+
+0.0.9.18 — Runtime Transport Adapters & Reproducible MoE Throughput Benchmark Harness [DONE — FOUNDATION]
+----------------------------------------------------------------------------------------------------------
+- runtime transport descriptors: LOCAL / SHM / TCP / QUIC / MPI / JACCL-RDMA
+- negotiated async / multiplex / zero-copy / RDMA / compression feature flags
+- deterministic transport latency/bandwidth/inflight/MTU/overhead model
+- backend descriptors for CPU, MLX+Metal, CUDA and generic runtimes
+- accelerator feature flags for FP16/FP32/INT8/tensor cores/unified memory/MLX/Metal/CUDA
+- NVIDIA Tesla P40 / Pascal CUDA SM 6.1 explicitly supported by capability model
+- P40 must not be routed to tensor-core-only kernels
+- deterministic heterogeneous benchmark scenarios up to 256 nodes per descriptor
+- concurrency, micro-batch size, activation/result bytes, availability and synthetic fault injection
+- raw aggregate tok/s vs transport-amortized estimated tok/s
+- wire byte, compute time, transport time and bottleneck transport accounting
+- domain-separated SHA3-256 `QRX/MOE/BENCHMARK/V1` commitment
+
+Hard architecture rules:
+- runtime descriptors are not proof that native transport/runtime libraries are linked
+- benchmark estimates are not marketing performance claims
+- real hardware measurements must calibrate standalone node throughput inputs
+- P40 capability support is foundation; native CUDA runtime discovery/kernels remain next-stage work
+
+Focused regression 134–143: 10/10 PASS.
+No fresh full historical suite claimed.
+
+NEXT:
+0.0.9.19 — Native Runtime Discovery, CUDA/MLX Worker Adapter & Calibration Benchmarks
+- native CUDA device discovery including Pascal/P40
+- MLX/Metal runtime discovery on Apple Silicon
+- CPU worker runtime adapter
+- CUDA worker execution adapter with SM-aware kernel eligibility
+- real local benchmark calibration replacing synthetic standalone tok/s inputs
+- transport loopback/TCP measurement probes
+- benchmark profiles exportable for scheduler/NCU calibration
+
+0.0.9.19 — Native Runtime Discovery, CUDA/MLX Worker Adapter & Calibration Benchmarks [DONE — FOUNDATION]
+---------------------------------------------------------------------------------------------------------
+- native CPU worker inventory with memory + online CPU count
+- dynamic CUDA Driver API discovery without build-time CUDA dependency
+- CUDA device name, memory and compute-capability discovery
+- Tesla P40 / Pascal SM 6.1 detected correctly when exposed by installed CUDA driver
+- P40 explicitly rejected for tensor-core-only work
+- Apple Silicon Metal + unified-memory native capability discovery
+- MLX execution readiness is NOT inferred from Apple Silicon alone; a real MLX adapter must attach
+- backend-neutral worker execution adapter with memory/batch/kernel eligibility gates
+- measured model token-rate calibration samples
+- measured RTT/payload transport calibration
+- calibrated profiles can replace synthetic standalone tok/s in 0.0.9.18 benchmark nodes
+- SHA3-256 `QRX/MOE/CALIBRATION/V1` calibration commitment
+
+Hard architecture rules:
+- runtime discovery is not a claim that CUDA/MLX model kernels are bundled
+- hardware-specific inference performance must come from measured calibration samples
+- no tensor-core feature on Pascal/P40
+- MLX/Metal/CUDA workers remain sandbox/job-protocol constrained
+- calibration telemetry is not PoUC verification
+
+Focused regression 134–144: 11/11 PASS.
+No fresh full historical suite claimed.
+
+NEXT:
+0.0.9.20 — QRX Resource Globe Expansion
+- extend the existing 0.0.8 Resource Globe with COMPUTE / AI / MODEL CACHE layers
+- privacy-safe regional capability aggregation
+- live capacity / latency / demand / opportunity classes
+- no exact home/provider coordinates in public views
+- scheduler-facing regional summaries rather than marketing-only visualization
+
+0.0.9.19.1 – FULL TREE RECOVERY & MERGE AUDIT [DONE 2026-09-09]
+- Restored the complete QRX project packaging tree using 0.0.9.10 as the last full snapshot.
+- Merged the cumulative 0.0.9.19 qrx-core subtree into the correct qrx-core/ location.
+- Verified all 0.0.9.19 core files byte-for-byte after overlay: 0 missing, 0 differences.
+- Preserved GUI wallet, project scripts, docs and other outer-tree assets from the full snapshot.
+- Fresh recovered-core CMake build completed.
+- Full registered CTest suite: 77/77 PASS, including compute phases 126–144.
+- Packaging guard: future canonical releases must use the full tree; core-only deltas must be labelled as such.
+
+0.0.9.20 – QRX RESOURCE GLOBE EXPANSION [DONE 2026-09-09]
+-----------------------------------------------------------
+Implemented scheduler-facing privacy-safe regional aggregation extending the 0.0.8 Storage Atlas.
+Layers:
+- STORAGE
+- COMPUTE
+- AI
+- MODEL CACHE
+- NETWORK
+- OPPORTUNITY
+
+Implemented:
+- coarse region/cell summaries; no coordinates, IPs, hostnames or home/provider addresses in the public ABI
+- unique-provider privacy threshold, default 3; sparse cells remain hidden
+- duplicate observations from one provider cannot inflate privacy visibility
+- aggregate free storage, compute NCU, AI milli-tok/s, model-cache free bytes and egress Mbps
+- aggregate latency, utilization, reliability and demand
+- deterministic capacity / latency / demand / opportunity classes
+- per-layer + composite opportunity scores
+- SHA3-256 QRX/RESOURCE-GLOBE/CELL/V1 commitment
+- scheduler-facing summaries usable by 0.0.9.21 Opportunity Engine
+
+Test: compute_phase145_resource_globe
+NEXT: 0.0.9.21 – Compute Opportunity Engine
+
+0.0.9.21 – COMPUTE OPPORTUNITY ENGINE [DONE 2026-09-09]
+---------------------------------------------------------
+Implemented above the 0.0.9.20 privacy-safe Resource Globe.
+
+Implemented:
+- host resource profile for storage, CPU compute, AI accelerator, model cache and network
+- deterministic per-region recommendation from actual Globe opportunity/demand/utilization data
+- recommendation never exceeds host-declared available resources
+- storage target tiers up to 4 TiB
+- model-cache target tiers up to 1 TiB, including 500 GiB high-opportunity target
+- compute target tiers up to 12 available threads in V1
+- network target tiers up to 2.5 Gbit/s in V1
+- AI accelerator recommendation with distinct CUDA and Metal/MLX capability flags
+- Tesla P40-compatible recommendation path through CUDA capability metadata; no Tensor-Core claim
+- deterministic primary recommendation action
+- planning-only expected-utilization estimate; NOT an earnings/revenue guarantee
+- privacy guard: sparse/non-public Globe cells are not exposed through the public recommendation engine
+- SHA3-256 QRX/OPPORTUNITY/RECOMMENDATION/V1 commitment
+
+Test: compute_phase146_opportunity_engine
+Full registered CTest suite: 79/79 PASS.
+Packaging remains full-tree only for canonical releases.
+
+DONE: 0.0.9.22 – Animated AI Task Globe
+NEXT: 0.0.9.23 – QRX OS Compute Integration
+
+0.0.9.23 – QRX OS COMPUTE INTEGRATION [DONE 2026-09-09]
+--------------------------------------------------------
+Implemented a common QRX OS application execution contract joining:
+- QRX Wallet -> identity / payment authority
+- QRX Drive -> data / artifacts / model/project references
+- QRX Compute -> deterministic job graphs / execution
+- QRX Chain -> escrow / settlement / fee ceilings
+
+Applications represented in the protocol:
+- Chat
+- Coding
+- Documents
+- Research
+- RAG
+- Build Tasks
+- AI Agents
+- Batch Compute
+
+Implemented:
+- versioned QRX OS compute workspace + run lifecycle
+- deterministic service requirements per application
+- wallet identity must equal job-graph owner
+- workspace fee/expiry ceilings constrain graph execution
+- artifact-bearing apps require a Drive namespace
+- chain escrow + settlement references mandatory
+- Build Tasks require COMPILE + TEST stages
+- Chat V1 is non-mutating by default and rejects WRITE_ARTIFACTS capability
+- result binds an immutable AURA/QRX Drive artifact commitment
+- SHA3-256 `QRX/OS/COMPUTE-WORKSPACE/V1`
+- SHA3-256 `QRX/OS/COMPUTE-RUN/V1`
+
+Scope boundary:
+- this is the Core integration contract/foundation
+- no claim yet of complete production QRX OS GUI/runtime/RPC end-to-end wiring
+
+Test: compute_phase148_qrx_os_compute
+Full registered CTest suite: 81/81 PASS.
+Packaging remains full-tree only for canonical releases.
+
+NEXT: 0.0.9.24 – Resource Provider Unified UX
+
+0.0.9.24 – RESOURCE PROVIDER UNIFIED UX [DONE 2026-09-09]
+-----------------------------------------------------------
+Unified QRX Resource Node configuration across Storage, Compute, AI Accelerator, Model Cache and Network.
+
+Implemented Core policy/plan layer:
+- explicit per-resource opt-in
+- hard user caps for storage bytes, model-cache bytes, CPU threads and egress Mbps
+- accelerator opt-in with independent CUDA / Metal-MLX policy flags
+- policy validation against host-declared available resources
+- Opportunity Engine recommendations are clamped by local user policy
+- wallet-approval requirement is carried into provider plan
+- planning cannot start a worker, publish endpoints, sign transactions or spend QUB
+- SHA3-256 `QRX/RESOURCE-PROVIDER/PLAN/V1` plan commitment
+
+Implemented GUI Wallet foundation inside Resource Globe:
+- one QRX Resource Node panel for Storage / CPU Compute / GPU-AI / Model Cache / Network
+- local per-wallet + per-network preference persistence
+- mandatory approval notice
+- best privacy-safe visible regional opportunity
+- opportunity preset that prepares values but does not activate anything
+- local CPU logical-thread hint
+
+Scope boundary:
+- provider daemon activation and market registration remain separate runtime work
+- no revenue/earnings guarantee or fabricated utilization data
+- host-aware detailed recommendations remain bounded by real host capability data
+
+Test: compute_phase149_resource_provider_ux
+0.0.9.25 – PROVIDER RUNTIME LIFECYCLE & MARKET REGISTRATION [DONE 2026-09-09]
+--------------------------------------------------------------------------------
+Connects the 0.0.9.24 QRX Resource Node plan to an explicit provider runtime state machine:
+CONFIGURED -> READY -> REGISTERED -> SERVING -> DRAINING -> OFFLINE.
+
+Implemented:
+- wallet-gated market registration bound to provider ID, network and exact plan commitment
+- optional approval expiry by chain height
+- deterministic registration revisions
+- public market registration capacity descriptor
+- SHA3-256 `QRX/RESOURCE-PROVIDER/MARKET-REG/V1` commitment
+- active-job/resource reservation tracking
+- safe capacity increases/changes
+- shrinking below live reservations is deferred instead of killing active jobs
+- deferred shrink automatically enters DRAINING and applies after reservations are released
+- changed serving capacity returns to READY and requires explicit re-registration
+- shutdown is rejected while jobs/resources remain active
+- CTest Phase 148 accidental argv wiring fixed
+
+Test: compute_phase150_provider_runtime_market
+Full registered CTest suite: 83/83 PASS.
+
+Scope boundary:
+- no claim yet of production worker spawning, live P2P market broadcast, GUI-daemon activation RPC, wallet signature transport or Mainnet reward settlement
+- market registration here is the deterministic Core contract/state layer
+
+NEXT: 0.0.9.26 – Compute Adversarial Testnet
+
+0.0.9.26 – COMPUTE ADVERSARIAL TESTNET [DONE 2026-09-09]
+-----------------------------------------------------------
+Added a deterministic adversarial-evidence and mitigation layer above PoUC, MoE scheduling and Resource Provider runtime.
+
+Implemented adversarial classes:
+- fake / overstated compute claims
+- wrong result commitment
+- model/runtime mismatch
+- verifier collusion concentration
+- Sybil provider sets
+- model-cache fraud
+- slow workers
+- queue starvation
+- WAN partitions
+- pod failures
+
+Implemented deterministic responses:
+- challenge escalation
+- result rejection
+- payout freeze
+- quarantine
+- slash-candidate evidence
+- reroute
+- provider drain
+- redundant retry
+
+Security properties:
+- no direct consensus slashing in this phase
+- slash candidates are evidence only; `consensus_slash_applied` is always false
+- no IP address, exact provider coordinate, host path or wallet secret in evidence
+- risk and challenge outputs are basis-point bounded and deterministic
+- SHA3-256 `QRX/COMPUTE/ADVERSARIAL-EVIDENCE/V1` commitment
+
+Test: compute_phase151_adversarial_testnet
+Focused Compute 134-151: 18/18 PASS.
+Full registered CTest suite: 84/84 PASS.
+
+Scope boundary:
+- this is the deterministic testnet evaluation/mitigation foundation
+- no claim yet of a live multi-host chaos harness, real WAN fault injector, automatic stake slashing/jailing or Mainnet PoUC settlement
+
+NEXT: 0.0.9.27 – Mainnet PoUC Activation
+
+0.0.9.27 – MAINNET PoUC ACTIVATION GATE [DONE 2026-09-09]
+----------------------------------------------------------
+Implemented a chain/protocol-bound PoUC settlement gate with readiness prerequisites,
+PAYOUT/FROZEN/REJECTED outcomes, challenge gating, adversarial evidence integration,
+slash/jail candidate signaling, and replay-key protection. This is the consensus-facing
+activation foundation; live public-Mainnet enablement still requires deployment evidence
+and durable replay-state wiring in the chain state transition.
+
+NEXT: 0.0.9.28 – PoUC Consensus State Transition & Durable Replay/Settlement Journal
+
+0.0.9.28 – PoUC CONSENSUS STATE TRANSITION & DURABLE REPLAY/SETTLEMENT JOURNAL [DONE 2026-09-09]
+--------------------------------------------------------------------------------------------------
+Implemented QRXDB/WAL-backed durable PoUC settlement state above the 0.0.9.27 activation gate.
+
+Implemented:
+- atomic active settlement journal + replay state + escrow snapshot persistence
+- immutable per-transition settlement history
+- durable FROZEN / PAYOUT / REJECTED / REVERTED states
+- FROZEN -> terminal transition using the same replay key after challenge finalization
+- terminal replay rejection across process/node restarts
+- settlement decision re-validation before journal commit
+- payout escrow copy-on-commit so failed DB commits do not mutate caller state
+- chain/genesis/protocol/receipt/decision/graph/nonce binding retained in durable journal records
+- reorg restoration to the latest historical settlement state at or below canonical height
+- rollback below the first transition marks the replay REVERTED and permits canonical-branch reuse
+- QRXDB/WAL remains the crash-recovery source for journal and persisted escrow snapshots
+
+Test: compute_phase153_pouc_durable_journal
+Full registered CTest suite: 86/86 PASS.
+
+Scope boundary:
+- no wallet-balance transfer is performed by the journal module itself
+- no consensus slash is executed by the journal module itself
+- authoritative block/applytx integration is still the next phase
+
+NEXT: 0.0.9.29 – PoUC Settlement Transaction & Block Pipeline Integration
+
+0.0.9.29 – PoUC SETTLEMENT TRANSACTION & BLOCK PIPELINE INTEGRATION [DONE 2026-09-09]
+--------------------------------------------------------------------------------------
+PoUC settlement is now an authoritative QRX chain-state transition rather than a journal-only operation.
+
+Implemented:
+- new Velocity consensus tx type `POUC_SETTLEMENT`
+- amount must be 0; `to` must equal the receipt provider
+- any signed wallet may relay, but consensus derives all economic recipients from canonical receipt/escrow state
+- Mainnet fail-closed activation via threshold-signed `COMPUTE_POUC_V1` protocol feature + activation height
+- receipt verification is recomputed from canonical receipt fields + verifier counts
+- challenge result is loaded from canonical QRXDB state, not trusted from tx payload
+- adversarial verdict is loaded from canonical QRXDB state, not trusted from tx payload
+- canonical persisted compute escrow is required
+- escrow-pool sufficiency is checked before terminal settlement
+
+Single applytx/QRXDB-WAL commit now contains:
+- relayer fee debit
+- provider verified-compute payout
+- owner refund
+- FastTrack development share (50 bps = 0.5% of FastTrack fee only)
+- FastTrack network share -> consensus fee/network pool
+- compute escrow-pool debit
+- PoUC durable journal + replay marker
+- resulting escrow snapshot + immutable history
+- slash-candidate evidence where applicable
+- jail-candidate evidence where applicable
+- account nonce
+- tx applied marker / tx index / consensus apply record
+
+Economic behavior:
+PAYOUT:
+- actual verified compute -> provider
+- unused max-compute authorization -> owner
+- FastTrack fee -> existing dev/network split
+
+FROZEN:
+- no wallet movement from compute escrow
+- no escrow-pool debit
+- durable challenge-pending settlement remains frozen
+
+REJECTED:
+- no provider payout
+- complete locked escrow, including unearned FastTrack authorization, returns to owner
+- slash/jail evidence is committed when required
+- no unilateral stake destruction in the settlement module
+
+Journal hardening:
+- `qrx_pouc_journal_stage()` now supports nesting inside the outer authoritative applytx batch
+- standalone `qrx_pouc_journal_apply()` reuses the same staging logic
+- canonical escrow staging helper added for upstream compute-market integration
+
+VELOCITY:
+- POUC_SETTLEMENT is schema-supported
+- remains a conservative serial/barrier transaction in speculative MVCC because it touches shared escrow/replay/fee/wallet state
+
+Test: compute_phase154_pouc_block_pipeline
+Full registered CTest suite: 87/87 PASS.
+
+NEXT: 0.0.9.30 – Compute Escrow Funding, Assignment & Verification State Transactions
+
+0.0.9.30 – COMPUTE ESCROW FUNDING, ASSIGNMENT & VERIFICATION STATE TRANSACTIONS [DONE 2026-09-10]
+-------------------------------------------------------------------------------------------------
+Completed the upstream authoritative PoUC transaction path feeding 0.0.9.29 settlement.
+
+New Velocity consensus transactions:
+- COMPUTE_ESCROW_LOCK
+- COMPUTE_ASSIGN
+- COMPUTE_RECEIPT
+- COMPUTE_VERIFY
+- COMPUTE_CHALLENGE
+
+Implemented:
+- owner-signed escrow funding; max compute + optional FastTrack authorization are debited atomically into the compute escrow pool
+- canonical LOCKED escrow record keyed by graph commitment
+- owner-signed provider assignment with quote/node/runtime/model/verification-mode/nonce binding
+- domain-separated SHA3-256 `QRX/POUC/ASSIGNMENT/V1` commitment
+- atomic LOCKED -> ASSIGNED escrow transition
+- provider-signed canonical PoUC receipt tied to the assignment
+- verified compute bounded by assigned quote/max authorization
+- canonical one-receipt-per-graph V1 mapping
+- bonded-validator-only canonical primary verifier attestations
+- provider and owner self-verification rejected
+- result match/mismatch derived from independently observed result commitment
+- verification targets: SPOT=1, RANDOM=2, REDUNDANT_2_OF_3=3
+- canonical verifier aggregates and duplicate-verifier rejection
+- accepted SPOT/RANDOM results enter asynchronous challenge PENDING state
+- separate bonded challenge voters; primary verifier cannot also challenge the same receipt
+- challenge quorum resolves at 2 matching PASS or 2 matching FAIL votes (max 3 voters V1)
+- failed redundant/challenge quorum creates deterministic result-mismatch adversarial evidence
+- verifier vote-order hardening: prior mismatch evidence is recovered even if the final arriving vote matches
+- non-bonded/Sybil identities cannot write canonical verifier/challenge state in V1
+- all five transaction types fail closed until threshold-signed COMPUTE_POUC_V1 activation
+- COMPUTE_ESCROW_LOCK funding debit + escrow-pool credit + escrow record share the normal authoritative applytx WAL commit
+- upstream transactions are conservative VELOCITY/MVCC barriers in V1
+
+Settlement hardening:
+- pipeline-created ASSIGNED escrows must settle against canonical assignment + receipt + finalized verifier aggregate
+- settlement-supplied verifier counts must equal canonical aggregate
+- assignment provider/node/runtime/model/verification mode must match canonical receipt
+- challenge/adversarial state remains canonical QRXDB state
+- narrow pre-0.0.9.30 ASSIGNED-escrow compatibility retained; no new public transaction can create such legacy state
+
+Test: compute_phase155_pouc_upstream_transactions
+Full registered CTest suite: 88/88 PASS.
+
+Scope boundary:
+- exact verifier selection is not yet derived from finalized chain randomness
+- verifier/challenger reward distribution is not yet implemented
+- missed-verification penalties are not yet implemented
+- slash/jail candidates are evidence only; authoritative stake slashing/jailing execution remains separate
+
+0.0.9.31 – DETERMINISTIC VERIFIER SELECTION, VERIFICATION REWARDS & CONSENSUS SLASHING/JAILING [DONE 2026-09-10]
+-----------------------------------------------------------------------------------------------------------------------
+Implemented:
+- deterministic stake-weighted PoUC verifier committee from canonical finalized-parent block-hash entropy + receipt commitment
+- owner/provider exclusion and compute-jailed/paused validator exclusion
+- SPOT=1, RANDOM=2, REDUNDANT_2_OF_3=3 primary verifier targets
+- separate deterministic challenger set for SPOT/RANDOM; primary/challenger sets never overlap
+- 20-block primary verification window + 20-block challenge window
+- SHA3-256 `QRX/POUC/VERIFIER-SELECTION/V1` commitment with endian-independent integer encoding
+- optional owner-authorized verification/challenge micro-reward budget in COMPUTE_ESCROW_LOCK
+- V1 reward weights: primary=2, challenger=1
+- selected verifier/challenger reward credit + verification-budget spend + escrow-pool debit remain in authoritative applytx/WAL state
+- unused verification budget is refunded during final settlement/refund
+- verifier rewards remain separate from provider compute price, FastTrack fee/development share and normal protocol/staking rewards
+- canonical fraud penalty parameters: fraud_slash_bps and fraud_jail_blocks; no hidden defaults
+- authoritative self + delegated stake slashing with deterministic rounding
+- slashed QUB moves to `consensus:compute:slashing_pool` and remains inside the supply invariant
+- block-height compute fraud jail; longer existing jail cannot be shortened
+- jailed validators excluded from committee/validator/proposer/voting eligibility paths
+- duplicate penalty application per receipt rejected
+
+Test: compute_phase156_verifier_selection_rewards_slashing
+Assert-enabled full registered CTest suite: 89/89 PASS.
+
+Release audit:
+- full-tree comparison against 0.0.9.30: 0 removed baseline files
+- canonical package remains full-tree, not core-only
+- clean optimized Release build attempt hit the execution-environment timeout while optimizing existing monolithic qrx.c; no fresh optimized binary build is claimed
+
+Scope boundary:
+- missed-verification penalties and timeout-driven reselection are not yet implemented
+- dedicated reorg-safe penalty/reward journal remains next
+- block-hash entropy is not claimed to be a separate VRF/randomness beacon
+
+0.0.9.32 – VERIFIER TIMEOUT/RESELECTION & REORG-SAFE PENALTY JOURNAL [DONE 2026-09-10]
+------------------------------------------------------------------------------------------------
+Completed liveness handling for deterministic PoUC verifier/challenger committees and made consensus penalties rollback-safe.
+
+Implemented:
+- new consensus transaction `COMPUTE_RESELECT` behind the existing fail-closed COMPUTE_POUC_V1 activation gate
+- original primary/challenge verifier remains valid through its exact deadline height; reselection is allowed only after expiry
+- only non-voting committee slots are replaced; members that already voted remain in place
+- replacements are selected deterministically and stake-weighted using the finalized-parent block hash at h-1
+- reselection randomness domain `QRX/POUC/VERIFIER-RESELECTION/RANDOM/V1`
+- consensus integer fields in reselection/miss-penalty hashes use explicit big-endian encoding
+- owner, provider, currently selected committee members, previously timed-out identities and compute-jailed validators are excluded from replacement selection
+- timed-out identities are retained in a per-receipt exclusion history and cannot immediately re-enter later reselection rounds
+- primary timeout refreshes the 20-block verification window and subsequent challenge window
+- challenger timeout refreshes the 20-block challenge window only
+- canonical miss counters under `consensus:compute:verifier_miss_count:*`
+- canonical liveness policy keys `verifier_miss_threshold` and `verifier_miss_jail_blocks`; reselection fails closed when these parameters are absent/zero
+- V1 liveness penalty is temporary compute jail only (0 stake slash); ordinary fraud evidence continues to use the configured 0.0.9.31 slash+jail path
+- deterministic miss-penalty IDs under `QRX/POUC/VERIFIER-MISS-PENALTY/V1`
+- reorg-safe consensus penalty journal with snapshots of all touched stake/delegation/slashing-pool/jail/duplicate-marker keys
+- fraud and timeout penalties above a canonical rollback height can be restored atomically and their duplicate marker becomes re-applicable only after REVERTED
+- reselection history stores previous committee selection, exclusion count and miss counters
+- liveness/committee history + miss counters restored on rollback
+- multi-round liveness rollback committed in descending-height steps
+- `qrx` transaction schema/applytx accepts COMPUTE_RESELECT through the same authoritative Velocity/QRXDB/WAL pipeline as the other PoUC upstream transactions
+
+Tests:
+- new `compute_phase157_verifier_timeout_reorg_penalty`
+- focused compute phases 134–157: 24/24 PASS
+- full registered CTest suite: 90/90 PASS
+- `qrx` executable target compiles successfully in the assert-enabled 0.0.9.32 build
+
+Scope boundary:
+- liveness/penalty rollback exists as an explicit consensus helper but is not yet wired into every authoritative global block-disconnect/reorg callback
+- verifier/challenger reward credits still rely on normal chain-state rollback; there is not yet a dedicated reward-history journal matching the penalty journal
+- miss threshold/jail duration are canonical state keys but a dedicated governance/update transaction for those liveness parameters is still pending
+- timeout in V1 does not slash economic stake; only proven fraud follows the configured slashing path
+
+NEXT: 0.0.9.33 – Canonical Reorg Hook, Verification Reward Journal & Liveness Parameter Governance
+
+0.0.9.33 – CANONICAL REORG HOOK, VERIFICATION REWARD JOURNAL & LIVENESS PARAMETER GOVERNANCE [DONE 2026-09-10]
+------------------------------------------------------------------------------------------------------------------
+Implemented:
+- new canonical PoUC reorg coordinator `qrx_pouc_canonical_reorg_hook()`
+- rollback order: settlement journal -> liveness/penalty journal -> verification reward journal
+- automatic PoUC rollback hook when canonical block ingestion replaces an already indexed height with a different hash during recovery/sync
+- dedicated QRXDB/WAL verification reward journal under `consensus:compute:reward_journal:`
+- reward journal staged in the same authoritative applytx batch as rewarded COMPUTE_VERIFY / COMPUTE_CHALLENGE
+- rollback restores verifier/challenger balance credit, compute escrow pool and escrow verification-reward spend
+- descending-height and restart-safe/idempotent reward rollback
+- validated canonical liveness parameter API
+- threshold-signed governance proposal action `COMPUTE_LIVENESS_PARAMS`
+- new CLI proposal command `governance-compute-liveness-propose`
+- governance-apply writes verifier_miss_threshold + verifier_miss_jail_blocks atomically to QRXDB after activation height
+- immutable `consensus:compute:params_history:` record bound to governance proposal hash
+- no hidden/default liveness economics and no unauthenticated direct parameter mutation added
+- penalty-journal no-op rollback hardened for empty rollback sets
+
+Validation:
+- new test `compute_phase158_canonical_reorg_reward_governance`
+- full registered CTest suite: 91/91 PASS
+- qrx executable build: PASS
+- real 3-of-3 regtest governance proposal/sign/apply/QRXDB verification: PASS
+
+Scope boundary:
+- canonical PoUC reorg coordination is now wired into divergent-height block-index recovery
+- broader non-PoUC state still uses its own rollback/reindex mechanisms
+- reward economics are now journaled, but a complete undo journal for every upstream PoUC funding/assignment/receipt/vote/challenge key remains separate
+
+NEXT: 0.0.9.34 – PoUC Upstream State Undo Journal & End-to-End Reorg Atomicity
+
+0.0.9.34 – POUC UPSTREAM STATE UNDO JOURNAL & END-TO-END REORG ATOMICITY [DONE 2026-09-10]
+-------------------------------------------------------------------------------------------------
+Implemented:
+- generic outer applytx undo journal for all 0.0.9.34+ PoUC upstream transactions and POUC_SETTLEMENT
+- pre-state capture is staged in the same QRXDB/WAL commit as balance, fee, nonce, tx index and PoUC state changes
+- undo identity binds apply height + QRXDB generation + txid, preserving exact reverse order for multiple PoUC txs in one block
+- single-batch rollback of every journaled PoUC transaction above the new canonical height
+- funding, assignment, receipt, verifier selection, verification aggregate/votes, challenge state/votes, reward/penalty journals and settlement-side state are covered whenever touched by the authoritative outer transaction
+- account balance, compute escrow pool, fee-pool, nonce, tx:applied and tx index/payload records are restored together with PoUC state
+- real QRXDB logical delete API (`qrxdb_delete`, `qrxdb_batch_delete`) using WAL-safe tombstones
+- deleted keys are absent from reads/scans, excluded from canonical Merkle roots and omitted during compaction
+- undo journal/snapshots delete themselves in the same rollback commit, making repeated rollback idempotent
+- canonical reorg coordinator executes the new atomic undo path first; older settlement/liveness/reward journals remain compatibility fallbacks for pre-0.0.9.34 state
+- stale phase157 CTest extra-argument registration corrected
+
+Validation:
+- new `compute_phase159_pouc_upstream_undo_e2e_reorg`
+- partial and full multi-transaction PoUC rollback verified
+- exact pre-transaction Merkle-root restoration verified
+- rollback consumes one QRXDB generation regardless of the number of reverted 0.0.9.34+ PoUC transactions in the test range
+- deleted tx/upstream keys remain absent after QRXDB compaction
+- full registered CTest suite: 92/92 PASS
+- qrx executable target build: PASS
+
+Scope boundary:
+- this is the authoritative 0.0.9.34+ PoUC transaction rollback path, not a universal undo journal for unrelated QRX subsystems
+- historical pre-0.0.9.34 compute state continues to use the specialized compatibility rollback journals
+
+NEXT: 0.0.9.35 – Adaptive AURA Model Fabric, Edge AI Bootstrap & Pod Capacity Registry
+
+0.0.9.35 – ADAPTIVE AURA MODEL FABRIC, EDGE AI BOOTSTRAP & POD CAPACITY REGISTRY [DONE 2026-09-10]
+-------------------------------------------------------------------------------------------------------------------
+Implemented:
+- benchmark-driven AURA pod-capacity registry; eligibility is based on measured capability, not product/vendor allowlists
+- generic CPU, CUDA, Metal/MLX and other accelerator backends can contribute through the existing native calibration profile
+- low-power nodes can contribute utility roles (router, embedding/RAG support, pre/post-processing, verification and model cache) even when they are not suitable for primary LLM token generation
+- per-pod bootstrap tiers NANO -> EDGE -> LOCAL -> CLUSTER using free memory, measured inference throughput and actual availability
+- network model classes K2_CLASS and K3_CLASS are readiness targets, not fake per-device classifications
+- privacy-safe Resource Globe AI cells aggregate provider/pod counts, inference/utility pods, free model memory/cache, measured AI throughput, latency, utilization, reliability, cache hit rate and expert locality
+- Resource Globe privacy threshold is based on unique providers per coarse region (default 3), not raw pod count
+- global fabric snapshot exposes K2/K3 readiness in basis points and the highest currently ready model tier
+- model capability profiles bind model/version/family/runtime/quantization, memory/storage/context, throughput, pod/network, reliability/cache/locality and task-quality requirements
+- dense single-device models must satisfy memory and throughput on one real pod; memory from one host cannot be combined with throughput from another
+- distributed/MoE profiles may aggregate eligible pods and incorporate expert-locality/network requirements
+- AUTO routing chooses the lowest fully adequate ready tier for the requested task/quality and therefore does not waste K2/K3-class compute on trivial requests
+- PINNED routing requires the exact requested model/version and fails instead of silently downgrading
+- explicit graceful degradation selects the best feasible lower model only when the request permits degradation
+- task-aware quality scoring for chat, RAG, coding, reasoning and tool-use workloads
+- selected actual model/version/runtime/tier are copied into the QRX compute job node so later PoUC receipts can bind what actually executed
+- canonical SHA3-256 route-decision commitment `QRX/AURA/MODEL-ROUTE/V1` with explicit big-endian integer encoding
+- ratio/readiness arithmetic uses integer-only overflow-safe basis-point calculation; no floating-point fallback in deterministic scheduler decisions
+- deterministic single-device candidate selection/tie-breaking independent of input ordering
+- synthetic Raspberry-Pi-5-class and ODROID-N2+-class ARM64 profiles demonstrate that modest SBCs can bootstrap small models or utility work when real calibration satisfies the profile
+- synthetic Orin-, Apple-Silicon-, Ryzen- and Tesla-P40-like profiles cover heterogeneous edge/local/accelerator participation; P40 profile does not imply tensor-core capability
+
+Validation:
+- new `compute_phase160_aura_adaptive_model_fabric`
+- single-node Nano bootstrap, Edge/Local classification, privacy aggregation, K2/K3 readiness, AUTO/PINNED routing, hard-task escalation, pod-loss degradation and calibration bridge tested
+- exact route commitment golden vector tested
+- full registered CTest suite: 93/93 PASS
+- qrx/qrxd/qrx-cli and complete configured build: PASS
+
+Scope boundary:
+- Pi 5 / ODROID N2+ numbers in the regression test are synthetic capability fixtures, not promises of real tokens/second; production tier assignment is determined by QRX calibration on the actual device/runtime/model
+- no model weights are bundled by this phase; profiles refer to registered model identities/runtimes
+- Qwen/Gemma/Llama/Kimi labels describe swappable capability-profile families and are not hard-coded consensus choices
+- pod registry is currently the core in-memory scheduling abstraction; decentralized signed pod advertisement/gossip and persistent live membership are not yet wired
+- Resource Globe AI aggregate generation exists in core, but daemon RPC/P2P live telemetry and final GUI visualization are not yet connected to real distributed pod advertisements
+- existing older Resource Globe commitment formats are unchanged; only the new AURA route-decision commitment is explicitly canonicalized here
+
+NEXT: 0.0.9.36 – AURA Pod Gossip, Live Resource Globe AI Telemetry & Model Profile Distribution
+
+0.0.9.36 – AURA POD GOSSIP, LIVE RESOURCE GLOBE AI TELEMETRY & MODEL PROFILE DISTRIBUTION [DONE 2026-09-10]
+----------------------------------------------------------------------------------------------------------------------
+Implemented:
+- signed AURA pod-capacity announcements with sequence, validity window and bounded service endpoint
+- signed AURA model-capability-profile announcements with publisher identity and model-registry commitment binding
+- canonical SHA3-256 domains `QRX/AURA/POD-GOSSIP/V1` and `QRX/AURA/MODEL-PROFILE-GOSSIP/V1`
+- explicit big-endian integer serialization + length-framed strings for new V1 announcement commitments/wire format
+- global live gossip capacity up to 4096 pods and 256 model profiles, while preserving the smaller 256-entry local scheduler registry
+- strict replay protection and monotonic sequence replacement
+- pod-ID provider takeover protection
+- fail-closed signature verification on network admission and again when restoring signed cache state
+- height-bounded announcement validity and expiry pruning
+- persistent `aura-pod-gossip.cache` and `aura-model-gossip.cache`
+- P2P message handlers `AURA_POD_PUSH`, `AURA_MODEL_PUSH`, `AURA_POD_PULL`, `AURA_MODEL_PULL`, `AURA_FABRIC_STATUS`
+- accepted PUSH fanout to a bounded peer subset; invalid gossip contributes peer reputation penalty
+- live signed/non-expired gossip feeds directly into 0.0.9.35 AURA snapshot/AUTO routing
+- Resource Globe bridge preserves unique-provider regional privacy threshold and never exposes provider/pod endpoint identity in public cells
+- daemon observability RPCs `getaurafabric`, `getauraatlas`, `listauramodels`
+- qrx-cli forwarding for the new AURA observability RPCs
+- pod daemon authentication currently reuses consensus-bound storage-provider discovery keys
+- model-profile publishers are authenticated against active governance-root keys
+- release finishing removed all new 0.0.9.36 misleading-indentation warnings; remaining build warnings are inherited historical paths
+
+Validation:
+- new `compute_phase161_aura_pod_gossip_live_globe`
+- exact pod/model announcement SHA3-256 golden vectors
+- signature/wire/replay/forgery/provider-takeover/governance-authority/privacy/cache/expiry/live-routing behavior tested
+- full registered CTest suite: 94/94 PASS
+- clean configured build including qrx/qrxd/qrx-cli: PASS
+
+Scope boundary:
+- compute-only provider identities cannot yet publish independently through the daemon V1 path unless they also have the existing storage-provider identity binding
+- local calibrated compute nodes are not yet auto-publishing their own pod announcements
+- P2P PUSH/PULL transport exists, but periodic anti-entropy and large-network convergence are not yet implemented/tested
+- `model_registry_commitment` is signed metadata but is not yet checked against an authoritative on-chain model-registry record
+- model weights/chunks are not distributed by this phase
+- live scheduler reservation, cache placement and actual runtime job dispatch remain pending
+- Phase 161 is not a multi-process/WAN gossip stress benchmark
+
+NEXT: 0.0.9.37 – AURA Live Scheduler Admission, Compute Provider Identity Binding, Model Cache Placement & Runtime Dispatch
+
+0.0.9.37 – AURA LIVE SCHEDULER ADMISSION, COMPUTE PROVIDER IDENTITY BINDING, MODEL CACHE PLACEMENT & RUNTIME DISPATCH [DONE 2026-09-10]
+----------------------------------------------------------------------------------------------------------------------------------------
+Implemented:
+- native consensus transaction `COMPUTE_PROVIDER_BIND_IDENTITY`
+- compute-only provider discovery identity stored under `compute/provider-identity/<provider>`
+- ML-DSA-65-only provider gossip key binding with monotonic rotation sequence
+- identity state staged atomically with QRXDB/WAL and covered by PoUC generic tx undo journal for reorg rollback
+- AURA pod-gossip key resolution prefers native compute identity, with legacy storage-provider discovery-key fallback
+- signed AURA model profile must match the deterministic `QrxAiModelRegistry` commitment before cache/admission use
+- deterministic model-cache placement using locality/cache/reliability/latency/free-cache ordering
+- dense single-device model must fit one cache pod; MoE/distributed profiles may split storage requirement across cache pods
+- cache-plan commitment `QRX/AURA/MODEL-CACHE-PLAN/V1`
+- verified cache catalog; scheduler rejects unverified/mismatched model cache entries
+- live admission binds current gossip route + model + job graph + node + selected provider/pod reservations
+- deterministic selected-pod ranking and fail-closed resource eligibility
+- actual `QrxResourceProviderRuntime` compute-thread/network reservation with rollback on partial failure
+- admission lease commitment `QRX/AURA/LIVE-ADMISSION/V1`
+- local runtime dispatch through existing `QrxMoeWorkerAdapter`
+- explicit distributed/remote dispatch callback; no fake distributed success path
+- output-content commitment `QRX/AURA/RUNTIME-OUTPUT/V1`
+- dispatch-result commitment `QRX/AURA/RUNTIME-DISPATCH-RESULT/V1`
+- successful dispatch can be transformed into the existing `QrxPoucReceipt`; admission commitment is bound as execution params
+- scheduler release returns all provider runtime reservations
+
+Validation:
+- new `compute_phase162_aura_live_admission_identity_cache_dispatch`
+- real ML-DSA-65 compute-provider identity binding/signing lookup tested
+- provider identity key rotation + PoUC undo-journal reorg rollback tested
+- native compute identity authenticates AURA pod gossip without storage-provider identity
+- model-registry commitment binding/cache planning/cache verification/admission/runtime dispatch/PoUC receipt/release/fail-closed no-cache behavior tested
+- deterministic cache/admission/output/result commitments pinned by golden vectors
+- full registered CTest target becomes 95 tests
+
+Scope boundary:
+- remote multi-pod transport remains an explicit adapter callback; dedicated AURA dispatch wire protocol follows
+- QRX Drive model fetch is adapterized but not yet autonomous in the daemon
+- provider runtime reservation is local state; cross-node P2P reservation leases follow
+- automatic self-advertisement + periodic anti-entropy convergence still follow
+- persistent governance/chain distribution of the authoritative model registry remains separate from scheduler-side commitment enforcement
+
+NEXT: 0.0.9.38 – AURA Remote Dispatch Wire Protocol, Reservation Leases, QRX Drive Model Fetch & Anti-Entropy Convergence
+
+0.0.9.38 – AURA REMOTE DISPATCH WIRE PROTOCOL, RESERVATION LEASES, QRX DRIVE MODEL FETCH & ANTI-ENTROPY CONVERGENCE [DONE 2026-09-10]
+---------------------------------------------------------------------------------------------------------------------------------------------------
+Implemented:
+- authenticated remote AURA request/response frame protocol with canonical big-endian serialization
+- `QRX/AURA/REMOTE-FRAME/V1`, `QRX/AURA/REMOTE-PAYLOAD/V1`, `QRX/AURA/REMOTE-LEASE/V1`
+- signed requester frames and signed provider responses; TCP is transport, QRX signatures are identity
+- response/request binding for sequence, kind, provider/pod, admission, lease, node, fragment and model commitment
+- bounded response-height freshness check on the client
+- real provider-runtime reservation leases: OPEN / RENEW / RELEASE / EXPIRE
+- exact retry idempotence only for byte-equivalent immutable lease semantics
+- lease binds requester/admission/provider/pod/model/runtime/node/resources/memory/output/fragment contract
+- changed immutable data under same lease/sequence rejected
+- lease renewal uses strictly increasing sequence and only extends expiry within protocol bounds
+- provider server reaps expired leases before request handling
+- distributed-dispatch adapter with one worker thread per admitted pod and explicit model-specific fragment/aggregate callbacks
+- real non-Windows loopback TCP dispatch regression: reserve -> execute -> signed result -> release
+- QRX Drive/CAS model-bundle manifest with weights/tokenizer/config/expert-pack/expert-manifest objects
+- range-based model object fetch into local QRX Storage FS with content-root verification
+- manifest/model/version/tokenizer/expert-manifest binding against QrxAiModelRecord
+- deterministic per-pod weight/expert selection using pod identity + model commitment for stable cache locality
+- AURA live gossip order-independent digest roots for pods/models/combined state
+- equal-sequence conflicting content treated as equivocation
+- stale/not-yet-live source announcements ignored by anti-entropy merge
+- `AURA_SYNC_DIGEST` node protocol message
+- periodic bounded anti-entropy tick over known peers; digest first, paginated pull only on divergence
+- pull entries are signature/authorization verified again before merge
+- changed anti-entropy state persisted to AURA gossip caches
+- configurable `aura_anti_entropy_interval_seconds`, default 15s, clamped 5..3600s
+- process-lifetime outbound HELLO signing-key cache to avoid repeated anti-entropy passphrase requests; cleared at shutdown
+- DeepSeek-compatible reasoning lane supported via normal signed AURA model profiles; no consensus vendor hard-code
+- AUTO routing regression proves easy chat remains on Qwen-compatible edge profile while hard reasoning escalates to a distributed DeepSeek-compatible profile
+- concrete model licenses remain per-version registry metadata (`license_id`), not inferred from a family name
+
+Validation:
+- new `compute_phase163_aura_remote_dispatch_leases_drive_anti_entropy`
+- remote frame golden commitment pinned: `47cfe8c5095fc8cc1eeef65f728f62076e48b4290320325f3e78c2e08b8f70ce`
+- signature/payload tamper, lease replay/mutation/renew/release/expiry, real loopback transport, Drive fetch, registry-root mismatch, digest convergence, equivocation and reasoning escalation tested
+- full registered CTest suite: 96/96 PASS
+
+Scope boundary:
+- remote transport server/client library is implemented, but a permanently configured autonomous compute-provider listener is not yet instantiated by node configuration
+- in-flight lease journal is currently process-local; durable crash recovery follows
+- QRX Drive fetch is implemented as the cache/fetch adapter but is not yet auto-triggered on every remote wire-server cache miss
+- generic core intentionally does not invent model tensor/expert fragmentation; architecture-specific fragment/aggregate adapters are required for multi-pod execution
+- no Internet-scale convergence/performance claim from the deterministic regression suite
+- remote payload authentication is implemented; separate confidential payload channel/encryption hardening remains follow-up work
+
+NEXT: 0.0.9.39 – Autonomous AURA Provider Service, Durable Lease Journal, Secure Remote Payload Channel & Model-Aware MoE Fragmentation
+
+0.0.9.39 – AUTONOMOUS AURA PROVIDER SERVICE, DURABLE LEASE JOURNAL, SECURE REMOTE PAYLOAD CHANNEL & MODEL-AWARE MOE FRAGMENTATION [DONE 2026-09-10]
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Implemented:
+- autonomous background AURA provider service runtime/API with real TCP listener
+- OS-assigned or configured provider listen port and `qrxp2p://host:port` service endpoint
+- provider service binds runtime, verified model cache, authoritative model registry, requester-key lookup, provider signing key, height callback, secure-session lookup and model-fetch adapter
+- automatic signed pod-advertisement callback + height-based TTL refresh once service is started
+- crash-durable remote reservation lease journal `QRXALJ39`
+- canonical lease journal domain `QRX/AURA/LEASE-JOURNAL/V1`
+- temp-file + durable flush + atomic replacement persistence
+- checksum/trailing-byte/format validation on journal load
+- restart recovery re-reserves still-live ACTIVE runtime resources and marks expired leases EXPIRED
+- partial lease-recovery failure rolls back resources restored earlier in the same attempt
+- durable reap couples runtime release to journal persistence with best-effort state/resource rollback on persistence failure
+- DISPATCH sequence/replay barrier persisted before worker execution
+- AES-256-GCM remote payload confidentiality envelope `QRXSEC39`
+- secure request and secure provider response payloads; signed frame remains identity/integrity authority
+- AAD binds remote execution metadata including admission/lease/provider/pod/model/node/fragment/sequence
+- random 96-bit GCM nonce from `RAND_bytes`
+- abstract session-secret API plus optional classical X25519 convenience helper
+- explicit boundary: X25519 helper is not post-quantum; future ML-KEM/hybrid secret can feed same AES channel
+- provider may require secure dispatch and reject plaintext DISPATCH
+- provider-side verified cache miss can automatically call configured QRX Drive/model-fetch adapter after authoritative model registry commitment/runtime validation
+- canonical QRX/CAS-compatible expert manifest with model/version/architecture/layer/expert metadata
+- expert-manifest root validation against `QrxAiModelRecord.expert_manifest_root`
+- deterministic model-aware fragment strategies SINGLE / REPLICATED / EXPERT_RANGE
+- MoE expert ranges partitioned deterministically across admitted pods
+- model-aware fragment payload envelope `QRXMF39`
+- plan commitment domain `QRX/AURA/MOE-FRAGMENT-PLAN/V1`
+- direct fragment-input adapter for 0.0.9.38 distributed remote-dispatch API
+- generic core intentionally leaves tensor/hidden-state/expert-output aggregation to architecture-specific runtime adapter
+- synthetic DeepSeek-compatible MoE regression proves reasoning-oriented expert-range distribution without vendor hard-coding
+
+Validation:
+- new `compute_phase164_aura_provider_service_secure_durable_moe`
+- X25519 test-secret agreement + AES-256-GCM encrypt/decrypt/tag-tamper rejection
+- durable lease save/recover/resource re-reservation/release/corruption rejection
+- two real autonomous localhost provider services started concurrently
+- encrypted two-provider remote dispatch through actual TCP listener path
+- both provider caches start empty and auto-fetch before execution
+- 8-expert synthetic MoE model partitions E0..3 / E4..7 across two admitted pods
+- expert manifest golden root `d95cbef3e610fe781942580b477f00c6718806557090975548d33d103ef749ae`
+- fragment plan golden commitment `8f595f57d7f5a0984a8ac713a8f7e194fb6135dbe3e50024f807df3d203a7a52`
+- full registered CTest suite: 97/97 PASS
+- final clean build completed after resuming same build tree when first invocation hit execution-time limit
+- final warning count 413, identical to canonical 0.0.9.38 historical baseline; no new 0.0.9.39 file warnings
+
+Scope boundary:
+- provider service must currently be started/configured by a host process; automatic Wallet/node-config provider bootstrap follows
+- AES secure channel is ready for a supplied secret, but production PQ-hybrid ML-KEM session establishment is not yet implemented
+- QRX core provides deterministic MoE expert fragmentation, not architecture-independent tensor/hidden-state aggregation
+- production runtime plugin/model loader for llama.cpp/MLX/CUDA/etc remains follow-up
+- durable lease/replay barrier exists; durable full remote job/result journal remains follow-up
+- no WAN/NAT/Internet-scale throughput claim from the same-host multi-provider regression
+
+NEXT: 0.0.9.40 – AURA Provider Auto-Bootstrap, PQ-Hybrid Sessions, Runtime Plugin/Model Loader & Distributed MoE Aggregation
+
+0.0.9.40 – AURA PROVIDER AUTO-BOOTSTRAP, PQ-HYBRID SESSIONS, RUNTIME PLUGIN/MODEL LOADER & DISTRIBUTED MOE AGGREGATION [DONE 2026-09-11]
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+Implemented:
+- explicit opt-in AURA provider bootstrap API (`user_enabled` fail-closed gate)
+- calibrated host -> Resource Provider Plan -> READY/SERVING -> runtime/plugin binding -> advertised AURA pod -> autonomous provider service
+- optional wallet-approval enforcement during provider market registration
+- automatic provider cleanup/drain/plugin unload on bootstrap stop
+- OpenSSL provider-based `X25519MLKEM768` KEM support for AURA session establishment
+- signed remote session frame kinds `SESSION_KEM_GET` and `SESSION_OPEN`
+- provider hybrid KEM public key transported as authenticated raw public-key bytes through signed AURA remote frames
+- automatic requester encapsulation/provider decapsulation and derivation into existing AES-256-GCM AURA secure-session channel
+- bounded height-expiring PQ session cache with secret cleansing
+- per-peer AUTO hybrid-session negotiation before remote dispatch; `require_secure_peers` remains fail-closed
+- stable runtime plugin C ABI `qrx_aura_runtime_plugin_v1`
+- POSIX `dlopen`/`dlsym` and Windows `LoadLibrary`/`GetProcAddress` host abstraction
+- plugin backend/runtime/device probe validation
+- authoritative model commitment + QRX Storage FS manifest-root cache requirement before plugin load when requested
+- model handles cached by authoritative model commitment and unloaded at plugin close
+- provider-service model execution callback can route through the runtime plugin host
+- deterministic MoE contribution envelope `QRXMC40`
+- deterministic aggregate envelope `QRXMR40`
+- contribution commitment domain `QRX/AURA/MOE-CONTRIBUTION/V1`
+- aggregate commitment domain `QRX/AURA/MOE-AGGREGATE/V1`
+- fragment index/count/token/vector/fixed-point metadata consistency checks
+- duplicate fragment rejection and exact one-fragment-per-index requirement
+- signed 32-bit contribution -> signed 64-bit deterministic sum with overflow rejection
+- order-independent aggregate result
+- Phase-165 fixed aggregate golden commitment `56ba51171fc9c0ec708135ade6da301f4c23226c45caccaa4ee592254aeb4f75`
+- test runtime plugin validates real dynamic library/model-handle path without bundling a third-party production AI engine
+- two real auto-bootstrapped localhost providers negotiate PQ-hybrid sessions and execute a synthetic DeepSeek-compatible distributed MoE job
+
+Validation:
+- new `compute_phase165_aura_autobootstrap_pq_runtime_moe`
+- real OpenSSL `X25519MLKEM768` keygen/encapsulation/decapsulation tested
+- ciphertext tamper/non-equivalent-session path tested
+- dynamic runtime plugin open/probe/model-load/model-handle reuse tested
+- explicit opt-in gate tested
+- two-provider auto-bootstrap + advertisement + SERVING runtime tested
+- automatic per-peer PQ-hybrid session negotiation over the real remote TCP path tested
+- distributed synthetic DeepSeek-compatible two-provider fragment execution + fixed-point aggregation tested
+- full registered CTest suite: 98/98 PASS
+- final clean build completed after resuming the same clean build tree when the first invocation hit execution-time limit
+- final warning count 413, identical to canonical 0.0.9.39 warning baseline; 0 new warning instances
+
+Scope boundary:
+- provider auto-bootstrap is a core API, not yet a completed persistent GUI Wallet “Provide AURA Compute” settings workflow
+- production llama.cpp/MLX/CUDA runtime plugins are not bundled by this phase; the release contains the stable ABI + test plugin
+- `X25519MLKEM768` requires an OpenSSL/provider build exposing that algorithm; container validation used OpenSSL 3.5.5
+- PQ sessions are runtime cache state and renegotiate after provider restart; durable lease/replay state remains separate
+- fixed-point aggregation is a deterministic generic contribution/result primitive, not a claim of universal tensor/attention semantics for all MoE architectures
+- full remote job/result journaling and NAT/relay transport remain follow-up work
+
+0.0.9.41 – AURA HOST/WALLET PROVIDER INTEGRATION, PRODUCTION RUNTIME ADAPTERS, DURABLE JOB/RESULT JOURNAL & NAT/RELAY TRANSPORT [DONE 2026-09-11]
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Implemented:
+- versioned QRXAURA41 provider-host configuration contract
+- durable wallet/host settings path and daemon environment handoff
+- AUTO / llama.cpp CPU / llama.cpp CUDA / MLX-Metal / external runtime adapter profiles
+- durable QRXAJR41 PREPARE -> execute -> COMMIT job/result journal
+- exact idempotent result retry after crash/network loss; mutated same-sequence retry rejected
+- qrxrelay:// outbound provider tunnel for NATed/home providers; relay remains blind to signed/PQ/AES-GCM application security
+
+Validation: Phase 166 plus retained Phase 164/165 coverage; current combined suite 102/102 PASS.
+
+0.0.9.42 – AURA ZERO-CONFIG MODEL FABRIC, DISTRIBUTED MODEL REGISTRY, QRX MODEL REPLICATION & PROVIDER DISCOVERY [DONE 2026-09-11]
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+Implemented:
+- signed exact-version model manifests and dynamic catalog announcements
+- content-addressed config/tokenizer/shared-weight/weight-chunk/expert-pack/adapter assets
+- signed provider availability index with per-asset bitmap and TTL/sequence semantics
+- no vendor/model-generation hard-code in consensus; Qwen/Kimi/DeepSeek/future families are catalog metadata
+- replica targets from minimum redundancy + popularity + priority + demand and geographic health
+- zero-config Eco/Balanced/Performance placement within hardware/cache budgets
+- fetch hierarchy: local -> LAN -> pod -> nearby QRX provider -> QRX Drive -> allowed external origin
+- beginner GUI AURA Compute · Automatic; technical runtime/model format hidden from normal workflow
+
+Validation: compute_phase167_aura_zero_config_model_fabric; current combined suite 102/102 PASS.
+
+0.0.9.43 – AUTONOMOUS MODEL PLACEMENT, REPLICATION REPAIR & HOT EXPERT MIGRATION [DONE 2026-09-11]
+-------------------------------------------------------------------------------------------------------
+Implemented:
+- deterministic under-replication, region-gap and hot-expert repair planner
+- compatible target selection with missing-region preference
+- healthy source selection from reliability/bandwidth/latency
+- demand-driven expert replication without requiring whole-model copies
+
+Validation: compute_phase168_aura_autoplacement_repair_hot_expert; current combined suite 102/102 PASS.
+
+0.0.9.44 – PROVIDER SUPERVISOR, RELAY FAILOVER STATE, RUNTIME HEALTH & JOURNAL RETENTION [DONE 2026-09-11]
+-----------------------------------------------------------------------------------------------------------------
+Implemented:
+- up to four supervised relay endpoints, health counters, deterministic failover choice and cooldown
+- runtime health and restart recommendation
+- bounded committed/prepared job journal retention + durable compaction
+- supervisor status snapshot for following daemon/GUI runtime wiring
+
+Validation:
+- compute_phase169_aura_provider_supervisor_failover_health
+- full registered CTest 102/102 PASS
+- GUI inline JavaScript syntax check PASS
+- Tauri Rust build still requires a host with cargo/rustc installed
+
+0.0.9.45 – SIGNED RUNTIME PACKAGE MANAGER, HARDWARE AUTO-DETECTION & ONE-CLICK AURA PROVIDER ACTIVATION [DONE 2026-09-11]
+----------------------------------------------------------------------------------------------------------------------
+- detect CPU/ISA/RAM/GPU/VRAM/Metal/CUDA automatically
+- signed/hash-pinned runtime packages with resumable install/update/rollback
+- turn durable wallet settings into a real automatically started provider without terminal work
+- wire supervisor relay selection/health into active provider tunnels
+- normal GUI shows only simple health/status; plugin/runtime overrides stay Advanced
+
+0.0.9.46 – MODEL CATALOG GOVERNANCE, PROVENANCE, LICENSE POLICY, UPDATE & ROLLBACK [DONE 2026-09-11]
+------------------------------------------------------------------------------------------------
+- governance-authorized catalog roots/publishers
+- exact source/provenance/license metadata
+- signed supersession/deprecation/emergency-disable
+- deterministic rollback to a prior verified model/runtime pair
+- prevent silent model/version substitution
+
+0.0.9.47 – HETEROGENEOUS WAN CAMPAIGN, QUALITY/COST/ENERGY ROUTING & PRODUCTION TELEMETRY [DONE 2026-09-11]
+------------------------------------------------------------------------------------------------------
+- Apple Silicon, x64/ARM Linux, NVIDIA including P40 and CPU-only WAN campaigns
+- quality/latency/cost/energy-aware AURA routing
+- relay reconnect, cache churn, hot-expert movement and partial-provider-failure tests
+- reproducible throughput/capacity reporting instead of same-host performance claims
+
+0.0.9.48 – 0.0.9 MAINNET AURA RELEASE HARDENING, MIGRATION, PACKAGING & RC AUDIT [DONE 2026-09-11]
+------------------------------------------------------------------------------------------------
+- clean target builds/installers and daemon/wallet/provider migration/rollback rehearsal
+- release manifest/signatures/SBOM/dependency checks
+- adversarial model-catalog/provider/relay/runtime testing
+- final retained-feature audit against 0.0.7/0.0.8
+
+0.0.9.49 – QRX A–Z DOCUMENTATION, SETUP WIZARD, MENU NAVIGATION & OPERATOR HANDBOOK [DONE 2026-09-11 — FINAL 0.0.9 PHASE]
+-------------------------------------------------------------------------------------------------------------------------------------
+Mandatory release-closing documentation phase:
+- complete QRX A–Z handbook from architecture through daily use
+- beginner-proof installation/first-run for every supported desktop target
+- exact GUI menu-by-menu navigation: Dashboard, Apps, QRX Drive, QRX-Net, Resource Globe, Send, Receive, Transactions, Staking, Validator Mode, BTC Light, Quantum Swaps, Markets, Agents/Kraken, Privacy, Roadmap, Wallets, Safety Center, Address Book and AURA
+- wallet create/import/recovery/backups/network switching
+- validators/staking/delegation/slashing; Drive/storage; QRX-Net/browser/domain hosting
+- AURA Automatic beginner route plus advanced registry/replication/MoE/runtime/relay/supervisor operation
+- CLI/RPC reference checked against shipped binaries
+- upgrades/migrations/rollback/recovery/troubleshooting decision trees
+- security/privacy/PQ boundaries, glossary and FAQ
+- canonical Markdown in release + offline searchable GUI Help; HTML/PDF generated from the same source
+
+Acceptance gate:
+0.0.9 is not documentation-complete until a new user can install QRX, navigate every normal menu, recover a wallet, use core features and diagnose common failures from shipped documentation alone.
+See docs/QRX_A_TO_Z_DOCUMENTATION_PLAN_0.0.9.49.md.
+
+
+0.0.9 FINAL CLOSEOUT [DONE 2026-09-11]
+----------------------------------------
+- phases 0.0.9.45 through 0.0.9.49 completed
+- phase174 documentation/menu coverage gate added
+- full registered Core regression suite: 107/107 PASS
+- canonical offline handbook: docs/QRX_A_TO_Z_0.0.9.md
+- native Rust/Tauri installer validation remains a release-host/CI responsibility and is not inferred from the Linux C regression suite
+
+NEXT BRANCH: 0.0.10 – OUROBOROS / QRX DAO & AURA GOVERNANCE EVOLUTION (per roadmap)
+
+
+GENESIS FREEZE TOKENOMICS HARDENING — 2026-09-11 [DONE]
+----------------------------------------------------------
+- Mainnet protocol/staking reward normalized to 0.25 QUB every 10 seconds (25,000,000 atoms).
+- Shared economics constants prevent profile/CLI drift.
+- Service layers do not introduce independent mint inflation.
+- Storage: 97.5% providers / 2.0% resilience / 0.5% development.
+- Compute FastTrack: 90.0% provider / 9.5% network pool / 0.5% development; max premium 25% of compute budget.
+- Advertising: 55% delivery / 25% publisher / 15% viewer / 4.5% protocol / 0.5% development.
+- Phase178 tokenomics conservation test added.
+- Full CTest: 112/112 PASS.
+- 0.0.8 Storage/QRX-Net/Ads: 51/51 PASS; ASan+UBSan subset + phase178: 52/52 PASS.
+- Sanitizer linker propagation for later-added test targets fixed.

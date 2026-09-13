@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod qrx_apps;
+
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 use serde_json::Value;
@@ -48,6 +50,18 @@ struct KrakenCredentialVault {
 struct KrakenCredentialPlain {
     api_key: String,
     api_secret: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct AuraProviderWalletSettings {
+    version: u32,
+    enabled: bool,
+    mode: String,
+    power_profile: String,
+    disk_budget_gib: u64,
+    provider_id: String,
+    relay_endpoint: String,
+    config_path: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -107,10 +121,10 @@ struct WalletContext {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct CommandResult {
+pub(crate) struct CommandResult {
     ok: bool,
     method: String,
-    result: Value,
+    pub(crate) result: Value,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -331,7 +345,7 @@ fn current_sidecar_binary_name(base: &str) -> String {
     format!("{base}-{arch}-{platform}{ext}")
 }
 
-fn app_data_dir() -> Result<PathBuf, AppError> {
+pub(crate) fn app_data_dir() -> Result<PathBuf, AppError> {
     // GUI and Core intentionally share the exact same QRX data root.
     // qrx/qrxd/qrx-cli default to ~/.qrx/<network>; using ~/.qrx here means
     // an existing Core wallet is discovered and used in place instead of
@@ -351,6 +365,116 @@ fn wallet_settings_dir(network: &str, wallet: &str) -> Result<PathBuf, AppError>
     let dir = network_root(network)?.join("wallet-settings").join(wallet);
     fs::create_dir_all(&dir)?;
     Ok(dir)
+}
+
+fn aura_provider_config_file(network: &str, wallet: &str) -> Result<PathBuf, AppError> {
+    Ok(wallet_settings_dir(network, wallet)?.join("aura-provider.conf"))
+}
+
+fn aura_provider_settings_file(network: &str, wallet: &str) -> Result<PathBuf, AppError> {
+    Ok(wallet_settings_dir(network, wallet)?.join("aura-provider-settings.json"))
+}
+
+fn aura_replace_file(tmp: &Path, path: &Path) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    if path.exists() { fs::remove_file(path).map_err(|e| e.to_string())?; }
+    fs::rename(tmp, path).map_err(|e| e.to_string())
+}
+
+fn aura_conf_value(value: &str, field: &str) -> Result<String, String> {
+    let trimmed = value.trim();
+    if trimmed.contains('\n') || trimmed.contains('\r') || trimmed.contains('=') {
+        return Err(format!("Invalid {field}"));
+    }
+    Ok(trimmed.to_string())
+}
+
+#[tauri::command]
+fn aura_provider_settings_load(network: String, wallet: String) -> Result<AuraProviderWalletSettings, String> {
+    let config_path = aura_provider_config_file(&network, &wallet).map_err(String::from)?;
+    let settings_path = aura_provider_settings_file(&network, &wallet).map_err(String::from)?;
+    if settings_path.exists() {
+        let mut v: AuraProviderWalletSettings = serde_json::from_slice(&fs::read(&settings_path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+        v.config_path = config_path.to_string_lossy().to_string();
+        return Ok(v);
+    }
+    Ok(AuraProviderWalletSettings {
+        version: 1,
+        enabled: false,
+        mode: "automatic".into(),
+        power_profile: "balanced".into(),
+        disk_budget_gib: 50,
+        provider_id: String::new(),
+        relay_endpoint: String::new(),
+        config_path: config_path.to_string_lossy().to_string(),
+    })
+}
+
+#[tauri::command]
+fn aura_provider_settings_save(
+    network: String,
+    wallet: String,
+    enabled: bool,
+    mode: String,
+    power_profile: String,
+    disk_budget_gib: u64,
+    provider_id: String,
+    relay_endpoint: String,
+) -> Result<AuraProviderWalletSettings, String> {
+    if !matches!(mode.as_str(), "automatic" | "off") {
+        return Err("AURA mode must be automatic or off".into());
+    }
+    if !matches!(power_profile.as_str(), "eco" | "balanced" | "performance") {
+        return Err("Unknown AURA power profile".into());
+    }
+    if disk_budget_gib > 8192 {
+        return Err("AURA model cache budget is too large".into());
+    }
+    let provider_id = aura_conf_value(&provider_id, "provider id")?;
+    let relay_endpoint = aura_conf_value(&relay_endpoint, "relay endpoint")?;
+    if enabled && provider_id.is_empty() {
+        return Err("Unlock/load a wallet address before enabling AURA Compute".into());
+    }
+    if !relay_endpoint.is_empty() && !relay_endpoint.starts_with("qrxrelay://") {
+        return Err("Relay endpoint must start with qrxrelay://".into());
+    }
+    let wallet_safe = sanitize_wallet_name(&wallet).map_err(String::from)?;
+    let network_safe = aura_conf_value(&network, "network")?;
+    let config_path = aura_provider_config_file(&network_safe, &wallet_safe).map_err(String::from)?;
+    let settings_path = aura_provider_settings_file(&network_safe, &wallet_safe).map_err(String::from)?;
+    let lease_path = wallet_settings_dir(&network_safe, &wallet_safe).map_err(String::from)?.join("aura-provider.leases");
+    let jobs_path = wallet_settings_dir(&network_safe, &wallet_safe).map_err(String::from)?.join("aura-provider.jobs");
+    let effective_disk_gib = if disk_budget_gib == 0 {
+        match power_profile.as_str() { "eco" => 10, "performance" => 200, _ => 50 }
+    } else { disk_budget_gib };
+    let cache_bytes = effective_disk_gib.saturating_mul(1024 * 1024 * 1024);
+    let pod_id = format!("wallet-{}-auto", wallet_safe);
+    let conf = format!(
+        "format=QRXAURA41\nenabled={}\nprovider_id={}\npod_id={}\nnetwork={}\nregion=AUTO\ncompute_threads=0\nmodel_cache_bytes={}\nfree_memory_bytes=0\nnetwork_egress_mbps=0\nrequire_wallet_approval=1\nrequire_secure_dispatch=1\nenable_pq_hybrid_sessions=1\nlisten_host=127.0.0.1\nlisten_port=0\nlease_journal_path={}\njob_journal_path={}\nruntime_adapter=AUTO\nruntime_plugin_path=\nruntime_adapter_dir=\nrelay_required=0\n{}",
+        if enabled && mode == "automatic" { 1 } else { 0 }, provider_id, pod_id, network_safe, cache_bytes,
+        lease_path.to_string_lossy(), jobs_path.to_string_lossy(),
+        if relay_endpoint.is_empty() { String::new() } else { format!("relay={}\n", relay_endpoint) }
+    );
+    let tmp = config_path.with_extension("tmp");
+    fs::write(&tmp, conf.as_bytes()).map_err(|e| e.to_string())?;
+    aura_replace_file(&tmp, &config_path)?;
+
+    let settings = AuraProviderWalletSettings {
+        version: 1,
+        enabled: enabled && mode == "automatic",
+        mode,
+        power_profile,
+        disk_budget_gib,
+        provider_id,
+        relay_endpoint,
+        config_path: config_path.to_string_lossy().to_string(),
+    };
+    let settings_tmp = settings_path.with_extension("tmp");
+    fs::write(&settings_tmp, serde_json::to_vec_pretty(&settings).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    aura_replace_file(&settings_tmp, &settings_path)?;
+    Ok(settings)
 }
 
 fn validator_mode_file(network: &str, wallet: &str) -> Result<PathBuf, AppError> {
@@ -860,7 +984,7 @@ fn run_cli_raw(
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
-fn run_cli(
+pub(crate) fn run_cli(
     app: Option<&tauri::AppHandle>,
     network: &str,
     wallet: &str,
@@ -1068,6 +1192,21 @@ fn spawn_daemon(
         for signer_wallet in enabled_validator_wallets(network, wallet) {
             cmd.arg("--validator-wallet").arg(signer_wallet);
         }
+    }
+
+    if let Ok(aura_config) = aura_provider_config_file(network, wallet) {
+        if aura_config.exists() {
+            cmd.env("QRX_AURA_PROVIDER_CONFIG", aura_config);
+        }
+    }
+
+    // The public runtime trust root is bundled with the wallet.  qrxd never
+    // trusts a publisher key downloaded alongside a runtime package.
+    if let Some(catalog) = app.path_resolver().resolve_resource("resources/aura/official-runtime-catalog.qrx") {
+        if catalog.exists() { cmd.env("QRX_AURA_RUNTIME_CATALOG", catalog); }
+    }
+    if let Some(pubkey) = app.path_resolver().resolve_resource("resources/aura/official-runtime-publisher.pem") {
+        if pubkey.exists() { cmd.env("QRX_AURA_RUNTIME_PUBLISHER_KEY", pubkey); }
     }
 
     let child = cmd
@@ -3585,6 +3724,24 @@ fn open_qrx_browser_window(app: tauri::AppHandle, network: Option<String>, walle
     Ok("QRX Browser opened in its own window.".to_string())
 }
 
+
+#[tauri::command]
+fn upscaler_capabilities(app: tauri::AppHandle) -> Result<Value, String> {
+    let binary = resolve_binary(Some(&app), "qrx-upscaler").map_err(String::from)?;
+    let output = Command::new(binary)
+        .arg("capabilities")
+        .output()
+        .map_err(|e| format!("Could not run QRX Upscaler capability probe: {e}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "QRX Upscaler capability probe failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    serde_json::from_slice::<Value>(&output.stdout)
+        .map_err(|e| format!("Invalid QRX Upscaler capability response: {e}"))
+}
+
 #[tauri::command]
 fn qrxnet_domain_preflight(app: tauri::AppHandle, network: String, wallet: String, name: String, years: Option<u64>) -> Result<Value, String> {
     let y=years.unwrap_or(1).to_string(); run_cli(Some(&app), &network, &wallet, &["getdomainpreflight", name.as_str(), y.as_str()], None).map(|r| r.result).map_err(String::from)
@@ -3654,6 +3811,24 @@ fn qrxnet_browser_fetch(app: tauri::AppHandle, network:String, wallet:String, do
 #[tauri::command]
 fn resource_dashboard_snapshot(app: tauri::AppHandle, network: String, wallet: String) -> Result<Value, String> {
     run_cli(Some(&app), &network, &wallet, &["getresourcedashboard"], None)
+        .map(|r| r.result)
+        .map_err(String::from)
+}
+
+#[tauri::command]
+fn drive_activation_readiness(app: tauri::AppHandle, network: String, wallet: String) -> Result<Value, String> {
+    run_cli(Some(&app), &network, &wallet, &["getdriveactivationreadiness"], None)
+        .map(|r| r.result)
+        .map_err(String::from)
+}
+
+#[tauri::command]
+fn protocol_activation_readiness(app: tauri::AppHandle, network: String, wallet: String, feature: String) -> Result<Value, String> {
+    let f = feature.trim();
+    if !matches!(f, "DRIVE_V1" | "QRX_NET_V1" | "ADVERTISING_V1" | "COMPUTE_POUC_V1") {
+        return Err("unsupported protocol readiness feature".into());
+    }
+    run_cli(Some(&app), &network, &wallet, &["getprotocolreadiness", f], None)
         .map(|r| r.result)
         .map_err(String::from)
 }
@@ -3769,6 +3944,17 @@ fn main() {
             qrx_family_policy_get,
             qrx_family_policy_status,
             open_qrx_browser_window,
+            upscaler_capabilities,
+            qrx_apps::qrx_app_inspect_package,
+            qrx_apps::qrx_app_install,
+            qrx_apps::qrx_app_list,
+            qrx_apps::qrx_app_uninstall,
+            qrx_apps::qrx_app_set_developer_mode,
+            qrx_apps::qrx_app_inspect_dev_folder,
+            qrx_apps::qrx_app_register_dev,
+            qrx_apps::qrx_app_load_bundle,
+            qrx_apps::open_qrx_app_window,
+            qrx_apps::qrx_app_bridge_call,
             generate_qr_svg,
             address_book_list,
             address_book_upsert,
@@ -3859,6 +4045,8 @@ fn main() {
             crosschain_refund,
             crosschain_submit_funding_proof,
             crosschain_status,
+            aura_provider_settings_load,
+            aura_provider_settings_save,
             aura_plan_status,
             aura_checkout_quote,
             aura_local_help,
@@ -3892,6 +4080,8 @@ fn main() {
             qrxnet_browser_resolve,
             qrxnet_browser_fetch,
             resource_dashboard_snapshot,
+            drive_activation_readiness,
+            protocol_activation_readiness,
             resource_atlas_snapshot,
             resource_hosting_missions,
             drive_files_snapshot,

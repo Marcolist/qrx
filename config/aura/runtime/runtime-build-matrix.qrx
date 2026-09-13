@@ -1,0 +1,10 @@
+# QRX AURA runtime release matrix. Data-only release input; packages are built natively,
+# SHA3-addressed, signed and then replicated into QRX Drive.
+# target|variant|adapter|platform|arch|backend|required_features|min_mem_mib|cuda_major|cuda_minor
+linux-x64|cpu|LLAMA_CPP_CPU|linux|x86_64|cpu|FP32|1024|0|0
+linux-arm64|cpu|LLAMA_CPP_CPU|linux|aarch64|cpu|FP32|1024|0|0
+macos-x64|cpu|LLAMA_CPP_CPU|macos|x86_64|cpu|FP32|1024|0|0
+macos-arm64|metal|LLAMA_CPP_METAL|macos|aarch64|other|FP16,FP32,METAL|2048|0|0
+windows-x64|cpu|LLAMA_CPP_CPU|windows|x86_64|cpu|FP32|1024|0|0
+linux-x64|cuda|LLAMA_CPP_CUDA|linux|x86_64|cuda|FP16,FP32,CUDA|2048|6|1
+windows-x64|cuda|LLAMA_CPP_CUDA|windows|x86_64|cuda|FP16,FP32,CUDA|2048|6|1

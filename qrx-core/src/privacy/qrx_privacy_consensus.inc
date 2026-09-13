@@ -197,7 +197,17 @@ static int privacy_prepare_shield_payload(const char *chain_dir,const char *wall
 static int privacy_build_spend_payload(const char *chain_dir,const char *wallet_dir,const char *to,long long amount,int unshield,char **payload_out){
     ShieldedNoteRecord *arr=NULL;size_t n=0;if(privacy_load_notes_authoritative(chain_dir,&arr,&n)!=0||!n){free(arr);return -1;}
     size_t *idx=NULL,cnt=0;ShieldedOwnedNote *w=NULL;long long sum=0;if(privacy_collect_owned_authoritative(chain_dir,wallet_dir,amount,arr,n,&idx,&w,&cnt,&sum)!=0){free(arr);return -1;}
-    char selfz[512];if(shielded_make_address_from_wallet(wallet_dir,selfz)!=0)goto fail;size_t outc=unshield?(sum>amount?1:0):(sum>amount?2:1);if(outc>QRX_PRIVACY_MAX_OUTPUTS)goto fail;ShieldedNoteRecord outs[2];ShieldedOwnedNote ow[2];char *ranges[2]={0};memset(ow,0,sizeof(ow));
+    /* Genesis hardening (Finding 6): every pointer released by the fail:
+     * label must be initialised before the first goto can reach it. The
+     * earlier layout declared ranges[] after two goto fail statements, so
+     * those paths reached "for(i<2) free(ranges[i])" with indeterminate
+     * stack pointers. Declarations are now hoisted above every jump. */
+    ShieldedNoteRecord outs[2];ShieldedOwnedNote ow[2];char *ranges[2]={NULL,NULL};
+    memset(outs,0,sizeof(outs));memset(ow,0,sizeof(ow));
+    char selfz[512];size_t outc=0;
+    if(shielded_make_address_from_wallet(wallet_dir,selfz)!=0)goto fail;
+    outc=unshield?(sum>amount?1:0):(sum>amount?2:1);
+    if(outc>QRX_PRIVACY_MAX_OUTPUTS)goto fail;
     if(unshield){if(outc&&privacy_create_bound_note(chain_dir,selfz,sum-amount,"consensus-unshield-change",&outs[0],&ow[0],&ranges[0])!=0)goto fail;}
     else{if(!to||strncmp(to,"zqub2",5))goto fail;if(privacy_create_bound_note(chain_dir,to,amount,"consensus-private-payment",&outs[0],&ow[0],&ranges[0])!=0)goto fail;if(outc==2&&privacy_create_bound_note(chain_dir,selfz,sum-amount,"consensus-private-change",&outs[1],&ow[1],&ranges[1])!=0)goto fail;}
     char root[129];if(privacy_merkle_root_authoritative(chain_dir,root)!=0)goto fail;char bind[1024],ctx[4096];privacy_transcript_prefix(chain_dir,bind);
@@ -267,14 +277,23 @@ done:
 static int validate_privacy_governance_tx(const char *chain_dir,const char *payload){
     char *pb=payload_get_field(payload,"proposal_b64"),*sc=payload_get_field(payload,"signature_count");if(!pb||!sc){free(pb);free(sc);return -1;}char *pt=privacy_b64_decode_text(pb);long long n=atoll(sc),threshold=gov_threshold(chain_dir);free(pb);free(sc);if(!pt||threshold<=0||n<threshold||n>16){free(pt);return -1;}
     char *fmt=cfg_get(pt,"format"),*cid=cfg_get(pt,"chain_id"),*gen=cfg_get(pt,"genesis_hash"),*pv=cfg_get(pt,"protocol_version"),*action=cfg_get(pt,"action"),*nonce=cfg_get(pt,"nonce");char *ecid=NULL,*egen=NULL,*epv=NULL;if(!fmt||strcmp(fmt,"qrx-governance-proposal-v2")||!cid||!gen||!pv||!action||!nonce||privacy_binding_values(chain_dir,&ecid,&egen,&epv)||strcmp(cid,ecid)||strcmp(gen,egen)||strcmp(pv,epv)){free(fmt);free(cid);free(gen);free(pv);free(action);free(nonce);free(ecid);free(egen);free(epv);free(pt);return -1;}free(ecid);free(egen);free(epv);
-    char ph[129];gov_hash_text("QUB-GOVERNANCE-PROPOSAL-v2",pt,ph);char replayk[320],rv[64];snprintf(replayk,sizeof(replayk),"privacy:governance:applied:%s",ph);if(privacy_db_get(chain_dir,replayk,rv,sizeof(rv))==0){free(fmt);free(cid);free(gen);free(pv);free(action);free(nonce);free(pt);return -1;}
+    char ph[129];gov_hash_text("QUB-GOVERNANCE-PROPOSAL-v2",pt,ph);char replayk[320],rv[64];
+    if(!strcmp(action,"PROTOCOL_UPGRADE"))snprintf(replayk,sizeof(replayk),"governance:protocol:applied:%s",ph);
+    else snprintf(replayk,sizeof(replayk),"privacy:governance:applied:%s",ph);
+    if(privacy_db_get(chain_dir,replayk,rv,sizeof(rv))==0){free(fmt);free(cid);free(gen);free(pv);free(action);free(nonce);free(pt);return -1;}
+    if(!strcmp(action,"PROTOCOL_UPGRADE")){
+        char *tp=cfg_get(pt,"target_protocol_version"),*ah=cfg_get(pt,"activation_height"),*mt=cfg_get(pt,"minimum_tx_version"),*mp=cfg_get(pt,"minimum_privacy_version"),*ff=cfg_get(pt,"feature_flags");
+        long long now=current_height_from_chain(chain_dir); int bad=!tp||!ah||!mt||!mp||!ff||atoll(tp)<1||atoll(ah)<=now||atoll(mt)<1||atoll(mp)<0||strlen(ff)>255;
+        if(!bad){for(const unsigned char *z=(const unsigned char*)ff;*z;z++)if(!(isalnum(*z)||*z=='_'||*z=='-'||*z==',')){bad=1;break;}}
+        free(tp);free(ah);free(mt);free(mp);free(ff);if(bad){free(fmt);free(cid);free(gen);free(pv);free(action);free(nonce);free(pt);return -1;}
+    }
     char ids[16][128];int valid=0;for(long long i=0;i<n;i++){char sk[64];snprintf(sk,sizeof(sk),"signature%lld_b64",i);char *sb=payload_get_field(payload,sk);char *st=privacy_b64_decode_text(sb);free(sb);if(!st)continue;char *f=cfg_get(st,"format"),*id=cfg_get(st,"key_id"),*sph=cfg_get(st,"proposal_hash"),*sighex=cfg_get(st,"signature_hex");char pk[65];int ok=0;if(f&&!strcmp(f,"qrx-governance-signature-v2")&&id&&sph&&!strcmp(sph,ph)&&sighex&&gov_root_lookup(chain_dir,id,pk)==0&&strlen(sighex)%2==0){unsigned char raw[32];if(hex_to_bytes_local(pk,raw,32)==0){EVP_PKEY*pub=EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519,NULL,raw,32);size_t sl=strlen(sighex)/2;unsigned char*sig=malloc(sl);if(pub&&sig&&hex_to_bytes_local(sighex,sig,sl)==0&&verify_oneshot(pub,(unsigned char*)pt,strlen(pt),sig,sl)==0)ok=1;if(pub)EVP_PKEY_free(pub);free(sig);}}if(ok){int dup=0;for(int j=0;j<valid;j++)if(!strcmp(ids[j],id))dup=1;if(!dup&&valid<16)snprintf(ids[valid++],128,"%s",id);}free(f);free(id);free(sph);free(sighex);free(st);}
     int rc=valid>=threshold?0:-1;free(fmt);free(cid);free(gen);free(pv);free(action);free(nonce);free(pt);return rc;
 }
 
 static int validate_privacy_consensus_tx(const char *chain_dir,const char *tx_type,const char *from,const char *to,const char *amount_s,const char *payload){
     if(!tx_type||!from||!to||!amount_s||!payload||strlen(payload)>QRX_PRIVACY_TX_MAX_BYTES)return -1;long long amount=parse_nonnegative_ll_strict(amount_s,"privacy amount");char *v=payload_get_field(payload,"privacy_version");if(!v||atoi(v)!=QRX_PRIVACY_CONSENSUS_VERSION){free(v);return -1;}free(v);
-    if(!strcmp(tx_type,"PRIVACY_GOVERNANCE"))return amount==0?validate_privacy_governance_tx(chain_dir,payload):-1;
+    if(!strcmp(tx_type,"PRIVACY_GOVERNANCE")||!strcmp(tx_type,"GOVERNANCE_PROTOCOL"))return amount==0?validate_privacy_governance_tx(chain_dir,payload):-1;
     if(privacy_require_payload_credential(chain_dir,from,payload)!=0)return -1;
     if(!strcmp(tx_type,"PRIVACY_SHIELD")){if(amount<=0||strcmp(from,to))return -1;char *oc=payload_get_field(payload,"output_count"),*nb=payload_get_field(payload,"note0_b64"),*rb=payload_get_field(payload,"range0_b64"),*A=payload_get_field(payload,"shield_A"),*c=payload_get_field(payload,"shield_c"),*s=payload_get_field(payload,"shield_s");ShieldedNoteRecord r;int rc=-1;if(oc&&atoll(oc)==1&&nb&&rb&&A&&c&&s&&privacy_note_from_b64(nb,&r)==0&&privacy_verify_bound_note(chain_dir,&r,rb)==0){char bind[1024],ctx[1800];privacy_transcript_prefix(chain_dir,bind);snprintf(ctx,sizeof(ctx),"QUB-PRIVACY-SHIELD-LINK-v1|%s|leaf=%s|amount=%lld",bind,r.leaf_commitment,amount);rc=privacy_shield_link_verify(&r,amount,ctx,A,c,s);}free(oc);free(nb);free(rb);free(A);free(c);free(s);return rc;}
     if(!strcmp(tx_type,"PRIVACY_TRANSFER")||!strcmp(tx_type,"PRIVACY_UNSHIELD"))return validate_privacy_spend_bundle(chain_dir,tx_type,from,to,amount,payload);
@@ -310,12 +329,19 @@ static int atomic_stage_privacy_governance(QrxDBBatch *b,const char *chain_dir,c
     }
     else if(!strcmp(action,"CREDENTIAL_REVOKE")){char *sh=cfg_get(pt,"serial_hash");if(!sh||strlen(sh)!=128){free(sh);free(action);free(pt);return -1;}char k[320];snprintf(k,sizeof(k),"privacy:revoked:%s",sh);rc|=qrxdb_batch_put(b,k,"1");free(sh);}
     else if(!strcmp(action,"PRIVACY_PROTOCOL_UPDATE")){char *ver=cfg_get(pt,"privacy_protocol_version"),*ah=cfg_get(pt,"activation_height");if(!ver||!ah||height<atoll(ah)){free(ver);free(ah);free(action);free(pt);return -1;}rc|=qrxdb_batch_put(b,"privacy:protocol_version",ver);free(ver);free(ah);}
+    else if(!strcmp(action,"PROTOCOL_UPGRADE")){
+        char *tp=cfg_get(pt,"target_protocol_version"),*ah=cfg_get(pt,"activation_height"),*mt=cfg_get(pt,"minimum_tx_version"),*mp=cfg_get(pt,"minimum_privacy_version"),*ff=cfg_get(pt,"feature_flags");
+        long long act=ah?atoll(ah):-1;if(!tp||!ah||!mt||!mp||!ff||act<=height){free(tp);free(ah);free(mt);free(mp);free(ff);free(action);free(pt);return -1;}
+        char sk[512],sv[1024];snprintf(sk,sizeof(sk),"governance:protocol:schedule:%020lld:%s",act,ph);snprintf(sv,sizeof(sv),"%s|%s|%s|%s|%s|%s",tp,mt,mp,ff,ph,txid);
+        rc|=qrxdb_batch_put(b,sk,sv);snprintf(sk,sizeof(sk),"governance:protocol:applied:%s",ph);rc|=qrxdb_batch_put(b,sk,txid);rc|=qrxdb_batch_put(b,"governance:protocol:last_tx",txid);
+        free(tp);free(ah);free(mt);free(mp);free(ff);
+    }
     else{free(action);free(pt);return -1;}
-    char k[320];snprintf(k,sizeof(k),"privacy:governance:applied:%s",ph);rc|=qrxdb_batch_put(b,k,txid);rc|=qrxdb_batch_put(b,"privacy:governance:last_tx",txid);free(action);free(pt);return rc?-1:0;
+    char k[320];if(strcmp(action,"PROTOCOL_UPGRADE")){snprintf(k,sizeof(k),"privacy:governance:applied:%s",ph);rc|=qrxdb_batch_put(b,k,txid);rc|=qrxdb_batch_put(b,"privacy:governance:last_tx",txid);}free(action);free(pt);return rc?-1:0;
 }
 
 static int atomic_stage_privacy(QrxDBBatch *b,const char *chain_dir,const char *from,const char *to,const char *tx_type,const char *payload,const char *txid,long long height,long long amount){
-    if(!strcmp(tx_type,"PRIVACY_GOVERNANCE"))return atomic_stage_privacy_governance(b,chain_dir,payload,txid,height);
+    if(!strcmp(tx_type,"PRIVACY_GOVERNANCE")||!strcmp(tx_type,"GOVERNANCE_PROTOCOL"))return atomic_stage_privacy_governance(b,chain_dir,payload,txid,height);
     char *ocs=payload_get_field(payload,"output_count");size_t outc=ocs?(size_t)atoll(ocs):0;free(ocs);int rc=0;char newroot[129];if(outc&&privacy_batch_append_outputs(b,chain_dir,payload,outc,newroot)!=0)return -1;if(!outc){if(privacy_merkle_root_authoritative(chain_dir,newroot)!=0)return -1;}
     if(strcmp(tx_type,"PRIVACY_SHIELD")){char *ics=payload_get_field(payload,"input_count");long long ic=ics?atoll(ics):0;free(ics);for(long long i=0;i<ic;i++){char kk[64];snprintf(kk,sizeof(kk),"key_image%lld",i);char *ki=payload_get_field(payload,kk);if(!ki)return -1;char k[256];snprintf(k,sizeof(k),"privacy:nullifier:%s",ki);rc|=qrxdb_batch_put(b,k,txid);free(ki);}}
     char k[512];snprintf(k,sizeof(k),"privacy:tx:%s:type",txid);rc|=qrxdb_batch_put(b,k,tx_type);snprintf(k,sizeof(k),"privacy:tx:%s:from",txid);rc|=qrxdb_batch_put(b,k,from);snprintf(k,sizeof(k),"privacy:tx:%s:to",txid);rc|=qrxdb_batch_put(b,k,to);snprintf(k,sizeof(k),"privacy:tx:%s:height",txid);rc|=velocity_batch_put_ll(b,k,height);snprintf(k,sizeof(k),"privacy:tx:%s:public_amount",txid);rc|=velocity_batch_put_ll(b,k,amount);snprintf(k,sizeof(k),"privacy:tx:%s:merkle_root",txid);rc|=qrxdb_batch_put(b,k,newroot);return rc?-1:0;
@@ -338,6 +364,14 @@ static int privacy_credential_issue_v2_cmd(const char *chain_dir,const char *wal
  * only ones accepted inside PRIVACY_GOVERNANCE. */
 static int privacy_gov_propose_v2_cmd(const char *chain_dir,const char *out,const char *action,const char *issuer_or_serial,const char *pub_or_version,long long activation_height){
     char *cid=NULL,*gen=NULL,*pv=NULL;if(privacy_binding_values(chain_dir,&cid,&gen,&pv)!=0)die("chain binding unavailable");char nonce[65];shielded_random_hex(nonce,32);char b[4096];if(!strcmp(action,"ATTESTER_ADD")||!strcmp(action,"ATTESTER_ROTATE_KEY")||!strcmp(action,"ATTESTER_DISABLE"))snprintf(b,sizeof(b),"format=qrx-governance-proposal-v2\nchain_id=%s\ngenesis_hash=%s\nprotocol_version=%s\naction=%s\nissuer=%s\npublic_key_hex=%s\nactivation_height=%lld\nnonce=%s\n",cid,gen,pv,action,issuer_or_serial,pub_or_version?pub_or_version:"-",activation_height,nonce);else if(!strcmp(action,"CREDENTIAL_REVOKE"))snprintf(b,sizeof(b),"format=qrx-governance-proposal-v2\nchain_id=%s\ngenesis_hash=%s\nprotocol_version=%s\naction=CREDENTIAL_REVOKE\nserial_hash=%s\nactivation_height=%lld\nnonce=%s\n",cid,gen,pv,issuer_or_serial,activation_height,nonce);else if(!strcmp(action,"PRIVACY_PROTOCOL_UPDATE"))snprintf(b,sizeof(b),"format=qrx-governance-proposal-v2\nchain_id=%s\ngenesis_hash=%s\nprotocol_version=%s\naction=PRIVACY_PROTOCOL_UPDATE\nprivacy_protocol_version=%s\nactivation_height=%lld\nnonce=%s\n",cid,gen,pv,pub_or_version?pub_or_version:"1",activation_height,nonce);else die("unsupported privacy governance v2 action");write_text(out,b);char ph[129];gov_hash_text("QUB-GOVERNANCE-PROPOSAL-v2",b,ph);printf("status=proposed-v2\nproposal_hash=%s\nproposal_file=%s\n",ph,out);free(cid);free(gen);free(pv);return 0;
+}
+
+static int gov_protocol_propose_v2_cmd(const char *chain_dir,const char *out,long long target_protocol,long long activation_height,long long min_tx,long long min_privacy,const char *flags){
+    if(target_protocol<1||activation_height<=current_height_from_chain(chain_dir)||min_tx<1||min_privacy<0||!flags||!*flags||strlen(flags)>255)die("invalid protocol-upgrade parameters");
+    for(const unsigned char*z=(const unsigned char*)flags;*z;z++)if(!(isalnum(*z)||*z=='_'||*z=='-'||*z==','))die("invalid protocol feature flags");
+    char *cid=NULL,*gen=NULL,*pv=NULL;if(privacy_binding_values(chain_dir,&cid,&gen,&pv)!=0)die("chain binding unavailable");char nonce[65];shielded_random_hex(nonce,32);char b[4096];
+    snprintf(b,sizeof(b),"format=qrx-governance-proposal-v2\nchain_id=%s\ngenesis_hash=%s\nprotocol_version=%s\naction=PROTOCOL_UPGRADE\ntarget_protocol_version=%lld\nactivation_height=%lld\nminimum_tx_version=%lld\nminimum_privacy_version=%lld\nfeature_flags=%s\nnonce=%s\n",cid,gen,pv,target_protocol,activation_height,min_tx,min_privacy,flags,nonce);
+    write_text(out,b);char ph[129];gov_hash_text("QUB-GOVERNANCE-PROPOSAL-v2",b,ph);printf("status=proposed-v2\naction=PROTOCOL_UPGRADE\nproposal_hash=%s\nproposal_file=%s\n",ph,out);free(cid);free(gen);free(pv);return 0;
 }
 
 static int kyc_provider_propose_v2_cmd(const char *chain_dir,const char *out,const char *action,const char *provider,const char *authority,const char *pubkey,const char *caps,long long activation_height){

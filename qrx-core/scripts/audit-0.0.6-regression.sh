@@ -10,8 +10,25 @@ need_text(){ grep -Fq -- "$2" "$ROOT/$1" || fail "$1 missing marker: $2"; pass "
 for f in \
   src/qrxdb_verify_tool.c src/qrxdb_salvage_tool.c src/qrxdb_compact_tool.c src/qrxdb_snapshot_tool.c \
   src/storage/qrxdb_shutdown.c src/storage/qrxdb_shutdown.h src/openssl_applink.c \
-  scripts/build-linux-x64-static.sh scripts/build-macos-static.sh scripts/build-windows-x64-static.ps1 \
-  scripts/build-openssl-3.6.2-linux-static.sh; do need_file "$f"; done
+  scripts/build-linux-static.sh scripts/build-macos-static.sh scripts/build-windows-x64-static.ps1; do need_file "$f"; done
+
+# Genesis hardening (Finding 13): the per-target static build scripts were
+# consolidated (build-linux-x64-static.sh -> build-linux-static.sh) and the
+# separate pinned-OpenSSL script was folded into the platform build scripts.
+# This audit still has to prove that no 0.0.6 capability disappeared in that
+# consolidation, so the checks below assert the capability rather than the old
+# filenames: every 0.0.6 release target must still have a native build path,
+# and a pinned OpenSSL with PQ support must still be built from source.
+need_text scripts/build-linux-static.sh 'OPENSSL_VERSION'
+need_text scripts/build-linux-static.sh 'no-shared'
+need_text scripts/build-macos-static.sh 'OPENSSL_VERSION'
+for t in linux-x64 linux-arm64 macos-x64 macos-arm64 windows-x64; do
+  if grep -q -- "$t" "$ROOT/../scripts/build-all-targets.sh"; then
+    pass "release target $t still buildable"
+  else
+    fail "unified builder no longer knows 0.0.6 release target $t"
+  fi
+done
 
 # OpenSSL/PQC and Windows build protection.
 need_text CMakeLists.txt 'option(QRX_REQUIRE_PQC'

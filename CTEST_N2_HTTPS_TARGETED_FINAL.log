@@ -1,0 +1,13 @@
+Test project /mnt/data/qrx_n2_https_work/qrx-core-0.0.9-genesis-whitehat-hardened-source/build-n2-https
+    Start 107: compute_phase174_qrx_a_to_z_documentation_gate
+1/4 Test #107: compute_phase174_qrx_a_to_z_documentation_gate ......   Passed    0.00 sec
+    Start 108: compute_phase175_aura_real_model_origin_bootstrap
+2/4 Test #108: compute_phase175_aura_real_model_origin_bootstrap ...   Passed    1.17 sec
+    Start 109: compute_phase176_aura_edge_models_zero_touch
+3/4 Test #109: compute_phase176_aura_edge_models_zero_touch ........   Passed    1.10 sec
+    Start 118: apps_phase188_upscaler_capabilities
+4/4 Test #118: apps_phase188_upscaler_capabilities .................   Passed    0.00 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =   2.28 sec

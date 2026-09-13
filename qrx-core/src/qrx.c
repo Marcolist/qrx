@@ -10,6 +10,14 @@
 #include "resource/qrx_resource.h"
 #include "resource/qrx_storage_consensus.h"
 #include "net/qrx_net_consensus.h"
+#include "net/qrx_net_ads.h"
+#include "compute/qrx_compute.h"
+#include "compute/qrx_pouc_consensus.h"
+#include "compute/qrx_pouc_pipeline.h"
+#include "compute/qrx_pouc_reorg.h"
+#include "compute/qrx_pouc_undo.h"
+#include "compute/qrx_aura_fabric_gossip.h"
+#include "compute/qrx_compute_provider_identity.h"
 #include "storage/qrx_storage_fs.h"
 #include "storage/qrx_storage_p2p.h"
 #include "storage/qrx_storage_network.h"
@@ -55,8 +63,8 @@
   #define mkdir_qrx(path, mode) _mkdir(path)
   #define access_qrx(path, mode) _access((path), (mode))
   #define unlink_qrx(path) _unlink(path)
-  #define popen_qrx(cmd, mode) _popen((cmd), (mode))
-  #define pclose_qrx(fp) _pclose(fp)
+  /* Genesis hardening (Finding 7): popen/_popen deliberately not exposed.
+     Local chain/wallet paths must never be passed through a shell. */
   #define dup _dup
   #define dup2 _dup2
   #define open _open
@@ -91,8 +99,8 @@
   #define mkdir_qrx(path, mode) mkdir((path), (mode))
   #define access_qrx(path, mode) access((path), (mode))
   #define unlink_qrx(path) unlink(path)
-  #define popen_qrx(cmd, mode) popen((cmd), (mode))
-  #define pclose_qrx(fp) pclose(fp)
+  /* Genesis hardening (Finding 7): popen deliberately not exposed.
+     Local chain/wallet paths must never be passed through a shell. */
   static void qrx_net_init_once(void) { }
   static int qrx_close_socket(int fd) { return close(fd); }
   static int qrx_close_file(int fd) { return close(fd); }
@@ -123,6 +131,7 @@
 #include <openssl/crypto.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <setjmp.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <limits.h>
@@ -164,11 +173,31 @@ static char g_storage_provider_id[129] = {0};
 static QrxStorageDiscoveryTable g_storage_discovery;
 static int g_storage_discovery_ready = 0;
 static char g_storage_discovery_cache_path[1024] = {0};
+static QrxAuraPodGossipTable g_aura_pod_gossip;
+static QrxAuraModelGossipTable g_aura_model_gossip;
+static int g_aura_gossip_ready = 0;
+static char g_aura_pod_cache_path[1024] = {0};
+static char g_aura_model_cache_path[1024] = {0};
+/* Outbound P2P HELLO signing keys are cached for the process lifetime so
+ * periodic AURA anti-entropy does not repeatedly ask for the wallet
+ * passphrase. The private key is loaded once, remains process-local and is
+ * cleansed/freed at node shutdown. */
+static EVP_PKEY *g_hello_priv = NULL;
+static EVP_PKEY *g_hello_pub = NULL;
+static char g_hello_wallet_dir[1024] = {0};
 
 
 static int connect_to(const char *host, int port);
 static int storage_discovery_push_to_peer(const char *node_dir,const char *wire_b64,const char *host,int port);
 static int storage_discovery_fanout(const char *node_dir,const char *wire_b64,const char *skip_host);
+static int aura_gossip_push_to_peer(const char *node_dir,const char *kind,const char *wire_b64,const char *host,int port);
+static int aura_gossip_fanout(const char *node_dir,const char *kind,const char *wire_b64,const char *skip_host);
+static int aura_gossip_sync_peer(const char *node_dir,const char *chain_dir,const char *host,int port);
+static int aura_gossip_anti_entropy_tick(const char *node_dir,const char *cfg);
+static int aura_model_gov_key_lookup(void *ctx,const char *identity,EVP_PKEY **out);
+static int aura_model_gov_authorize(void *ctx,const char *publisher_id);
+static int aura_compute_provider_key_lookup(void *ctx,const char *provider_id,EVP_PKEY **out);
+static int gov_root_lookup(const char *chain,const char *id,char pubhex[65]);
 static int build_hello_message(const char *node_dir, char **out_msg);
 static int send_framed(int fd, const char *msg);
 static char *recv_framed(int fd);
@@ -355,8 +384,55 @@ static int collect_fork_heights_from_genesis(const char *chain_dir, long long *h
 }
 
 
+/* ---------------------------------------------------------------------------
+ * QRX 0.0.9 Genesis hardening - untrusted-input fault barrier.
+ *
+ * Historically every validation failure in the transaction path called die(),
+ * which terminates the process via exit(1). The P2P accept loop dispatches
+ * node_handle_client() inline in the daemon process (no fork, no per-connection
+ * process), so a single malformed transaction from any unauthenticated peer
+ * terminated the whole validator/node. See:
+ *   qrx_untrusted_guard_begin() / verify_tx_text_untrusted().
+ *
+ * The barrier converts a process-fatal die() into a structured error ONLY while
+ * a thread is inside an explicitly marked untrusted-input window. Outside that
+ * window (CLI commands, local administration, startup) die() keeps its original
+ * fatal semantics so that CLI misuse still exits non-zero.
+ *
+ * The guard state is thread-local: qrx_velocity_parallel_verify() runs
+ * validation callbacks on worker threads, and a process-global jmp_buf would be
+ * corrupted by concurrent validation.
+ * ------------------------------------------------------------------------- */
+#if defined(_MSC_VER)
+#  define QRX_THREAD_LOCAL __declspec(thread)
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_THREADS__)
+#  define QRX_THREAD_LOCAL _Thread_local
+#elif defined(__GNUC__) || defined(__clang__)
+#  define QRX_THREAD_LOCAL __thread
+#else
+#  define QRX_THREAD_LOCAL
+#endif
+
+#define QRX_UNTRUSTED_REASON_MAX 256
+
+static QRX_THREAD_LOCAL int      g_untrusted_guard_depth = 0;
+static QRX_THREAD_LOCAL jmp_buf  g_untrusted_guard_jmp;
+static QRX_THREAD_LOCAL char     g_untrusted_guard_reason[QRX_UNTRUSTED_REASON_MAX];
+
+/* Returns 1 while the calling thread is validating untrusted network input. */
+static int qrx_untrusted_guard_active(void) { return g_untrusted_guard_depth > 0; }
+
 static void die(const char *fmt, ...) {
-    va_list ap; va_start(ap, fmt); vfprintf(stderr, fmt, ap); va_end(ap); fputc('\n', stderr); exit(1);
+    va_list ap; va_start(ap, fmt);
+    if (g_untrusted_guard_depth > 0) {
+        /* Untrusted window: record the reason and unwind to the guard frame
+         * instead of terminating the daemon. Never returns. */
+        vsnprintf(g_untrusted_guard_reason, sizeof(g_untrusted_guard_reason), fmt, ap);
+        va_end(ap);
+        g_untrusted_guard_reason[sizeof(g_untrusted_guard_reason)-1] = 0;
+        longjmp(g_untrusted_guard_jmp, 1);
+    }
+    vfprintf(stderr, fmt, ap); va_end(ap); fputc('\n', stderr); exit(1);
 }
 
 static long long parse_ll_strict(const char *s, const char *field) {
@@ -421,7 +497,7 @@ static void usage(void) {
          "  create-velocity-raw-tx <chain-dir> <from> <to> <amount> <ed_pub_hex> <mldsa_pub_b64> <tx_type> <lane_id> <expiry_height> <payload> [fee] [nonce]\n"
          "  decay-bans <node-dir> [points]\n  state-check <chain-dir>\n  snapshot-state <chain-dir> [label]\n  reindex-state <chain-dir>\n  stake <chain-dir> <wallet-dir> <amount>\n  unstake <chain-dir> <wallet-dir> <amount> [unbonding-secs]\n  claim-unbonded <chain-dir> <wallet-dir>\n  delegate <chain-dir> <delegator-wallet-dir> <validator-address> <amount>\n  undelegate <chain-dir> <delegator-wallet-dir> <validator-address> <amount> [unbonding-secs]\n  claim-undelegated <chain-dir> <delegator-wallet-dir> <validator-address>\n  staking-status <chain-dir> [address]\n  validator-set <chain-dir>\n  reward-epoch <chain-dir> <reward-amount> [validator-commission-bps]\n  bootstrap-validator-status <chain-dir> <validator-address>\n  slash <chain-dir> <validator-address> <amount> <reason>\n");
     puts("Phase 4F.2: create-arbitrage-hedge-raw-tx <chain-dir> <agent> <owner> <matched-crosschain-buy-order> <arbitrage-id> <quantity-sats> <limit-price-atoms> <order-expiry> <agent-ed-pub> <agent-mldsa-pub> <lane> <tx-expiry> [fee] [nonce]");
-    puts("QRX 0.0.7.6 governance: governance-keygen <out-dir> <DEV_GOV_N> | privacy-attester-keygen <out-dir> <issuer> | governance-genesis-init <chain-dir> <threshold> <pubdesc...> | governance-attester-propose <proposal-file> <ATTESTER_ADD|ATTESTER_DISABLE|ATTESTER_ROTATE_KEY> <issuer> <attester-pubdesc|-> <capabilities> <activation-height> | governance-protocol-propose <proposal-file> <protocol-version> <activation-height> <minimum-tx-version> <minimum-privacy-version> <feature-flags> | governance-sign <gov-key-dir> <proposal-file> <signature-file> | governance-apply <chain-dir> <proposal-file> <signature-files...> | protocol-info <chain-dir> [height]");
+    puts("QRX governance: governance-keygen <out-dir> <DEV_GOV_N> | governance-vault-init <vault-dir> | governance-vault-add-online <vault-dir> <gov-key-dir> | governance-vault-add-offline <vault-dir> <governance.pub> | governance-vault-status <vault-dir> | governance-vault-sign <vault-dir> <key-id> <proposal-file> <signature-file> | governance-vault-backup-create <backup-vault-dir> <key1> <key2> <key3> <key4> <key5> | governance-vault-restore-online <backup-vault-dir> <key-id> <operational-vault-dir> | governance-genesis-init <chain-dir> <threshold> <pubdesc...> | governance-protocol-propose <proposal-file> <protocol-version> <activation-height> <minimum-tx-version> <minimum-privacy-version> <feature-flags> | governance-sign <gov-key-dir> <proposal-file> <signature-file> | governance-apply <chain-dir> <proposal-file> <signature-files...> | protocol-info <chain-dir> [height]");
     puts("QRX 0.0.7.7 Phase 7.2 KYC: kyc-provider-keygen <out-dir> <provider-id> | kyc-provider-propose-v2 <chain-dir> <proposal-file> <KYC_PROVIDER_ADD|KYC_PROVIDER_DISABLE|KYC_PROVIDER_ROTATE_KEY|KYC_PROVIDER_UPDATE> <provider-id> <authority-qrx-address|-> <provider-public-key-hex|-> <capabilities|-> <activation-height> | kyc-provider-info <chain-dir> <provider-id>");
     puts("QRX 0.0.7.6 assets: signed consensus tx types ASSET_ISSUE, ASSET_REISSUE, ASSET_TRANSFER, ASSET_TAG, ASSET_UNTAG, ASSET_FREEZE_ADDRESS, ASSET_UNFREEZE_ADDRESS, ASSET_GLOBAL_FREEZE, ASSET_GLOBAL_UNFREEZE, ASSET_BROADCAST, ASSET_REVOKE, ASSET_FORCED_TRANSFER; create with create-velocity-raw-tx then signrawtransactionwithwallet + sendtx/applytx");
     puts("QRX 0.0.8.2: DRIVE_V1 is a post-Genesis mandatory protocol-9 upgrade. Mainnet has no hardcoded Storage activation height until the threshold-signed upgrade is scheduled; planned target is around 2026-11-30. Filesystem is the reference backend; SeaweedFS is optional only.");
@@ -1248,7 +1324,7 @@ static int supply_set(const char *chain_dir, const char *key, long long val) {
 }
 static int mint_with_cap(const char *chain_dir, const char *bucket, long long amount) {
     if (amount < 0) return -1;
-    long long max_supply = chain_cfg_ll_or_default(chain_dir, "max_supply_atoms", 2100000000000000LL);
+    long long max_supply = chain_cfg_ll_or_default(chain_dir, "max_supply_atoms", (long long)QRX_MAX_SUPPLY_ATOMS);
     long long minted = supply_get(chain_dir, "minted_supply");
     if (minted + amount > max_supply) return -1;
     if (supply_set(chain_dir, "minted_supply", minted + amount) != 0) return -1;
@@ -1327,6 +1403,15 @@ static int validator_is_safely_paused(const char *chain_dir, const char *validat
     if (!chain_dir || !validator || !*validator) return 0;
     char key[1024]; snprintf(key,sizeof(key),"staking:validator_paused:%s",validator);
     return staking_db_ll(chain_dir,key,0) == 1;
+}
+
+static int validator_is_compute_jailed_at(const char *chain_dir, const char *validator, long long height) {
+    if (!chain_dir || !validator || !*validator || height < 0) return 0;
+    QrxDB db;
+    if (qrxdb_init(&db, chain_dir) != 0) return 0;
+    int jailed = qrx_pouc_verifier_is_compute_jailed(&db, validator, (uint64_t)height);
+    qrxdb_close(&db);
+    return jailed;
 }
 
 static int bootstrap_liveness_grace_active(const char *chain_dir, const char *validator, long long height) {
@@ -1474,7 +1559,7 @@ static int validator_snapshot_write(const char *chain_dir, long long height, lon
     FILE*f=fopen(path,"wb"); if(!f)return -1;
     for(int i=0;i<n;i++){
         const char*validator=users[i];
-        if(validator_is_tombstoned(chain_dir,validator)||validator_is_jailed_now(chain_dir,validator)||validator_is_safely_paused(chain_dir,validator))continue;
+        if(validator_is_tombstoned(chain_dir,validator)||validator_is_jailed_now(chain_dir,validator)||validator_is_safely_paused(chain_dir,validator)||validator_is_compute_jailed_at(chain_dir,validator,height))continue;
         if(!validator_has_min_self_stake_at(chain_dir,validator,height))continue;
         char ks[1024],kd[1024]; long long self=0,delegated=0;
         snprintf(ks,sizeof(ks),"staking:self:%s",validator); self=staking_db_ll(chain_dir,ks,0);
@@ -1788,6 +1873,16 @@ static int qrxdb_chain_ingest_block_file(const char *chain_dir, const char *bloc
     QrxDB db;
     if (qrxdb_init(&db, chain_dir) != 0) { free(blk); free(height_s); free(block_hash); if(tx_count_s) free(tx_count_s); return -1; }
     uint64_t height = (uint64_t)strtoull(height_s, NULL, 10);
+    /* 0.0.9.33 canonical compute reorg hook: when recovery/sync replaces an
+       already indexed canonical height with a different block hash, roll PoUC
+       settlement, liveness/penalty and verification-reward journals back to
+       the common parent BEFORE the replacement block is ingested. Normal BFT
+       finalization never reaches this branch unless canonical recovery occurs. */
+    char previous_at_height[129]={0};
+    if(qrxdb_chain_get_block_hash_by_height(&db,height,previous_at_height,sizeof(previous_at_height))==0 && strcmp(previous_at_height,block_hash)){
+        QrxPoucCanonicalReorgReport rr;
+        if(qrx_pouc_canonical_reorg_hook(&db,height?height-1:0,&rr)!=0){qrxdb_close(&db);free(blk);free(height_s);free(block_hash);if(tx_count_s)free(tx_count_s);return -1;}
+    }
     int rc = qrxdb_chain_put_block(&db, height, block_hash, blk);
     int tx_count = tx_count_s ? atoi(tx_count_s) : 0;
     for (int i = 1; rc == 0 && i <= tx_count; i++) {
@@ -1829,15 +1924,99 @@ static void qrxdb_chain_sync_state_files(const char *chain_dir) {
     free(b); free(n); free(a);
 }
 
+/* ---------------------------------------------------------------------------
+ * Genesis hardening (Finding 7): shell-free directory listing.
+ *
+ * reindex-state and the legacy mempool status previously built shell command
+ * lines from a quoted data-directory path (an "ls -1" glob over the blocks
+ * directory, and a "find | wc -l" over the mempool directory) and ran them
+ * through popen(). A data directory whose path contains a single
+ * quote escaped the quoting and executed attacker-chosen commands. The shell
+ * pipeline was also non-portable: cmd.exe has no ls/find/wc.
+ *
+ * Replacement iterates the directory natively:
+ *   - Unix  : lstat() + S_ISREG(), so symlinks are ignored rather than followed
+ *   - Windows: skips directories and FILE_ATTRIBUTE_REPARSE_POINT entries
+ *   - results are sorted deterministically so reindex order is reproducible
+ * ------------------------------------------------------------------------- */
+typedef struct { char **items; size_t count; } QrxDirList;
+
+static void qrx_dirlist_free(QrxDirList *l) {
+    if (!l) return;
+    for (size_t i = 0; i < l->count; i++) free(l->items[i]);
+    free(l->items);
+    l->items = NULL; l->count = 0;
+}
+
+static int qrx_dirlist_push(QrxDirList *l, const char *path) {
+    char **grown = (char**)realloc(l->items, (l->count + 1) * sizeof(char*));
+    if (!grown) return -1;
+    l->items = grown;
+    l->items[l->count] = strdup(path);
+    if (!l->items[l->count]) return -1;
+    l->count++;
+    return 0;
+}
+
+static int qrx_dirlist_cmp(const void *a, const void *b) {
+    return strcmp(*(const char* const*)a, *(const char* const*)b);
+}
+
+/* Collects regular files in `dir`. If `suffix` is non-NULL only names ending
+ * in it are returned. Full paths are written into `out`, sorted ascending.
+ * Returns 0 on success (including "directory does not exist" -> empty list). */
+static int qrx_dirlist_regular_files(const char *dir, const char *suffix, QrxDirList *out) {
+    if (!dir || !out) return -1;
+    out->items = NULL; out->count = 0;
+    size_t suflen = suffix ? strlen(suffix) : 0;
+
+#ifdef _WIN32
+    char pattern[1400];
+    snprintf(pattern, sizeof(pattern), "%s\\*", dir);
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(pattern, &fd);
+    if (h == INVALID_HANDLE_VALUE) return 0;
+    do {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) continue;
+        size_t nlen = strlen(fd.cFileName);
+        if (suflen && (nlen < suflen || strcmp(fd.cFileName + nlen - suflen, suffix) != 0)) continue;
+        char full[1400];
+        snprintf(full, sizeof(full), "%s\\%s", dir, fd.cFileName);
+        if (qrx_dirlist_push(out, full) != 0) { FindClose(h); qrx_dirlist_free(out); return -1; }
+    } while (FindNextFileA(h, &fd));
+    FindClose(h);
+#else
+    DIR *d = opendir(dir);
+    if (!d) return 0;
+    struct dirent *e;
+    while ((e = readdir(d)) != NULL) {
+        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
+        size_t nlen = strlen(e->d_name);
+        if (suflen && (nlen < suflen || strcmp(e->d_name + nlen - suflen, suffix) != 0)) continue;
+        char full[1400];
+        snprintf(full, sizeof(full), "%s/%s", dir, e->d_name);
+        struct stat st;
+        /* lstat, not stat: a symlink must not be followed out of the datadir. */
+        if (lstat(full, &st) != 0) continue;
+        if (!S_ISREG(st.st_mode)) continue;
+        if (qrx_dirlist_push(out, full) != 0) { closedir(d); qrx_dirlist_free(out); return -1; }
+    }
+    closedir(d);
+#endif
+    if (out->count > 1) qsort(out->items, out->count, sizeof(char*), qrx_dirlist_cmp);
+    return 0;
+}
+
 static int reindex_state_cmd(const char *chain_dir) {
     char bal[1024], nonce[1024], appl[1024], journal[1024];
     state_paths(chain_dir, bal, sizeof(bal), nonce, sizeof(nonce), appl, sizeof(appl), journal, sizeof(journal));
     atomic_write_file(bal, "", 0); atomic_write_file(nonce, "", 0); atomic_write_file(appl, "", 0); write_text(journal, "");
-    char cmd[2048]; snprintf(cmd, sizeof(cmd), "ls -1 '%s/blocks'/*.block 2>/dev/null | sort", chain_dir);
-    FILE *fp = popen_qrx(cmd, "r"); if (!fp) die("reindex list failed");
-    char blkpath[1024];
-    while (fgets(blkpath, sizeof(blkpath), fp)) {
-        blkpath[strcspn(blkpath, "\r\n")] = 0; if (!*blkpath) continue;
+    char blocks_dir[1200]; snprintf(blocks_dir, sizeof(blocks_dir), "%s/blocks", chain_dir);
+    QrxDirList blocks; 
+    if (qrx_dirlist_regular_files(blocks_dir, ".block", &blocks) != 0) die("reindex list failed");
+    for (size_t bi = 0; bi < blocks.count; bi++) {
+        const char *blkpath = blocks.items[bi];
         char *blk = read_file(blkpath, NULL); if (!blk) continue;
         for (int i=1; i<100000; i++) {
             char key[32]; snprintf(key, sizeof(key), "tx%d", i);
@@ -1847,7 +2026,7 @@ static int reindex_state_cmd(const char *chain_dir) {
         free(blk);
         qrxdb_chain_ingest_block_file(chain_dir, blkpath);
     }
-    pclose_qrx(fp);
+    qrx_dirlist_free(&blocks);
     qrxdb_chain_sync_state_files(chain_dir);
     journal_append(chain_dir, "reindex_state ts=%lld", (long long)time(NULL));
     puts("OK"); return 0;
@@ -1929,8 +2108,11 @@ static int mempool_status_cmd(const char *node_dir) {
             (unsigned long long)st.wal_records,(unsigned long long)st.recovered_records,(unsigned long long)st.duplicates,(unsigned long long)st.rejected_full);
         qrx_velocity_mempool_close(&pool); return 0;
     }
-    char cmd[2048]; snprintf(cmd, sizeof(cmd), "find '%s/mempool' -maxdepth 1 -type f 2>/dev/null | wc -l", node_dir);
-    FILE *fp = popen_qrx(cmd, "r"); if (!fp) die("mempool status failed"); long long count=0;fscanf(fp,"%lld",&count);pclose_qrx(fp);
+    char mempool_dir[1200]; snprintf(mempool_dir, sizeof(mempool_dir), "%s/mempool", node_dir);
+    QrxDirList mp;
+    if (qrx_dirlist_regular_files(mempool_dir, NULL, &mp) != 0) die("mempool status failed");
+    long long count = (long long)mp.count;
+    qrx_dirlist_free(&mp);
     printf("engine=legacy_files\ntxs=%lld\n",count); return 0;
 }
 static int mempool_prune_cmd(const char *node_dir, int max_txs) {
@@ -2092,21 +2274,30 @@ static int velocity_tx_type_supported(const char *tx_type) {
         "CROSSCHAIN_ORDER", "CROSSCHAIN_REDEEM", "CROSSCHAIN_REFUND",
         "BTC_SPV_HEADER", "BTC_SPV_FUNDING_PROOF",
         "STAKE_BOND", "STAKE_UNBOND", "STAKE_CLAIM", "DELEGATE_BOND", "DELEGATE_UNBOND", "DELEGATE_CLAIM", "VALIDATOR_PAUSE", "VALIDATOR_RESUME",
-        "PRIVACY_SHIELD", "PRIVACY_TRANSFER", "PRIVACY_UNSHIELD", "PRIVACY_GOVERNANCE",
+        "PRIVACY_SHIELD", "PRIVACY_TRANSFER", "PRIVACY_UNSHIELD", "PRIVACY_GOVERNANCE", "GOVERNANCE_PROTOCOL",
         "ASSET_ISSUE", "ASSET_REISSUE", "ASSET_TRANSFER", "ASSET_TAG", "ASSET_UNTAG",
         "ASSET_FREEZE_ADDRESS", "ASSET_UNFREEZE_ADDRESS", "ASSET_GLOBAL_FREEZE", "ASSET_GLOBAL_UNFREEZE",
         "ASSET_BROADCAST", "ASSET_REVOKE", "ASSET_FORCED_TRANSFER",
         "GAME_JOIN", "GAME_CLAN_CREATE", "GAME_TREASURY_FUND", "GAME_SEASON_JOIN", "GAME_ENERGY_SPEND", "GAME_CLAN_INVITE", "GAME_CLAN_INVITE_REVOKE", "GAME_CLAN_JOIN", "GAME_CLAN_LEAVE", "GAME_CLAN_OFFICER_SET", "GAME_CLAN_DIRECTIVE", "GAME_CLAN_LEADER_TRANSFER", "GAME_ORDER_COMMIT", "GAME_ORDER_REVEAL", "GAME_MARCH_ADVANCE", "GAME_TURN_RESOLVE", "GAME_INFRA_BUILD", "GAME_PRODUCE_UNIT", "GAME_SUPPLY_TRANSFER", "GAME_REPAIR_UNIT", "GAME_REARM_UNIT", "GAME_INFRA_ATTACK", "GAME_ROAD_REPAIR", "GAME_UNIT_RESUPPLY", "GAME_RECON_SCAN", "GAME_EW_JAM", "GAME_AIR_MISSION", "GAME_RADAR_SCAN", "GAME_SAM_INTERCEPT", "GAME_MISSILE_LAUNCH", "GAME_STRIKE_RESOLVE", "GAME_CAP_MISSION", "GAME_ESCORT_MISSION", "GAME_AIR_INTERCEPT", "GAME_AIR_COMBAT_RESOLVE", "GAME_AIR_FORMATION", "GAME_CAP_AUTO_INTERCEPT", "GAME_AIR_RTB", "GAME_SEAD_MISSION", "GAME_NAVAL_DEPLOY", "GAME_NAVAL_MOVE", "GAME_NAVAL_ATTACK", "GAME_AMPHIBIOUS_LOAD", "GAME_AMPHIBIOUS_LAND", "GAME_SEA_SUPPLY", "GAME_FLEET_CREATE", "GAME_NAVAL_COMBAT_RESOLVE", "GAME_CARRIER_AIR_WING", "GAME_NAVAL_BLOCKADE", "GAME_STRATEGIC_CLAIM", "GAME_ECONOMY_COLLECT", "GAME_CITY_DEVELOP", "GAME_INDUSTRY_INVEST", "GAME_RESEARCH_START", "GAME_RESEARCH_ACCELERATE", "GAME_RESEARCH_COMPLETE", "GAME_DOCTRINE_SELECT", "GAME_TECH_RECON", "GAME_RESEARCH_DISRUPT", "GAME_COUNTERINTEL_ACTIVATE", "GAME_SEASON_FINALIZE", "GAME_REWARD_CLAIM",
-        "STORAGE_CAPACITY_COMMIT", "STORAGE_CAPACITY_PROVE", "STORAGE_PROVIDER_BOND", "STORAGE_PROVIDER_ACTIVATE",
+        "STORAGE_CAPACITY_COMMIT", "STORAGE_CAPACITY_PROVE", "STORAGE_PROVIDER_BOND", "STORAGE_PROVIDER_BIND_DISCOVERY_KEY", "STORAGE_PROVIDER_ACTIVATE",
         "STORAGE_PROVIDER_EXIT", "STORAGE_PROVIDER_WITHDRAW", "STORAGE_CONTRACT_CREATE", "STORAGE_CONTRACT_COMPLETE",
         "STORAGE_CONTRACT_REFUND", "STORAGE_ASSIGN", "STORAGE_ASSIGN_ACCEPT", "STORAGE_POSTOR", "STORAGE_SETTLE_EPOCH",
         "STORAGE_EGRESS_PAY", "STORAGE_ATTEST", "STORAGE_REPAIR_START", "STORAGE_REPAIR_ACCEPT", "STORAGE_REPAIR_COMPLETE",
         "DOMAIN_REGISTER", "DOMAIN_RENEW", "DOMAIN_UPDATE", "DOMAIN_TRANSFER", "DOMAIN_RELEASE",
-        "AD_CAMPAIGN_CREATE", "AD_DELIVERY_RECEIPT", "AD_IMPRESSION_SETTLE", "AD_REWARD_CLAIM", "AD_CAMPAIGN_CLOSE", NULL
+        "AD_CAMPAIGN_CREATE", "AD_DELIVERY_RECEIPT", "AD_IMPRESSION_SETTLE", "AD_REWARD_CLAIM", "AD_CAMPAIGN_CLOSE",
+        "COMPUTE_ESCROW_LOCK", "COMPUTE_ASSIGN", "COMPUTE_RECEIPT", "COMPUTE_VERIFY", "COMPUTE_CHALLENGE", "COMPUTE_RESELECT", "COMPUTE_PROVIDER_BIND_IDENTITY",
+        "POUC_SETTLEMENT", NULL
     };
     if (!tx_type || !*tx_type) return 0;
     for (size_t i = 0; types[i]; ++i) if (!strcmp(types[i], tx_type)) return 1;
     return 0;
+}
+
+static int qrx_compute_pipeline_tx_type(const char *tx_type) {
+    return tx_type && (!strcmp(tx_type,"COMPUTE_ESCROW_LOCK") || !strcmp(tx_type,"COMPUTE_ASSIGN") || !strcmp(tx_type,"COMPUTE_RECEIPT") || !strcmp(tx_type,"COMPUTE_VERIFY") || !strcmp(tx_type,"COMPUTE_CHALLENGE") || !strcmp(tx_type,"COMPUTE_RESELECT"));
+}
+static int qrx_compute_identity_tx_type(const char *tx_type) {
+    return tx_type && !strcmp(tx_type, QRX_COMPUTE_PROVIDER_BIND_TX);
 }
 
 static char *canonical_velocity_tx_body(const char *network_id, const char *genesis_hash, const char *protocol_version,
@@ -3664,18 +3855,58 @@ static int verify_tx_text(const char *chain_dir, const char *tx) {
     else if (is_velocity && (!strcmp(tx_type,"GATEWAY_REGISTER") || !strcmp(tx_type,"GATEWAY_REVOKE"))) validate_gateway_management_tx(chain_dir,from,to,tx_type,payload);
     else if (is_velocity && !strcmp(tx_type,"EXECUTION_REPORT")) validate_execution_report_tx(chain_dir,from,to,payload,ed_pub_hex,ml_pub_b64);
     else if (is_velocity && tx_type && !strncmp(tx_type,"ASSET_",6)) { /* stateful asset validation occurs in atomic WAL staging */ }
-    else if (is_velocity && tx_type && !strncmp(tx_type,"PRIVACY_",8)) { if(validate_privacy_consensus_tx(chain_dir,tx_type,from,to,amount,payload)!=0) die("privacy consensus validation failed"); }
+    else if (is_velocity && tx_type && !strcmp(tx_type,"GOVERNANCE_PROTOCOL")) { if(validate_privacy_consensus_tx(chain_dir,tx_type,from,to,amount,payload)!=0) die("protocol governance consensus validation failed"); }
+    else if (is_velocity && tx_type && !strncmp(tx_type,"PRIVACY_",8)) {
+        /* Genesis hardening (Finding 5): PRIVACY_V1 is fail-closed on Mainnet.
+         * Shielded value movement requires an external cryptography audit,
+         * remediation of its findings, 3-of-5 governance approval and a
+         * committed PRIVACY_V1 activation height. Governance and attester
+         * preparation stay available beforehand; alpha/testnet are unaffected. */
+        long long ph = current_height_from_chain(chain_dir) + 1;
+        if (!qrx_privacy_preflight_tx_type(tx_type) &&
+            !qrx_privacy_protocol_enabled_at_height(chain_dir, ph))
+            die("PRIVACY_V1 not active: external cryptography audit and governance activation required before shielded value movement");
+        if(validate_privacy_consensus_tx(chain_dir,tx_type,from,to,amount,payload)!=0) die("privacy consensus validation failed");
+    }
     else if (is_velocity && tx_type && !strncmp(tx_type,"GAME_",5)) { /* deterministic Generals validation occurs in atomic WAL staging */ }
     else if (is_velocity && tx_type && (!strncmp(tx_type,"STAKE_",6) || !strncmp(tx_type,"DELEGATE_",9))) { /* deterministic staking/delegation validation occurs in atomic WAL staging */ }
     else if (is_velocity && tx_type && !strncmp(tx_type,"STORAGE_",8)) {
         long long ah=current_height_from_chain(chain_dir)+1; QrxServiceEconomicEffect eff={0};
-        if(!qrx_storage_protocol_enabled_at_height(chain_dir,ah)) die("DRIVE_V1 mandatory protocol upgrade not active");
+        if(!qrx_storage_protocol_enabled_at_height(chain_dir,ah)&&!qrx_storage_preflight_tx_type(tx_type)) die("DRIVE_V1 mandatory protocol upgrade not active (provider preflight only)");
         if(qrx_storage_consensus_prepare(chain_dir,tx_type,from,to,(uint64_t)amt_check,payload,applied_key,(uint64_t)ah,&eff)!=0) die("storage consensus validation failed");
     }
-    else if (is_velocity && tx_type && (!strncmp(tx_type,"DOMAIN_",7) || !strncmp(tx_type,"AD_",3))) {
+    else if (is_velocity && tx_type && !strncmp(tx_type,"DOMAIN_",7)) {
         long long ah=current_height_from_chain(chain_dir)+1; QrxServiceEconomicEffect eff={0};
         if(!qrx_net_protocol_enabled_at_height(chain_dir,ah)) die("QRX_NET_V1 mandatory protocol upgrade not active");
         if(qrx_net_consensus_prepare(chain_dir,tx_type,from,to,(uint64_t)amt_check,payload,applied_key,(uint64_t)ah,&eff)!=0) die("QRX-Net consensus validation failed");
+    }
+    else if (is_velocity && tx_type && !strncmp(tx_type,"AD_",3)) {
+        long long ah=current_height_from_chain(chain_dir)+1; QrxServiceEconomicEffect eff={0};
+        if(!qrx_net_protocol_enabled_at_height(chain_dir,ah)) die("QRX_NET_V1 mandatory protocol upgrade not active");
+        if(!qrx_advertising_protocol_enabled_at_height(chain_dir,ah)) die("ADVERTISING_V1 mandatory protocol upgrade not active");
+        if(qrx_net_consensus_prepare(chain_dir,tx_type,from,to,(uint64_t)amt_check,payload,applied_key,(uint64_t)ah,&eff)!=0) die("QRX advertising consensus validation failed");
+    }
+    else if (is_velocity && qrx_compute_identity_tx_type(tx_type)) {
+        long long ah=current_height_from_chain(chain_dir)+1;QrxDB idb;QrxServiceEconomicEffect ie={0};
+        /* Provider identity binding is a non-economic preflight operation. It may
+         * run before COMPUTE_POUC_V1 so Mainnet can measure real provider readiness. */
+        if(qrxdb_init(&idb,chain_dir)!=0) die("Compute provider identity QRXDB init failed");
+        int irc=qrx_compute_provider_identity_prepare(&idb,tx_type,from,to,(uint64_t)amt_check,payload,(uint64_t)ah,&ie);qrxdb_close(&idb);
+        if(irc!=0) die("compute provider identity validation failed");
+    }
+    else if (is_velocity && qrx_compute_pipeline_tx_type(tx_type)) {
+        long long ah=current_height_from_chain(chain_dir)+1;QrxDB pdb;QrxPoucPipelineEffect ce={0};
+        if(!qrx_compute_pouc_protocol_enabled_at_height(chain_dir,ah))die("COMPUTE_POUC_V1 mandatory protocol upgrade not active");
+        if(qrxdb_init(&pdb,chain_dir)!=0)die("Compute pipeline QRXDB init failed");
+        int crc=qrx_pouc_pipeline_prepare(&pdb,tx_type,from,to,(uint64_t)amt_check,payload,(uint64_t)ah,&ce);qrxdb_close(&pdb);
+        if(crc!=0)die("Compute pipeline consensus validation failed");
+    }
+    else if (is_velocity && tx_type && !strcmp(tx_type,"POUC_SETTLEMENT")) {
+        long long ah=current_height_from_chain(chain_dir)+1;QrxDB pdb;QrxPoucConsensusEffect pe={0};char *cid=chain_cfg_value(chain_dir,"chain_id");
+        if(!cid||!*cid)die("PoUC chain_id missing");if(qrxdb_init(&pdb,chain_dir)!=0)die("PoUC QRXDB init failed");
+        if(!qrx_compute_pouc_protocol_enabled_at_height(chain_dir,ah))die("COMPUTE_POUC_V1 mandatory protocol upgrade not active");
+        int prc=qrx_pouc_consensus_prepare(&pdb,cid,exp_gen,exp_ver,tx_type,from,to,(uint64_t)amt_check,payload,1,(uint64_t)ah,&pe);qrxdb_close(&pdb);free(cid);
+        if(prc!=0)die("PoUC settlement consensus validation failed");
     }
     else if (is_velocity && strcmp(tx_type, "TRANSFER_FAST") != 0) die("velocity tx schema reserved: execution not active for this tx_type");
     if(tx_version) free(tx_version); free(network_id); free(genesis_hash); free(protocol_version); free(from); free(to); free(amount); free(fee); free(nonce); free(timestamp); if(memo) free(memo); if(tx_type) free(tx_type); if(lane_id) free(lane_id); if(expiry_height) free(expiry_height); if(payload) free(payload); free(ed_pub_hex); free(ml_pub_b64); if(body_hash_algo) free(body_hash_algo); if(body_hash_sha3) free(body_hash_sha3); if(body_hash_sha256_legacy) free(body_hash_sha256_legacy); if(body_hash_legacy) free(body_hash_legacy); free(sig1_hex); free(sig2_hex); free(exp_net); free(exp_gen); free(exp_ver); free(body); free(mlpem); free(mlpemstr); free(sig1); free(sig2); EVP_PKEY_free(ed_pub); EVP_PKEY_free(ml_pub);
@@ -3700,6 +3931,86 @@ static int velocity_stateless_verify_cb(void *ctx, const char *tx, char *err, si
     if(verify_oneshot(ed_pub,(unsigned char*)body,strlen(body),sig1,sig1len)!=0){snprintf(err,err_sz,"ed25519 verify");goto done;}if(verify_oneshot(ml_pub,(unsigned char*)body,strlen(body),sig2,sig2len)!=0){snprintf(err,err_sz,"mldsa verify");goto done;}rc=0;
 done:
     if(tx_version)free(tx_version);if(network_id)free(network_id);if(genesis_hash)free(genesis_hash);if(protocol_version)free(protocol_version);if(from)free(from);if(to)free(to);if(amount)free(amount);if(fee)free(fee);if(nonce)free(nonce);if(timestamp)free(timestamp);if(memo)free(memo);if(tx_type)free(tx_type);if(lane_id)free(lane_id);if(expiry_height)free(expiry_height);if(payload)free(payload);if(ed_pub_hex)free(ed_pub_hex);if(ml_pub_b64)free(ml_pub_b64);if(body_hash_algo)free(body_hash_algo);if(body_hash_sha3)free(body_hash_sha3);if(body_hash_legacy)free(body_hash_legacy);if(sig1_hex)free(sig1_hex);if(sig2_hex)free(sig2_hex);if(exp_net)free(exp_net);if(exp_gen)free(exp_gen);if(exp_ver)free(exp_ver);if(body)free(body);if(mlpem)free(mlpem);if(mlpemstr)free(mlpemstr);if(sig1)free(sig1);if(sig2)free(sig2);EVP_PKEY_free(ed_pub);EVP_PKEY_free(ml_pub);return rc;
+}
+
+/* ---------------------------------------------------------------------------
+ * QRX 0.0.9 Genesis hardening - untrusted transaction ingress.
+ *
+ * Layered so that unauthenticated peers cannot reach the process-fatal
+ * stateful validation paths at all:
+ *
+ *   untrusted P2P TX
+ *        |
+ *        v
+ *   [1] hard size / shape limits          (no allocation, no die())
+ *        |
+ *        v
+ *   [2] velocity_stateless_verify_cb()    structured errors, self-cleaning.
+ *        |                                Rejects malformed fields, wrong
+ *        |                                network/genesis binding, bad body
+ *        |                                hashes, bad base64, bad public keys
+ *        |                                and invalid Ed25519 / ML-DSA
+ *        |                                signatures without ever calling die().
+ *        v
+ *   [3] verify_tx_text() under the fault barrier
+ *        |                                Only transactions carrying valid
+ *        |                                hybrid signatures over a correctly
+ *        |                                bound body reach the stateful checks.
+ *        v
+ *   VALID  ->  mempool
+ *   ERROR  ->  "status=ERR reason=bad_tx" + peer penalty, node stays online.
+ *
+ * Never calls exit()/abort() on network input.
+ * ------------------------------------------------------------------------- */
+
+/* Upper bound for a single decoded transaction accepted from the network. */
+#define QRX_UNTRUSTED_TX_MAX_BYTES 131072
+
+static int verify_tx_text_untrusted(const char *chain_dir, const char *tx,
+                                    char *err, size_t err_sz) {
+    int rc;
+    char stateless_err[256];
+
+    if (err && err_sz) err[0] = 0;
+    if (!chain_dir || !tx) { if (err && err_sz) snprintf(err, err_sz, "no tx"); return -1; }
+
+    /* [1] Shape limits before any parsing/allocation. */
+    {
+        size_t n = strlen(tx);
+        if (n == 0)                              { if (err && err_sz) snprintf(err, err_sz, "empty tx"); return -1; }
+        if (n > QRX_UNTRUSTED_TX_MAX_BYTES)      { if (err && err_sz) snprintf(err, err_sz, "oversized tx"); return -1; }
+    }
+
+    /* [2] Leak-free stateless gate. Rejects the bulk of malformed input,
+     *     including every unsigned / wrongly signed transaction, without
+     *     entering any die()-capable code path. */
+    stateless_err[0] = 0;
+    if (velocity_stateless_verify_cb((void*)chain_dir, tx, stateless_err, sizeof(stateless_err)) != 0) {
+        if (err && err_sz) snprintf(err, err_sz, "%s", stateless_err[0] ? stateless_err : "invalid tx");
+        return -1;
+    }
+
+    /* [3] Stateful validation under the fault barrier. */
+    if (qrx_untrusted_guard_active()) {
+        /* Defensive: never nest guards, the jmp_buf would be overwritten. */
+        if (err && err_sz) snprintf(err, err_sz, "validation reentry");
+        return -1;
+    }
+    g_untrusted_guard_reason[0] = 0;
+    if (setjmp(g_untrusted_guard_jmp) != 0) {
+        /* A die() inside the stateful path unwound to here. */
+        g_untrusted_guard_depth = 0;
+        if (err && err_sz)
+            snprintf(err, err_sz, "%s",
+                     g_untrusted_guard_reason[0] ? g_untrusted_guard_reason : "invalid tx");
+        return -1;
+    }
+    g_untrusted_guard_depth = 1;
+    rc = verify_tx_text(chain_dir, tx);
+    g_untrusted_guard_depth = 0;
+
+    if (rc != 0 && err && err_sz) snprintf(err, err_sz, "invalid tx");
+    return rc;
 }
 
 static int velocity_mempool_plan_cmd(const char *node_dir,int max_txs,int workers){
@@ -3877,7 +4188,33 @@ static int a76_stage_tag(QrxDBBatch*b,const char*c,const char*from,const char*p,
 static int a76_stage_restriction(QrxDBBatch*b,const char*c,const char*from,const char*p,const char*mode,int on){char*a=payload_get_field(p,"asset"),*addr=payload_get_field(p,"address");int rc=-1;if(!a||a[0]!='$'||!a76_asset_active(c,a)||!a76_has_owner(c,a,from))goto done;char k[1024];if(!strcmp(mode,"global"))snprintf(k,sizeof(k),"asset76:globalfreeze:%s",a);else{if(!addr)goto done;snprintf(k,sizeof(k),"asset76:blacklist:%s:%s",a,addr);}rc=qrxdb_batch_put(b,k,on?"1":"0");done:free(a);free(addr);return rc;}
 static int a76_stage_broadcast(QrxDBBatch*b,const char*c,const char*from,const char*p,const char*txid,long long h){char*a=payload_get_field(p,"asset"),*msg=payload_get_field(p,"message"),*exp=payload_get_field(p,"expire_time");int rc=-1;if(!a||!msg||strlen(msg)>256||!a76_asset_active(c,a))goto done;long long bal=0;a76_get_balance_qrxdb(c,a,from,&bal);char*k=a76_db_get(c,a,"kind");int auth=a76_has_owner(c,a,from)||(k&&!strcmp(k,"CHANNEL")&&bal>=1);free(k);if(!auth)goto done;char key[1024],val[1024];snprintf(key,sizeof(key),"asset76:broadcast:%s:%s",a,txid);snprintf(val,sizeof(val),"height=%lld;expire=%s;message=%s",h,exp?exp:"0",msg);rc=qrxdb_batch_put(b,key,val);done:free(a);free(msg);free(exp);return rc;}
 static int a76_stage_admin_balance(QrxDBBatch*b,const char*c,const char*from,const char*to,const char*p,int forced){char*a=payload_get_field(p,"asset"),*qs=payload_get_field(p,"qty");int rc=-1;if(!a||!qs||!a76_asset_active(c,a)||!a76_has_owner(c,a,from))goto done;char*caps=a76_db_get(c,a,"capabilities");const char*need=forced?"ISSUER_FORCED_TRANSFER":"ISSUER_REVOKE";if(!caps||!token_list_contains_ci(caps,need)){free(caps);goto done;}free(caps);char*src=payload_get_field(p,"source");if(!src)goto done;long long q=parse_positive_ll_strict(qs,"qty"),sb=0;a76_get_balance_qrxdb(c,a,src,&sb);if(sb<q){free(src);goto done;}rc=a76_batch_balance_delta(b,c,a,src,-q);if(forced){if(!to||!*to||!strcmp(src,to)||!a76_restricted_eligible(c,a,to)){free(src);goto done;}rc|=a76_batch_balance_delta(b,c,a,to,q);}free(src);done:free(a);free(qs);return rc?-1:0;}
-static long long a76_operation_burn(const char*c,const char*t,const char*p,long long h){const char*key=NULL;long long def=0;if(!strcmp(t,"ASSET_ISSUE")){char*k=payload_get_field(p,"kind");if(k){if(!strcmp(k,"MAIN")){key="asset_issue_main_burn_atoms";def=10000000000LL;}else if(!strcmp(k,"SUB")){key="asset_issue_sub_burn_atoms";def=2500000000LL;}else if(!strcmp(k,"UNIQUE")){key="asset_issue_unique_burn_atoms";def=250000000LL;}else if(!strcmp(k,"CHANNEL")){key="asset_issue_channel_burn_atoms";def=2500000000LL;}else if(!strcmp(k,"QUALIFIER")){key="asset_issue_qualifier_burn_atoms";def=25000000000LL;}else if(!strcmp(k,"SUBQUALIFIER")){key="asset_issue_subqualifier_burn_atoms";def=2500000000LL;}else if(!strcmp(k,"RESTRICTED")){key="asset_issue_restricted_burn_atoms";def=50000000000LL;}free(k);}}else if(!strcmp(t,"ASSET_REISSUE")){key="asset_reissue_burn_atoms";def=1000000000LL;}else if(!strcmp(t,"ASSET_TAG")||!strcmp(t,"ASSET_UNTAG")){key="asset_tag_burn_atoms";def=100000000LL;}return key?qrx_chain_get_ll_at_height_or_default(c,h,key,def):0;}
+static long long a76_operation_burn(const char*c,const char*t,const char*p,long long h){
+    const char*legacy_key=NULL;const char*unit_key=NULL;long long legacy_def=0,unit_def=0;
+    if(!strcmp(t,"ASSET_ISSUE")){
+        char*k=payload_get_field(p,"kind");
+        if(k){
+            if(!strcmp(k,"MAIN")){legacy_key="asset_issue_main_burn_atoms";legacy_def=10000000000LL;unit_key="asset_issue_main_burn_reward_units";unit_def=QRX_ASSET_BURN_MAIN_REWARD_UNITS;}
+            else if(!strcmp(k,"SUB")){legacy_key="asset_issue_sub_burn_atoms";legacy_def=2500000000LL;unit_key="asset_issue_sub_burn_reward_units";unit_def=QRX_ASSET_BURN_SUB_REWARD_UNITS;}
+            else if(!strcmp(k,"UNIQUE")){legacy_key="asset_issue_unique_burn_atoms";legacy_def=250000000LL;unit_key="asset_issue_unique_burn_reward_units";unit_def=QRX_ASSET_BURN_UNIQUE_REWARD_UNITS;}
+            else if(!strcmp(k,"CHANNEL")){legacy_key="asset_issue_channel_burn_atoms";legacy_def=2500000000LL;unit_key="asset_issue_channel_burn_reward_units";unit_def=QRX_ASSET_BURN_CHANNEL_REWARD_UNITS;}
+            else if(!strcmp(k,"QUALIFIER")){legacy_key="asset_issue_qualifier_burn_atoms";legacy_def=25000000000LL;unit_key="asset_issue_qualifier_burn_reward_units";unit_def=QRX_ASSET_BURN_QUALIFIER_REWARD_UNITS;}
+            else if(!strcmp(k,"SUBQUALIFIER")){legacy_key="asset_issue_subqualifier_burn_atoms";legacy_def=2500000000LL;unit_key="asset_issue_subqualifier_burn_reward_units";unit_def=QRX_ASSET_BURN_SUBQUALIFIER_REWARD_UNITS;}
+            else if(!strcmp(k,"RESTRICTED")){legacy_key="asset_issue_restricted_burn_atoms";legacy_def=50000000000LL;unit_key="asset_issue_restricted_burn_reward_units";unit_def=QRX_ASSET_BURN_RESTRICTED_REWARD_UNITS;}
+            free(k);
+        }
+    }else if(!strcmp(t,"ASSET_REISSUE")){legacy_key="asset_reissue_burn_atoms";legacy_def=1000000000LL;unit_key="asset_reissue_burn_reward_units";unit_def=QRX_ASSET_BURN_REISSUE_REWARD_UNITS;}
+    else if(!strcmp(t,"ASSET_TAG")||!strcmp(t,"ASSET_UNTAG")){legacy_key="asset_tag_burn_atoms";legacy_def=100000000LL;unit_key="asset_tag_burn_reward_units";unit_def=QRX_ASSET_BURN_TAG_REWARD_UNITS;}
+    if(!legacy_key)return 0;
+    char policy[64]={0};
+    if(qrx_chain_get_value_at_height(c,h,"asset_burn_policy",policy,sizeof(policy))==0&&!strcmp(policy,"block_reward_units_v1")){
+        long long units=qrx_chain_get_ll_at_height_or_default(c,h,unit_key,unit_def);
+        long long reward=qrx_chain_get_block_reward_at_height(c,h,QRX_INITIAL_BLOCK_REWARD_ATOMS,QRX_HALVING_INTERVAL_BLOCKS);
+        if(units<0||reward<0)return -1;
+        uint64_t burn=qrx_asset_burn_from_reward_units((uint64_t)reward,(uint64_t)units);
+        return burn>(uint64_t)LLONG_MAX?-1:(long long)burn;
+    }
+    return qrx_chain_get_ll_at_height_or_default(c,h,legacy_key,legacy_def);
+}
 static int atomic_stage_asset76(QrxDBBatch*b,const char*c,const char*from,const char*to,const char*t,const char*p,const char*txid,long long h){long long act=qrx_chain_get_ll_at_height_or_default(c,h+1,"asset_activation_height",0);if(h+1<act)return -1;if(!strcmp(t,"ASSET_ISSUE"))return a76_stage_issue(b,c,from,to,p,h,txid);if(!strcmp(t,"ASSET_REISSUE"))return a76_stage_reissue(b,c,from,to,p,h,txid);if(!strcmp(t,"ASSET_TRANSFER"))return a76_stage_transfer(b,c,from,to,p);if(!strcmp(t,"ASSET_TAG"))return a76_stage_tag(b,c,from,p,1);if(!strcmp(t,"ASSET_UNTAG"))return a76_stage_tag(b,c,from,p,0);if(!strcmp(t,"ASSET_FREEZE_ADDRESS"))return a76_stage_restriction(b,c,from,p,"address",1);if(!strcmp(t,"ASSET_UNFREEZE_ADDRESS"))return a76_stage_restriction(b,c,from,p,"address",0);if(!strcmp(t,"ASSET_GLOBAL_FREEZE"))return a76_stage_restriction(b,c,from,p,"global",1);if(!strcmp(t,"ASSET_GLOBAL_UNFREEZE"))return a76_stage_restriction(b,c,from,p,"global",0);if(!strcmp(t,"ASSET_BROADCAST"))return a76_stage_broadcast(b,c,from,p,txid,h);if(!strcmp(t,"ASSET_REVOKE"))return a76_stage_admin_balance(b,c,from,to,p,0);if(!strcmp(t,"ASSET_FORCED_TRANSFER"))return a76_stage_admin_balance(b,c,from,to,p,1);return -1;}
 
 
@@ -4385,7 +4722,7 @@ static int atomic_stage_staking(QrxDBBatch*b,const char*c,const char*from,const 
     }
     if(!strcmp(t,"DELEGATE_BOND")){
         if(amount<=0||!to||!strcmp(from,to))return -1;
-        if(!validator_has_min_self_stake_at(c,to,h+1) || validator_is_tombstoned(c,to) || validator_is_jailed_now(c,to) || validator_is_safely_paused(c,to)) return -1;
+        if(!validator_has_min_self_stake_at(c,to,h+1) || validator_is_tombstoned(c,to) || validator_is_jailed_now(c,to) || validator_is_safely_paused(c,to) || validator_is_compute_jailed_at(c,to,h+1)) return -1;
         snprintf(k,sizeof(k),"staking:delegation:%s:%s",from,to);cur=staking_db_ll(c,k,0);checked_add_ll(cur,amount,"delegation",&next);if(staking_put_ll(b,k,next))return -1;
         snprintf(k,sizeof(k),"staking:delegated_total:%s",to);cur=staking_db_ll(c,k,0);checked_add_ll(cur,amount,"delegated total",&next);return staking_put_ll(b,k,next);
     }
@@ -4439,15 +4776,21 @@ static int applytx_cmd(const char *chain_dir, const char *tx_file) {
     int is_btc_spv_header = is_velocity && tx_type && !strcmp(tx_type,"BTC_SPV_HEADER");
     int is_btc_spv_proof = is_velocity && tx_type && !strcmp(tx_type,"BTC_SPV_FUNDING_PROOF");
     int is_asset76_tx = is_velocity && tx_type && (!strncmp(tx_type,"ASSET_",6));
+    int is_protocol_gov_tx = is_velocity && tx_type && !strcmp(tx_type,"GOVERNANCE_PROTOCOL");
     int is_privacy_tx = is_velocity && tx_type && (!strncmp(tx_type,"PRIVACY_",8));
     int is_privacy_shield = is_privacy_tx && !strcmp(tx_type,"PRIVACY_SHIELD");
     int is_privacy_unshield = is_privacy_tx && !strcmp(tx_type,"PRIVACY_UNSHIELD");
     int is_generals_tx = is_velocity && tx_type && (!strncmp(tx_type,"GAME_",5));
     int is_staking_tx = is_velocity && tx_type && (!strncmp(tx_type,"STAKE_",6) || !strncmp(tx_type,"DELEGATE_",9) || !strncmp(tx_type,"VALIDATOR_",10));
     int is_storage_tx = is_velocity && tx_type && !strncmp(tx_type,"STORAGE_",8);
-    int is_qrxnet_tx = is_velocity && tx_type && (!strncmp(tx_type,"DOMAIN_",7) || !strncmp(tx_type,"AD_",3));
-    int is_transfer = !is_agent_tx && !is_trade_tx && !is_gateway_tx && !is_execution_report && !is_crosschain_order && !is_crosschain_action && !is_btc_spv_header && !is_btc_spv_proof && !is_asset76_tx && !is_privacy_tx && !is_generals_tx && !is_staking_tx && !is_storage_tx && !is_qrxnet_tx;
-    if (is_velocity && !is_agent_tx && !is_trade_tx && !is_gateway_tx && !is_execution_report && !is_crosschain_order && !is_crosschain_action && !is_btc_spv_header && !is_btc_spv_proof && !is_asset76_tx && !is_privacy_tx && !is_generals_tx && !is_staking_tx && !is_storage_tx && !is_qrxnet_tx && (!tx_type || strcmp(tx_type, "TRANSFER_FAST") != 0)) die("velocity execution not active for this tx_type");
+    int is_domain_tx = is_velocity && tx_type && !strncmp(tx_type,"DOMAIN_",7);
+    int is_ad_tx = is_velocity && tx_type && !strncmp(tx_type,"AD_",3);
+    int is_qrxnet_tx = is_domain_tx || is_ad_tx;
+    int is_compute_pipeline_tx = is_velocity && qrx_compute_pipeline_tx_type(tx_type);
+    int is_compute_identity_tx = is_velocity && qrx_compute_identity_tx_type(tx_type);
+    int is_pouc_tx = is_velocity && tx_type && !strcmp(tx_type,"POUC_SETTLEMENT");
+    int is_transfer = !is_compute_pipeline_tx && !is_compute_identity_tx && !is_pouc_tx && !is_agent_tx && !is_trade_tx && !is_gateway_tx && !is_execution_report && !is_crosschain_order && !is_crosschain_action && !is_btc_spv_header && !is_btc_spv_proof && !is_asset76_tx && !is_protocol_gov_tx && !is_privacy_tx && !is_generals_tx && !is_staking_tx && !is_storage_tx && !is_qrxnet_tx;
+    if (is_velocity && !is_compute_pipeline_tx && !is_compute_identity_tx && !is_pouc_tx && !is_agent_tx && !is_trade_tx && !is_gateway_tx && !is_execution_report && !is_crosschain_order && !is_crosschain_action && !is_btc_spv_header && !is_btc_spv_proof && !is_asset76_tx && !is_protocol_gov_tx && !is_privacy_tx && !is_generals_tx && !is_staking_tx && !is_storage_tx && !is_qrxnet_tx && (!tx_type || strcmp(tx_type, "TRANSFER_FAST") != 0)) die("velocity execution not active for this tx_type");
     if (!from || !*from || !to || !*to || !body_hash || !*body_hash) die("invalid tx addresses/hash");
     if((is_trade_tx || is_crosschain_order) && !strcmp(from,to)) die("trading agent must use a distinct delegated address from the owner wallet");
 
@@ -4455,11 +4798,16 @@ static int applytx_cmd(const char *chain_dir, const char *tx_file) {
     long long fee = fee_s ? parse_nonnegative_ll_strict(fee_s, "fee") : 0; long long n = parse_positive_ll_strict(nonce, "nonce");
     long long height=current_height_from_chain(chain_dir);
     QrxServiceEconomicEffect service_effect={0};
-    if(is_storage_tx){if(!qrx_storage_protocol_enabled_at_height(chain_dir,height+1))die("DRIVE_V1 mandatory protocol upgrade not active");if(qrx_storage_consensus_prepare(chain_dir,tx_type,from,to,(uint64_t)amt,payload_apply,body_hash,(uint64_t)(height+1),&service_effect)!=0)die("storage consensus prepare failed");}
-    if(is_qrxnet_tx){if(!qrx_net_protocol_enabled_at_height(chain_dir,height+1))die("QRX_NET_V1 mandatory protocol upgrade not active");if(qrx_net_consensus_prepare(chain_dir,tx_type,from,to,(uint64_t)amt,payload_apply,body_hash,(uint64_t)(height+1),&service_effect)!=0)die("QRX-Net consensus prepare failed");}
+    if(is_storage_tx){if(!qrx_storage_protocol_enabled_at_height(chain_dir,height+1)&&!qrx_storage_preflight_tx_type(tx_type))die("DRIVE_V1 mandatory protocol upgrade not active (provider preflight only)");if(qrx_storage_consensus_prepare(chain_dir,tx_type,from,to,(uint64_t)amt,payload_apply,body_hash,(uint64_t)(height+1),&service_effect)!=0)die("storage consensus prepare failed");}
+    if(is_qrxnet_tx){if(!qrx_net_protocol_enabled_at_height(chain_dir,height+1))die("QRX_NET_V1 mandatory protocol upgrade not active");if(is_ad_tx&&!qrx_advertising_protocol_enabled_at_height(chain_dir,height+1))die("ADVERTISING_V1 mandatory protocol upgrade not active");if(qrx_net_consensus_prepare(chain_dir,tx_type,from,to,(uint64_t)amt,payload_apply,body_hash,(uint64_t)(height+1),&service_effect)!=0)die(is_ad_tx?"QRX advertising consensus prepare failed":"QRX-Net consensus prepare failed");}
+    QrxPoucPipelineEffect compute_effect={0};
+    if(is_compute_pipeline_tx){QrxDB cdb;if(!qrx_compute_pouc_protocol_enabled_at_height(chain_dir,height+1))die("COMPUTE_POUC_V1 mandatory protocol upgrade not active");if(qrxdb_init(&cdb,chain_dir)!=0)die("Compute pipeline QRXDB init failed");int crc=qrx_pouc_pipeline_prepare(&cdb,tx_type,from,to,(uint64_t)amt,payload_apply,(uint64_t)(height+1),&compute_effect);qrxdb_close(&cdb);if(crc!=0)die("Compute pipeline prepare failed");}
+    if(is_compute_identity_tx){QrxDB idb;QrxServiceEconomicEffect ie={0};/* identity bind is preflight-safe before rewards */if(qrxdb_init(&idb,chain_dir)!=0)die("Compute provider identity QRXDB init failed");int irc=qrx_compute_provider_identity_prepare(&idb,tx_type,from,to,(uint64_t)amt,payload_apply,(uint64_t)(height+1),&ie);qrxdb_close(&idb);if(irc!=0)die("Compute provider identity prepare failed");}
+    QrxPoucConsensusEffect pouc_effect={0};
+    if(is_pouc_tx){QrxDB pdb;char *cid=chain_cfg_value(chain_dir,"chain_id"),*gh=chain_cfg_value(chain_dir,"genesis_hash"),*pv=chain_cfg_value(chain_dir,"protocol_version");if(!cid||!*cid||!gh||!*gh||!pv||!*pv)die("PoUC chain binding missing");if(qrxdb_init(&pdb,chain_dir)!=0)die("PoUC QRXDB init failed");if(!qrx_compute_pouc_protocol_enabled_at_height(chain_dir,height+1))die("COMPUTE_POUC_V1 mandatory protocol upgrade not active");int prc=qrx_pouc_consensus_prepare(&pdb,cid,gh,pv,tx_type,from,to,(uint64_t)amt,payload_apply,1,(uint64_t)(height+1),&pouc_effect);qrxdb_close(&pdb);free(cid);free(gh);free(pv);if(prc!=0)die("PoUC settlement prepare failed");}
     long long asset_burn=is_asset76_tx?a76_operation_burn(chain_dir,tx_type,payload_apply,height+1):0;if(asset_burn<0)die("invalid asset burn fee");
     long long generals_cost=is_generals_tx?generals_operation_cost(chain_dir,tx_type,payload_apply,height+1,amt):0;if(is_generals_tx&&generals_cost<0)die("invalid Generals operation cost");
-    long long debit = 0,tmp_debit=0,tmp_debit2=0,tmp_debit3=0; checked_add_ll((is_transfer || is_privacy_shield || (is_staking_tx && tx_type && (!strcmp(tx_type,"STAKE_BOND") || !strcmp(tx_type,"DELEGATE_BOND")))) ? amt : 0, fee, "amount plus fee", &tmp_debit);checked_add_ll(tmp_debit,asset_burn,"amount plus fee plus asset burn",&tmp_debit2);checked_add_ll(tmp_debit2,generals_cost,"amount plus fee plus asset burn plus Generals treasury contribution",&tmp_debit3);checked_add_ll(tmp_debit3,(long long)service_effect.debit_atoms,"service debit",&debit);
+    long long debit = 0,tmp_debit=0,tmp_debit2=0,tmp_debit3=0; checked_add_ll((is_transfer || is_privacy_shield || (is_staking_tx && tx_type && (!strcmp(tx_type,"STAKE_BOND") || !strcmp(tx_type,"DELEGATE_BOND")))) ? amt : 0, fee, "amount plus fee", &tmp_debit);checked_add_ll(tmp_debit,asset_burn,"amount plus fee plus asset burn",&tmp_debit2);checked_add_ll(tmp_debit2,generals_cost,"amount plus fee plus asset burn plus Generals treasury contribution",&tmp_debit3);checked_add_ll(tmp_debit3,(long long)service_effect.debit_atoms,"service debit",&debit);if(compute_effect.debit_atoms){long long d2=0;checked_add_ll(debit,(long long)compute_effect.debit_atoms,"compute escrow funding debit",&d2);debit=d2;}
     long long current_nonce = velocity_get_lane_nonce(chain_dir, from, lane); if (current_nonce == LLONG_MAX) die("nonce overflow"); if (n != current_nonce + 1) die("invalid nonce: expected lane nonce + 1");
 
     long long frombal=qrx_balance_get_authoritative(chain_dir,from),tobal=qrx_balance_get_authoritative(chain_dir,to),new_frombal=0,new_tobal=tobal;
@@ -4486,6 +4834,10 @@ static int applytx_cmd(const char *chain_dir, const char *tx_file) {
         if(!strcmp(from,to)){checked_add_ll(new_frombal,amt,"privacy unshield self credit",&new_frombal);new_tobal=new_frombal;}
         else checked_add_ll(tobal,amt,"privacy unshield recipient credit",&new_tobal);
     }
+    if(is_compute_pipeline_tx && compute_effect.reward_credit_atoms){
+        if(compute_effect.reward_credit_atoms>(uint64_t)LLONG_MAX)die("compute verification reward overflow");
+        checked_add_ll(new_frombal,(long long)compute_effect.reward_credit_atoms,"PoUC verifier/challenger reward",&new_frombal);
+    }
     if(is_crosschain_action){
         char *sid=payload_get_field(payload_apply,"session_id");
         long long locked=sid?crosschain_get_ll(chain_dir,sid,"qrx_locked_atoms",0):0;
@@ -4509,14 +4861,34 @@ static int applytx_cmd(const char *chain_dir, const char *tx_file) {
         else if(svc_rec_stage && !strcmp(svc_dev_addr,service_effect.recipient)){checked_add_ll(svc_rec_new,(long long)service_effect.development_credit_atoms,"development credit",&svc_rec_new);}
         else {long long b=qrx_balance_get_authoritative(chain_dir,svc_dev_addr);checked_add_ll(b,(long long)service_effect.development_credit_atoms,"development credit",&svc_dev_new);svc_dev_stage=1;}
     }
-    long long fee_pending=fee_pool_pending(chain_dir),new_fee_pending=0,service_fee_total=0;checked_add_ll(fee,(long long)service_effect.protocol_fee_atoms,"fee plus protocol service fee",&service_fee_total);checked_add_ll(fee_pending,service_fee_total,"fee pool",&new_fee_pending);
+    /* PoUC payout/refund credits are merged with the ordinary tx fee debit so
+       all wallet balances and settlement state land in the same WAL batch. */
+    long long pouc_owner_new=0,pouc_dev_new=0;int pouc_owner_stage=0,pouc_dev_stage=0,pouc_to_stage=0;char *pouc_dev_addr=NULL;
+    if(is_pouc_tx){
+        if(pouc_effect.provider_credit_atoms){if(!strcmp(pouc_effect.provider,from))checked_add_ll(new_frombal,(long long)pouc_effect.provider_credit_atoms,"PoUC provider payout",&new_frombal);else {checked_add_ll(new_tobal,(long long)pouc_effect.provider_credit_atoms,"PoUC provider payout",&new_tobal);pouc_to_stage=1;}}
+        if(pouc_effect.owner_credit_atoms){
+            if(!strcmp(pouc_effect.owner,from))checked_add_ll(new_frombal,(long long)pouc_effect.owner_credit_atoms,"PoUC owner refund",&new_frombal);
+            else if(!strcmp(pouc_effect.owner,to)){checked_add_ll(new_tobal,(long long)pouc_effect.owner_credit_atoms,"PoUC owner refund",&new_tobal);pouc_to_stage=1;}
+            else {long long b=qrx_balance_get_authoritative(chain_dir,pouc_effect.owner);checked_add_ll(b,(long long)pouc_effect.owner_credit_atoms,"PoUC owner refund",&pouc_owner_new);pouc_owner_stage=1;}
+        }
+        if(pouc_effect.development_credit_atoms){
+            pouc_dev_addr=chain_cfg_value(chain_dir,"dev_address");if(!pouc_dev_addr||!*pouc_dev_addr)die("PoUC development address missing");
+            if(!strcmp(pouc_dev_addr,from))checked_add_ll(new_frombal,(long long)pouc_effect.development_credit_atoms,"PoUC FastTrack development share",&new_frombal);
+            else if(!strcmp(pouc_dev_addr,to)){checked_add_ll(new_tobal,(long long)pouc_effect.development_credit_atoms,"PoUC FastTrack development share",&new_tobal);pouc_to_stage=1;}
+            else if(pouc_owner_stage&&!strcmp(pouc_dev_addr,pouc_effect.owner))checked_add_ll(pouc_owner_new,(long long)pouc_effect.development_credit_atoms,"PoUC FastTrack development share",&pouc_owner_new);
+            else {long long b=qrx_balance_get_authoritative(chain_dir,pouc_dev_addr);checked_add_ll(b,(long long)pouc_effect.development_credit_atoms,"PoUC FastTrack development share",&pouc_dev_new);pouc_dev_stage=1;}
+        }
+    }
+    long long fee_pending=fee_pool_pending(chain_dir),new_fee_pending=0,service_fee_total=0,fee_with_pouc=0;checked_add_ll(fee,(long long)service_effect.protocol_fee_atoms,"fee plus protocol service fee",&service_fee_total);checked_add_ll(service_fee_total,(long long)pouc_effect.network_credit_atoms,"fee plus PoUC network share",&fee_with_pouc);checked_add_ll(fee_pending,fee_with_pouc,"fee pool",&new_fee_pending);
 
     QrxDB db;QrxDBBatch batch;if(qrxdb_init(&db,chain_dir)!=0)die("QRXDB init failed");if(qrxdb_batch_begin(&db,&batch)!=0){qrxdb_close(&db);die("QRXDB batch begin failed");}
     int brc=0;
     brc|=atomic_batch_put_balance(&batch,from,new_frombal);
-    if(((is_transfer || is_privacy_unshield) && strcmp(from,to)) || (svc_to_stage && strcmp(from,to))) brc|=atomic_batch_put_balance(&batch,to,new_tobal);
+    if(((is_transfer || is_privacy_unshield) && strcmp(from,to)) || (svc_to_stage && strcmp(from,to)) || (pouc_to_stage && strcmp(from,to))) brc|=atomic_batch_put_balance(&batch,to,new_tobal);
     if(svc_rec_stage) brc|=atomic_batch_put_balance(&batch,service_effect.recipient,svc_rec_new);
     if(svc_dev_stage) brc|=atomic_batch_put_balance(&batch,svc_dev_addr,svc_dev_new);
+    if(pouc_owner_stage) brc|=atomic_batch_put_balance(&batch,pouc_effect.owner,pouc_owner_new);
+    if(pouc_dev_stage) brc|=atomic_batch_put_balance(&batch,pouc_dev_addr,pouc_dev_new);
     if(is_agent_tx) brc|=atomic_stage_agent(&batch,from,to,tx_type,payload_apply,body_hash,height);
     if(is_trade_tx) brc|=atomic_stage_trade(&batch,chain_dir,from,to,tx_type,payload_apply,body_hash,height);
     if(is_crosschain_order) brc|=crosschain_stage_order(&batch,chain_dir,from,to,payload_apply,body_hash,height);
@@ -4525,18 +4897,26 @@ static int applytx_cmd(const char *chain_dir, const char *tx_file) {
     if(is_btc_spv_proof) brc|=atomic_stage_btc_spv_funding_proof(&batch,chain_dir,from,payload_apply,body_hash,height);
     if(is_gateway_tx) brc|=atomic_stage_gateway(&batch,from,to,tx_type,payload_apply,body_hash,height);
     if(is_asset76_tx) brc|=atomic_stage_asset76(&batch,chain_dir,from,to,tx_type,payload_apply,body_hash,height);
+    if(is_protocol_gov_tx) brc|=atomic_stage_privacy(&batch,chain_dir,from,to,tx_type,payload_apply,body_hash,height,amt);
     if(is_privacy_tx) brc|=atomic_stage_privacy(&batch,chain_dir,from,to,tx_type,payload_apply,body_hash,height,amt);
     if(is_generals_tx) brc|=atomic_stage_generals(&batch,chain_dir,from,tx_type,payload_apply,body_hash,height,generals_cost);
     if(is_staking_tx) brc|=atomic_stage_staking(&batch,chain_dir,from,to,tx_type,payload_apply,body_hash,height,amt);
     if(is_storage_tx) brc|=qrx_storage_consensus_stage(&db,&batch,chain_dir,tx_type,from,to,(uint64_t)amt,payload_apply,body_hash,(uint64_t)(height+1));
     if(is_qrxnet_tx) brc|=qrx_net_consensus_stage(&db,&batch,chain_dir,tx_type,from,to,(uint64_t)amt,payload_apply,body_hash,(uint64_t)(height+1));
+    if(is_compute_pipeline_tx){
+        brc|=qrx_pouc_pipeline_stage(&db,&batch,&compute_effect,body_hash,(uint64_t)(height+1));
+        if(compute_effect.reward_credit_atoms) brc|=qrx_pouc_reward_journal_stage(&db,&batch,&compute_effect,body_hash,(uint64_t)(height+1));
+    }
+    if(is_compute_identity_tx) brc|=qrx_compute_provider_identity_stage(&db,&batch,tx_type,from,to,(uint64_t)amt,payload_apply,(uint64_t)(height+1));
+    if(is_pouc_tx) brc|=qrx_pouc_consensus_stage(&db,&batch,&pouc_effect,body_hash,(uint64_t)(height+1));
     if(is_execution_report) brc|=atomic_stage_execution_report(&batch,from,to,payload_apply,body_hash,height);
     brc|=velocity_batch_put_ll(&batch,"consensus:fee_pool:pending",new_fee_pending);
     if(asset_burn>0){long long oldburn=0,newburn=0;QrxDB tdb;if(qrxdb_init(&tdb,chain_dir)==0){char bb[128];if(qrxdb_get(&tdb,"consensus:asset76:burned_qub_atoms",bb,sizeof(bb))==0)oldburn=atoll(bb);qrxdb_close(&tdb);}checked_add_ll(oldburn,asset_burn,"asset burn accumulator",&newburn);brc|=velocity_batch_put_ll(&batch,"consensus:asset76:burned_qub_atoms",newburn);}
     brc|=atomic_batch_put_nonce(&batch,from,lane,n);
     brc|=atomic_batch_put_applied(&batch,body_hash,height);
-    const char *kind=is_agent_tx?"velocity-agent":is_crosschain_order?"velocity-crosschain-order":is_crosschain_action?"velocity-crosschain-settlement":is_btc_spv_header?"velocity-btc-spv-header":is_btc_spv_proof?"velocity-btc-spv-funding-proof":is_trade_tx?"velocity-trading-intent":is_gateway_tx?"velocity-gateway":is_execution_report?"velocity-execution-report":is_asset76_tx?"native-asset-consensus":is_privacy_tx?"privacy-consensus":is_generals_tx?"generals-consensus":is_staking_tx?"staking-consensus":is_storage_tx?"storage-consensus":is_qrxnet_tx?"qrxnet-consensus":(is_velocity?"velocity-transfer-fast":"mempool-or-direct-apply");
+    const char *kind=is_agent_tx?"velocity-agent":is_crosschain_order?"velocity-crosschain-order":is_crosschain_action?"velocity-crosschain-settlement":is_btc_spv_header?"velocity-btc-spv-header":is_btc_spv_proof?"velocity-btc-spv-funding-proof":is_trade_tx?"velocity-trading-intent":is_gateway_tx?"velocity-gateway":is_execution_report?"velocity-execution-report":is_asset76_tx?"native-asset-consensus":is_protocol_gov_tx?"protocol-governance-consensus":is_privacy_tx?"privacy-consensus":is_generals_tx?"generals-consensus":is_staking_tx?"staking-consensus":is_storage_tx?"storage-consensus":is_qrxnet_tx?"qrxnet-consensus":is_compute_identity_tx?"compute-provider-identity":is_compute_pipeline_tx?"pouc-upstream-consensus":is_pouc_tx?"pouc-settlement-consensus":(is_velocity?"velocity-transfer-fast":"mempool-or-direct-apply");
     brc|=atomic_batch_put_tx_index(&batch,body_hash,kind,height,tx);
+    if((is_compute_pipeline_tx||is_compute_identity_tx||is_pouc_tx)&&!brc) brc|=qrx_pouc_tx_undo_stage(&db,&batch,body_hash,tx_type?tx_type:"POUC",(uint64_t)(height+1));
     if(brc){qrxdb_batch_abort(&batch);qrxdb_close(&db);die("atomic state staging failed");}
     if(qrxdb_batch_commit(&batch)!=0){qrxdb_batch_abort(&batch);qrxdb_close(&db);die("atomic WAL commit failed");}
     char state_root[129]={0};qrxdb_merkle_root_hex(&db,state_root);unsigned long long generation=(unsigned long long)qrxdb_generation(&db);qrxdb_close(&db);
@@ -4554,7 +4934,7 @@ static int applytx_cmd(const char *chain_dir, const char *tx_file) {
 
     journal_append(chain_dir, "applytx_atomic generation=%llu state_root=%s height=%lld timestamp=%s tx_version=%s tx_type=%s from=%s to=%s amount=%lld fee=%lld asset_burn=%lld generals_treasury_cost=%lld lane=%lld nonce=%s body_hash=%s", generation,state_root,height,timestamp?timestamp:"0",tx_version?tx_version:"2", tx_type?tx_type:"LEGACY_TRANSFER", from, to, amt, fee, asset_burn, generals_cost, lane, nonce, body_hash);
     printf("APPLIED\nstate_root=%s\nqrxdb_generation=%llu\n",state_root,generation);
-    if(svc_dev_addr)free(svc_dev_addr); free(tx); if(tx_version) free(tx_version); if(tx_type) free(tx_type); if(lane_id) free(lane_id); if(payload_apply) free(payload_apply); free(from); free(to); free(amount); if (fee_s) free(fee_s); free(nonce); if(timestamp) free(timestamp); if (body_hash_sha3) free(body_hash_sha3); if (body_hash_legacy) free(body_hash_legacy); return 0;
+    if(svc_dev_addr)free(svc_dev_addr); if(pouc_dev_addr)free(pouc_dev_addr); free(tx); if(tx_version) free(tx_version); if(tx_type) free(tx_type); if(lane_id) free(lane_id); if(payload_apply) free(payload_apply); free(from); free(to); free(amount); if (fee_s) free(fee_s); free(nonce); if(timestamp) free(timestamp); if (body_hash_sha3) free(body_hash_sha3); if (body_hash_legacy) free(body_hash_legacy); return 0;
 }
 
 static int node_init_cmd(const char *node_dir, const char *chain_dir, const char *wallet_dir, const char *host, const char *port) {
@@ -4570,7 +4950,7 @@ static int node_init_cmd(const char *node_dir, const char *chain_dir, const char
     const char *magic = (chain_magic && *chain_magic) ? chain_magic : QRX_MAGIC;
     char storage_path[1024]; snprintf(storage_path,sizeof(storage_path),"%s/qrx-drive",node_dir);
     char cfg[6144]; snprintf(cfg, sizeof(cfg),
-        "chain_dir=%s\nwallet_dir=%s\nhost=%s\nport=%s\nexternal_host=%s\nexternal_port=%s\nnetwork_id=%s\ngenesis_hash=%s\nprotocol_version=%s\nconsensus_version=%s\nchain_id=%s\nmagic=%s\naddress=%s\nstorage_enabled=0\nstorage_provider_id=%s\nstorage_path=%s\nstorage_max_usage_bytes=0\nstorage_min_free_space_bytes=10737418240\n",
+        "chain_dir=%s\nwallet_dir=%s\nhost=%s\nport=%s\nexternal_host=%s\nexternal_port=%s\nnetwork_id=%s\ngenesis_hash=%s\nprotocol_version=%s\nconsensus_version=%s\nchain_id=%s\nmagic=%s\naddress=%s\nstorage_enabled=0\nstorage_provider_id=%s\nstorage_path=%s\nstorage_max_usage_bytes=0\nstorage_min_free_space_bytes=10737418240\naura_anti_entropy_interval_seconds=15\n",
         chain_dir, wallet_dir, host, port, host, port, network_id, genesis_hash, protocol_version, consensus_version, chain_id, magic, address, address, storage_path);
     snprintf(p, sizeof(p), "%s/node.conf", node_dir); write_text(p, cfg);
     snprintf(p, sizeof(p), "%s/peers.txt", node_dir); write_text(p, "");
@@ -4692,7 +5072,7 @@ static long long peer_last_seen(const char *node_dir, const char *peer) {
 
 static int request_peers_from_peer(const char *node_dir, const char *host, int port, int *added) {
     int fd = connect_to(host, port); if (fd < 0) return -1;
-    char *hello = NULL; build_hello_message(node_dir, &hello); if (send_framed(fd, hello) != 0) { free(hello); qrx_close_socket(fd); return -1; } free(hello);
+    char *hello = NULL; if (build_hello_message(node_dir, &hello) != 0 || !hello) { free(hello); qrx_close_socket(fd); return -1; } if (send_framed(fd, hello) != 0) { free(hello); qrx_close_socket(fd); return -1; } free(hello);
     char *resp = recv_framed(fd); if (!resp || !strstr(resp, "status=OK")) { free(resp); qrx_close_socket(fd); return -1; } free(resp);
     if (send_framed(fd, "type=GETPEERS\n") != 0) { qrx_close_socket(fd); return -1; }
     resp = recv_framed(fd); if (!resp) { qrx_close_socket(fd); return -1; }
@@ -4795,36 +5175,144 @@ static char *hello_payload_for_sign(const char *network_id, const char *genesis_
     return s;
 }
 
+static void hello_key_cache_clear(void){
+    EVP_PKEY_free(g_hello_priv);EVP_PKEY_free(g_hello_pub);g_hello_priv=NULL;g_hello_pub=NULL;OPENSSL_cleanse(g_hello_wallet_dir,sizeof(g_hello_wallet_dir));
+}
+/* Genesis hardening: build_hello_message() is reachable from the P2P gossip
+ * fanout triggered by an incoming peer message
+ * (node_handle_client -> aura_gossip_fanout -> aura_gossip_push_to_peer).
+ * It previously called die() for purely local conditions such as a locked
+ * wallet or a failing passphrase prompt on a headless validator, so a remote
+ * peer could trigger daemon termination. It now reports failure to the caller
+ * and leaves *out_msg NULL. All callers check the result. */
 static int build_hello_message(const char *node_dir, char **out_msg) {
-    char path[1024]; snprintf(path, sizeof(path), "%s/node.conf", node_dir); char *cfg = read_file(path, NULL); if (!cfg) die("missing node.conf");
-    char *wallet_dir = cfg_get(cfg, "wallet_dir"), *network_id = cfg_get(cfg, "network_id"), *genesis_hash = cfg_get(cfg, "genesis_hash"), *protocol_version = cfg_get(cfg, "protocol_version"), *consensus_version = cfg_get(cfg, "consensus_version"), *chain_id = cfg_get(cfg, "chain_id"), *magic = cfg_get(cfg, "magic"), *host = cfg_get(cfg, "host"), *port = cfg_get(cfg, "port"), *external_host = cfg_get(cfg, "external_host"), *external_port = cfg_get(cfg, "external_port");
-    char pass[256]; if (get_passphrase(pass, sizeof(pass), "Passphrase: ") != 0) die("passphrase failed");
-    snprintf(path, sizeof(path), "%s/ed25519_priv.pem", wallet_dir); EVP_PKEY *priv = load_priv_pem(path, pass); if (!priv) die("load node signing key failed");
-    snprintf(path, sizeof(path), "%s/ed25519_pub.pem", wallet_dir); EVP_PKEY *pub = load_pub_pem(path); if (!pub) die("load node pub failed");
-    unsigned char raw[32]; if (ed25519_raw_pub(pub, raw) != 0) die("raw pub failed");
-    char *pub_hex = bytes_to_hex(raw, sizeof(raw));
-    char ts[32], nonce[32]; snprintf(ts, sizeof(ts), "%lld", (long long)time(NULL)); unsigned char nr[8]; RAND_bytes(nr, sizeof(nr)); for (int i=0;i<8;i++) snprintf(nonce+i*2, 3, "%02x", nr[i]);
-    const char *adv_host = (external_host && *external_host) ? external_host : host;
-    const char *adv_port = (external_port && *external_port) ? external_port : port;
-    char *payload = hello_payload_for_sign(network_id, genesis_hash, protocol_version, consensus_version, chain_id, magic, ts, nonce, adv_host, adv_port, pub_hex);
-    unsigned char *sig=NULL; size_t siglen=0; if (sign_oneshot(priv, (unsigned char*)payload, strlen(payload), &sig, &siglen) != 0) die("hello sign failed");
-    char *sig_hex = bytes_to_hex(sig, siglen); size_t cap = strlen(payload)+strlen(sig_hex)+64; *out_msg = malloc(cap); snprintf(*out_msg, cap, "%ssig_ed25519_hex=%s\n", payload, sig_hex);
-    free(cfg); free(wallet_dir); free(network_id); free(genesis_hash); free(protocol_version); free(consensus_version); free(chain_id); free(magic); free(host); free(port); if (external_host) free(external_host); if (external_port) free(external_port); free(pub_hex); free(payload); free(sig); free(sig_hex); EVP_PKEY_free(priv); EVP_PKEY_free(pub); OPENSSL_cleanse(pass, sizeof(pass));
-    return 0;
+    char path[1024];
+    char *cfg=NULL,*wallet_dir=NULL,*network_id=NULL,*genesis_hash=NULL,*protocol_version=NULL;
+    char *consensus_version=NULL,*chain_id=NULL,*magic=NULL,*host=NULL,*port=NULL;
+    char *external_host=NULL,*external_port=NULL;
+    char *pub_hex=NULL,*payload=NULL,*sig_hex=NULL;
+    unsigned char *sig=NULL; size_t siglen=0;
+    int rc=-1;
+    const char *failure=NULL;
+
+    if (out_msg) *out_msg=NULL;
+    if (!node_dir || !out_msg) return -1;
+
+    snprintf(path, sizeof(path), "%s/node.conf", node_dir);
+    cfg = read_file(path, NULL);
+    if (!cfg) { failure="missing node.conf"; goto done; }
+
+    wallet_dir=cfg_get(cfg,"wallet_dir"); network_id=cfg_get(cfg,"network_id");
+    genesis_hash=cfg_get(cfg,"genesis_hash"); protocol_version=cfg_get(cfg,"protocol_version");
+    consensus_version=cfg_get(cfg,"consensus_version"); chain_id=cfg_get(cfg,"chain_id");
+    magic=cfg_get(cfg,"magic"); host=cfg_get(cfg,"host"); port=cfg_get(cfg,"port");
+    external_host=cfg_get(cfg,"external_host"); external_port=cfg_get(cfg,"external_port");
+    if(!wallet_dir||!network_id||!genesis_hash||!protocol_version||!consensus_version||!chain_id||!magic||!host||!port){
+        failure="node.conf incomplete"; goto done;
+    }
+
+    if(!g_hello_priv||!g_hello_pub||strcmp(g_hello_wallet_dir,wallet_dir)){
+        char pass[256];
+        if (get_passphrase(pass, sizeof(pass), "Passphrase: ") != 0) {
+            OPENSSL_cleanse(pass,sizeof(pass)); failure="node signing passphrase unavailable"; goto done;
+        }
+        snprintf(path, sizeof(path), "%s/ed25519_priv.pem", wallet_dir); EVP_PKEY *priv = load_priv_pem(path, pass);
+        snprintf(path, sizeof(path), "%s/ed25519_pub.pem", wallet_dir); EVP_PKEY *pub = load_pub_pem(path);
+        OPENSSL_cleanse(pass,sizeof(pass));
+        if(!priv||!pub){
+            EVP_PKEY_free(priv); EVP_PKEY_free(pub);
+            failure="load node signing key failed"; goto done;
+        }
+        hello_key_cache_clear(); g_hello_priv=priv; g_hello_pub=pub;
+        snprintf(g_hello_wallet_dir,sizeof(g_hello_wallet_dir),"%s",wallet_dir);
+    }
+
+    unsigned char raw[32];
+    if (ed25519_raw_pub(g_hello_pub, raw) != 0) { failure="raw pub failed"; goto done; }
+    pub_hex = bytes_to_hex(raw, sizeof(raw));
+    if (!pub_hex) { failure="pub encode failed"; goto done; }
+
+    char ts[32], nonce[32];
+    snprintf(ts, sizeof(ts), "%lld", (long long)time(NULL));
+    unsigned char nr[8];
+    if (RAND_bytes(nr, sizeof(nr)) != 1) { failure="rng failed"; goto done; }
+    for (int i2=0;i2<8;i2++) snprintf(nonce+i2*2, 3, "%02x", nr[i2]);
+
+    {
+        const char *adv_host = (external_host && *external_host) ? external_host : host;
+        const char *adv_port = (external_port && *external_port) ? external_port : port;
+        payload = hello_payload_for_sign(network_id, genesis_hash, protocol_version, consensus_version, chain_id, magic, ts, nonce, adv_host, adv_port, pub_hex);
+    }
+    if (!payload) { failure="hello payload failed"; goto done; }
+
+    if (sign_oneshot(g_hello_priv, (unsigned char*)payload, strlen(payload), &sig, &siglen) != 0) { failure="hello sign failed"; goto done; }
+    sig_hex = bytes_to_hex(sig, siglen);
+    if (!sig_hex) { failure="sig encode failed"; goto done; }
+
+    {
+        size_t cap = strlen(payload)+strlen(sig_hex)+64;
+        *out_msg = malloc(cap);
+        if(!*out_msg) { failure="out of memory"; goto done; }
+        snprintf(*out_msg, cap, "%ssig_ed25519_hex=%s\n", payload, sig_hex);
+    }
+    rc=0;
+
+done:
+    if (rc != 0 && failure) fprintf(stderr, "hello: %s\n", failure);
+    free(cfg); free(wallet_dir); free(network_id); free(genesis_hash); free(protocol_version);
+    free(consensus_version); free(chain_id); free(magic); free(host); free(port);
+    free(external_host); free(external_port);
+    free(pub_hex); free(payload); free(sig); free(sig_hex);
+    return rc;
 }
 
+/* Genesis hardening: every early rejection path previously returned without
+ * freeing the parsed HELLO fields. A peer could repeat malformed handshakes to
+ * leak memory in the daemon. All exits now share one cleanup path. */
 static int verify_hello_msg(const char *node_conf_text, const char *msg) {
-    char *network_id = cfg_get(msg, "network_id"), *genesis_hash = cfg_get(msg, "genesis_hash"), *protocol_version = cfg_get(msg, "protocol_version"), *consensus_version = cfg_get(msg, "consensus_version"), *chain_id = cfg_get(msg, "chain_id"), *magic = cfg_get(msg, "magic"), *timestamp = cfg_get(msg, "timestamp"), *nonce = cfg_get(msg, "nonce"), *host = cfg_get(msg, "host"), *port = cfg_get(msg, "port"), *pub_hex = cfg_get(msg, "ed25519_pub_hex"), *sig_hex = cfg_get(msg, "sig_ed25519_hex");
-    if (!network_id||!genesis_hash||!protocol_version||!consensus_version||!chain_id||!magic||!timestamp||!nonce||!host||!port||!pub_hex||!sig_hex) return -1;
-    char *exp_net = cfg_get(node_conf_text, "network_id"), *exp_gen = cfg_get(node_conf_text, "genesis_hash"), *exp_ver = cfg_get(node_conf_text, "protocol_version"), *exp_cons = cfg_get(node_conf_text, "consensus_version"), *exp_chain = cfg_get(node_conf_text, "chain_id"), *exp_magic = cfg_get(node_conf_text, "magic");
-    if (strcmp(network_id, exp_net) || strcmp(genesis_hash, exp_gen) || strcmp(protocol_version, exp_ver) || strcmp(consensus_version, exp_cons) || strcmp(chain_id, exp_chain) || strcmp(magic, exp_magic)) return -1;
-    long long ts = atoll(timestamp), now = (long long)time(NULL); if (llabs(now - ts) > 300) return -1;
-    char *payload = hello_payload_for_sign(network_id, genesis_hash, protocol_version, consensus_version, chain_id, magic, timestamp, nonce, host, port, pub_hex);
-    unsigned char raw[32]; size_t rawlen=0; if (hex_to_bytes(pub_hex, raw, sizeof(raw), &rawlen) != 0 || rawlen != 32) return -1;
-    EVP_PKEY *pub = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, raw, rawlen); if (!pub) return -1;
-    unsigned char *sig = malloc(strlen(sig_hex)/2+1); size_t siglen=0; if (hex_to_bytes(sig_hex, sig, strlen(sig_hex)/2+1, &siglen) != 0) return -1;
-    int ok = verify_oneshot(pub, (unsigned char*)payload, strlen(payload), sig, siglen) == 0 ? 0 : -1;
-    EVP_PKEY_free(pub); free(sig); free(payload); free(network_id); free(genesis_hash); free(protocol_version); free(consensus_version); free(chain_id); free(magic); free(timestamp); free(nonce); free(host); free(port); free(pub_hex); free(sig_hex); free(exp_net); free(exp_gen); free(exp_ver); free(exp_cons); free(exp_chain); free(exp_magic);
+    char *network_id=NULL,*genesis_hash=NULL,*protocol_version=NULL,*consensus_version=NULL;
+    char *chain_id=NULL,*magic=NULL,*timestamp=NULL,*nonce=NULL,*host=NULL,*port=NULL;
+    char *pub_hex=NULL,*sig_hex=NULL;
+    char *exp_net=NULL,*exp_gen=NULL,*exp_ver=NULL,*exp_cons=NULL,*exp_chain=NULL,*exp_magic=NULL;
+    char *payload=NULL; unsigned char *sig=NULL; EVP_PKEY *pub=NULL;
+    int ok=-1;
+
+    network_id=cfg_get(msg,"network_id"); genesis_hash=cfg_get(msg,"genesis_hash");
+    protocol_version=cfg_get(msg,"protocol_version"); consensus_version=cfg_get(msg,"consensus_version");
+    chain_id=cfg_get(msg,"chain_id"); magic=cfg_get(msg,"magic"); timestamp=cfg_get(msg,"timestamp");
+    nonce=cfg_get(msg,"nonce"); host=cfg_get(msg,"host"); port=cfg_get(msg,"port");
+    pub_hex=cfg_get(msg,"ed25519_pub_hex"); sig_hex=cfg_get(msg,"sig_ed25519_hex");
+    if(!network_id||!genesis_hash||!protocol_version||!consensus_version||!chain_id||!magic
+       ||!timestamp||!nonce||!host||!port||!pub_hex||!sig_hex) goto done;
+
+    exp_net=cfg_get(node_conf_text,"network_id"); exp_gen=cfg_get(node_conf_text,"genesis_hash");
+    exp_ver=cfg_get(node_conf_text,"protocol_version"); exp_cons=cfg_get(node_conf_text,"consensus_version");
+    exp_chain=cfg_get(node_conf_text,"chain_id"); exp_magic=cfg_get(node_conf_text,"magic");
+    if(!exp_net||!exp_gen||!exp_ver||!exp_cons||!exp_chain||!exp_magic) goto done;
+    if(strcmp(network_id,exp_net)||strcmp(genesis_hash,exp_gen)||strcmp(protocol_version,exp_ver)
+       ||strcmp(consensus_version,exp_cons)||strcmp(chain_id,exp_chain)||strcmp(magic,exp_magic)) goto done;
+
+    { long long ts=atoll(timestamp), now=(long long)time(NULL); if(llabs(now-ts)>300) goto done; }
+
+    { unsigned char raw[32]; size_t rawlen=0;
+      if(hex_to_bytes(pub_hex,raw,sizeof(raw),&rawlen)!=0||rawlen!=32) goto done;
+      pub=EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519,NULL,raw,rawlen); if(!pub) goto done; }
+
+    payload=hello_payload_for_sign(network_id,genesis_hash,protocol_version,consensus_version,
+                                   chain_id,magic,timestamp,nonce,host,port,pub_hex);
+    if(!payload) goto done;
+
+    { size_t siglen=0, cap=strlen(sig_hex)/2+1;
+      sig=(unsigned char*)malloc(cap); if(!sig) goto done;
+      if(hex_to_bytes(sig_hex,sig,cap,&siglen)!=0) goto done;
+      ok = verify_oneshot(pub,(unsigned char*)payload,strlen(payload),sig,siglen)==0 ? 0 : -1; }
+
+done:
+    EVP_PKEY_free(pub); free(sig); free(payload);
+    free(network_id); free(genesis_hash); free(protocol_version); free(consensus_version);
+    free(chain_id); free(magic); free(timestamp); free(nonce); free(host); free(port);
+    free(pub_hex); free(sig_hex);
+    free(exp_net); free(exp_gen); free(exp_ver); free(exp_cons); free(exp_chain); free(exp_magic);
     return ok;
 }
 
@@ -4890,7 +5378,8 @@ static int generals_relay_store(const char *node_dir,const char *envelope){
           free(chain);free(cfg);free(tmp);return -1;
       }
     }
-    if(verify_tx_text(chain,tx)!=0){free(chain);free(cfg);free(tmp);return -1;}
+    { char relay_err[256];
+      if(verify_tx_text_untrusted(chain,tx,relay_err,sizeof(relay_err))!=0){free(chain);free(cfg);free(tmp);return -1;} }
     char hash[129]; hash_primary_hex((unsigned char*)envelope,strlen(envelope),hash);
     char dir[1024],path[1400]; snprintf(dir,sizeof(dir),"%s/generals-relay",node_dir); mkdir_p(dir); snprintf(path,sizeof(path),"%s/%s.scheduled",dir,hash);
     if(access(path,F_OK)==0){free(chain);free(cfg);free(tmp);return 0;}
@@ -4986,9 +5475,19 @@ static void node_handle_client(int fd, const char *node_dir) {
         if (!tx_b64) { peer_add_score(node_dir, ip, 10); send_framed(fd, "status=ERR\nreason=no_tx\n"); free(msg); free(node_cfg); return; }
         size_t txlen=0; unsigned char *txbuf = base64_decode(tx_b64, &txlen);
         if (!txbuf) { peer_add_score(node_dir, ip, 10); send_framed(fd, "status=ERR\nreason=bad_b64\n"); free(tx_b64); free(msg); free(node_cfg); return; }
-        char *tx = malloc(txlen+1); memcpy(tx, txbuf, txlen); tx[txlen]=0;
+        if (txlen > QRX_UNTRUSTED_TX_MAX_BYTES) {
+            peer_add_score(node_dir, ip, 20); send_framed(fd, "status=ERR\nreason=oversized_tx\n");
+            free(tx_b64); free(txbuf); free(msg); free(node_cfg); return;
+        }
+        char *tx = malloc(txlen+1);
+        if (!tx) { send_framed(fd, "status=ERR\nreason=oom\n"); free(tx_b64); free(txbuf); free(msg); free(node_cfg); return; }
+        memcpy(tx, txbuf, txlen); tx[txlen]=0;
         char *chain_dir = cfg_get(node_cfg, "chain_dir");
-        int ok = verify_tx_text(chain_dir, tx);
+        /* Genesis hardening: untrusted peer data must never reach a
+         * process-fatal validation path. verify_tx_text_untrusted() returns a
+         * structured error instead of terminating the daemon. */
+        char tx_err[256];
+        int ok = verify_tx_text_untrusted(chain_dir, tx, tx_err, sizeof(tx_err));
         if (ok == 0 && node_store_mempool_tx(node_dir, tx) == 0) send_framed(fd, "status=OK\nkind=tx\n");
         else { peer_add_score(node_dir, ip, 30); send_framed(fd, "status=ERR\nreason=bad_tx\n"); }
         free(chain_dir); free(tx_b64); free(txbuf); free(tx);
@@ -5007,6 +5506,43 @@ static void node_handle_client(int fd, const char *node_dir) {
     } else if (strstr(msg, "type=STORAGE_DISCOVERY_PULL\n") == msg) {
         if(!g_storage_discovery_ready){send_framed(fd,"status=ERR\nreason=storage_discovery_disabled\n");}
         else {size_t cap=64;for(size_t i=0;i<g_storage_discovery.count;i++)cap+=g_storage_discovery.entries[i].signature_len*2+2048;char *resp=malloc(cap);if(!resp)send_framed(fd,"status=ERR\nreason=oom\n");else{size_t o=(size_t)snprintf(resp,cap,"status=OK\nkind=storage_discovery_pull\ncount=%llu\n",(unsigned long long)g_storage_discovery.count);for(size_t i=0;i<g_storage_discovery.count&&o+32<cap;i++){uint8_t*w=NULL;size_t wn=0;if(!qrx_storage_discovery_wire_encode(&g_storage_discovery.entries[i].announcement,g_storage_discovery.entries[i].signature,g_storage_discovery.entries[i].signature_len,&w,&wn)){char*b=base64_encode(w,wn);o+=(size_t)snprintf(resp+o,cap-o,"entry%llu_b64=%s\n",(unsigned long long)i,b);free(b);free(w);}}send_framed(fd,resp);free(resp);}}
+    } else if (strstr(msg, "type=AURA_POD_PUSH\n") == msg) {
+        char *wb=cfg_get(msg,"wire_b64"), *chain_dir=cfg_get(node_cfg,"chain_dir"); size_t wn=0; unsigned char *wire=wb?base64_decode(wb,&wn):NULL; int accepted=0;
+        if(g_aura_gossip_ready&&wire&&chain_dir){QrxAuraPodAnnouncement a;uint8_t*sig=NULL;size_t sl=0;QrxDB db;long long hh=current_height_from_chain(chain_dir);
+            if(!qrx_aura_pod_wire_decode(wire,wn,&a,&sig,&sl)&&!qrxdb_init(&db,chain_dir)){accepted=qrx_aura_pod_gossip_ingest(&g_aura_pod_gossip,&a,sig,sl,(uint64_t)(hh<0?0:hh),aura_compute_provider_key_lookup,&db)==0;qrxdb_close(&db);}
+            free(sig);if(accepted&&g_aura_pod_cache_path[0])qrx_aura_pod_gossip_cache_save(&g_aura_pod_gossip,g_aura_pod_cache_path);
+        }
+        if(accepted){send_framed(fd,"status=OK\nkind=aura_pod_gossip\n");aura_gossip_fanout(node_dir,"AURA_POD_PUSH",wb,ip);}else{peer_add_score(node_dir,ip,5);send_framed(fd,"status=ERR\nreason=invalid_aura_pod_gossip\n");}
+        free(wire);free(wb);free(chain_dir);
+    } else if (strstr(msg, "type=AURA_MODEL_PUSH\n") == msg) {
+        char *wb=cfg_get(msg,"wire_b64"), *chain_dir=cfg_get(node_cfg,"chain_dir"); size_t wn=0; unsigned char *wire=wb?base64_decode(wb,&wn):NULL; int accepted=0;
+        if(g_aura_gossip_ready&&wire&&chain_dir){QrxAuraModelProfileAnnouncement a;uint8_t*sig=NULL;size_t sl=0;long long hh=current_height_from_chain(chain_dir);
+            if(!qrx_aura_model_wire_decode(wire,wn,&a,&sig,&sl))accepted=qrx_aura_model_gossip_ingest(&g_aura_model_gossip,&a,sig,sl,(uint64_t)(hh<0?0:hh),aura_model_gov_key_lookup,chain_dir,aura_model_gov_authorize,chain_dir)==0;
+            free(sig);if(accepted&&g_aura_model_cache_path[0])qrx_aura_model_gossip_cache_save(&g_aura_model_gossip,g_aura_model_cache_path);
+        }
+        if(accepted){send_framed(fd,"status=OK\nkind=aura_model_gossip\n");aura_gossip_fanout(node_dir,"AURA_MODEL_PUSH",wb,ip);}else{peer_add_score(node_dir,ip,5);send_framed(fd,"status=ERR\nreason=invalid_aura_model_gossip\n");}
+        free(wire);free(wb);free(chain_dir);
+    } else if (strstr(msg, "type=AURA_SYNC_DIGEST\n") == msg) {
+        char *chain_dir=cfg_get(node_cfg,"chain_dir");
+        if(!g_aura_gossip_ready||!chain_dir){send_framed(fd,"status=ERR\nreason=aura_gossip_disabled\n");}
+        else {
+            long long hh=current_height_from_chain(chain_dir);uint64_t h=(uint64_t)(hh<0?0:hh);QrxAuraGossipDigest d;
+            if(qrx_aura_gossip_digest(&g_aura_pod_gossip,&g_aura_model_gossip,h,&d)) send_framed(fd,"status=ERR\nreason=aura_digest_failed\n");
+            else {char resp[512];snprintf(resp,sizeof(resp),"status=OK\nkind=aura_sync_digest\nheight=%llu\npod_count=%llu\nmodel_count=%llu\npod_root=%s\nmodel_root=%s\ncombined_root=%s\n",(unsigned long long)h,(unsigned long long)d.pod_count,(unsigned long long)d.model_count,d.pod_root,d.model_root,d.combined_root);send_framed(fd,resp);}
+        }
+        free(chain_dir);
+    } else if (strstr(msg, "type=AURA_POD_PULL\n") == msg || strstr(msg, "type=AURA_MODEL_PULL\n") == msg) {
+        int want_models=strstr(msg,"type=AURA_MODEL_PULL\n")==msg;char*os=cfg_get(msg,"offset"),*ls=cfg_get(msg,"limit");size_t off=os?(size_t)strtoull(os,NULL,10):0,lim=ls?(size_t)strtoull(ls,NULL,10):16;if(!lim||lim>16)lim=16;free(os);free(ls);
+        if(!g_aura_gossip_ready){send_framed(fd,"status=ERR\nreason=aura_gossip_disabled\n");}
+        else {char *resp=calloc(1,MAX_MSG);if(!resp)send_framed(fd,"status=ERR\nreason=oom\n");else{size_t o=(size_t)snprintf(resp,MAX_MSG,"status=OK\nkind=%s\noffset=%llu\n",want_models?"aura_model_pull":"aura_pod_pull",(unsigned long long)off);size_t count=want_models?g_aura_model_gossip.count:g_aura_pod_gossip.count,returned=0;
+                for(size_t i=off;i<count&&returned<lim;i++){uint8_t*w=NULL;size_t wn=0;int er=want_models?qrx_aura_model_wire_encode(&g_aura_model_gossip.entries[i].announcement,g_aura_model_gossip.entries[i].signature,g_aura_model_gossip.entries[i].signature_len,&w,&wn):qrx_aura_pod_wire_encode(&g_aura_pod_gossip.entries[i].announcement,g_aura_pod_gossip.entries[i].signature,g_aura_pod_gossip.entries[i].signature_len,&w,&wn);if(er)continue;char*b=base64_encode(w,wn);free(w);if(!b)continue;size_t need=strlen(b)+64;if(o+need+128>=MAX_MSG){free(b);break;}o+=(size_t)snprintf(resp+o,MAX_MSG-o,"entry%llu_b64=%s\n",(unsigned long long)returned,b);free(b);returned++;}
+                o+=(size_t)snprintf(resp+o,MAX_MSG-o,"returned=%llu\nnext_offset=%llu\ntotal=%llu\n",(unsigned long long)returned,(unsigned long long)(off+returned),(unsigned long long)count);send_framed(fd,resp);free(resp);}}
+    } else if (strstr(msg, "type=AURA_FABRIC_STATUS\n") == msg) {
+        char *chain_dir=cfg_get(node_cfg,"chain_dir");
+        if(!g_aura_gossip_ready||!chain_dir){send_framed(fd,"status=ERR\nreason=aura_gossip_disabled\n");}
+        else {long long hh=current_height_from_chain(chain_dir);uint64_t h=(uint64_t)(hh<0?0:hh);QrxAuraFabricSnapshot snap;QrxAuraGlobeCell*cells=NULL;size_t cn=0;if(qrx_aura_gossip_live_snapshot(&g_aura_pod_gossip,&g_aura_model_gossip,h,QRX_GLOBE_DEFAULT_PRIVACY_MIN_PROVIDERS,&snap,&cells,&cn)){send_framed(fd,"status=ERR\nreason=aura_snapshot_failed\n");}
+            else {char *resp=calloc(1,MAX_MSG);if(!resp)send_framed(fd,"status=ERR\nreason=oom\n");else{size_t o=(size_t)snprintf(resp,MAX_MSG,"status=OK\nkind=aura_fabric_status\nheight=%llu\nproviders=%llu\npods=%llu\ninference_pods=%llu\nutility_pods=%llu\nai_milli_tokens_per_second=%llu\nmodel_cache_free_bytes=%llu\nk2_readiness_bps=%u\nk3_readiness_bps=%u\nmax_ready_tier=%s\nvisible_regions=%u\nhidden_regions=%u\n",(unsigned long long)h,(unsigned long long)snap.provider_count,(unsigned long long)snap.total_pods,(unsigned long long)snap.inference_pods,(unsigned long long)snap.utility_pods,(unsigned long long)snap.ai_milli_tokens_per_second,(unsigned long long)snap.model_cache_free_bytes,snap.k2_readiness_bps,snap.k3_readiness_bps,qrx_aura_tier_name(snap.max_ready_tier),snap.visible_regions,snap.hidden_regions);size_t pub=0;for(size_t i=0;i<cn&&o+512<MAX_MSG;i++){if(!cells[i].publicly_visible)continue;o+=(size_t)snprintf(resp+o,MAX_MSG-o,"region%llu=%s|providers=%llu|pods=%llu|ai_mtps=%llu|latency_ms=%u|utilization_bps=%u|reliability_bps=%u|k2_bps=%u|k3_bps=%u\n",(unsigned long long)pub++,cells[i].region,(unsigned long long)cells[i].provider_count,(unsigned long long)cells[i].pod_count,(unsigned long long)cells[i].ai_milli_tokens_per_second,cells[i].avg_latency_ms,cells[i].avg_utilization_bps,cells[i].avg_reliability_bps,cells[i].k2_readiness_bps,cells[i].k3_readiness_bps);}send_framed(fd,resp);free(resp);}qrx_aura_globe_free(cells);}}
+        free(chain_dir);
     } else if (strstr(msg, "type=STORAGE_GET\n") == msg) {
         char *cid=cfg_get(msg,"contract_id"), *sh=cfg_get(msg,"shard_index"), *oid=cfg_get(msg,"object_id"), *off=cfg_get(msg,"offset"), *ln=cfg_get(msg,"length");
         char *chain_dir=cfg_get(node_cfg,"chain_dir");
@@ -5044,15 +5580,111 @@ static int connect_to(const char *host, int port) {
 }
 
 static int storage_discovery_push_to_peer(const char *node_dir,const char *wire_b64,const char *host,int port){
-    int fd=connect_to(host,port);if(fd<0)return -1;char*hello=NULL;build_hello_message(node_dir,&hello);if(send_framed(fd,hello)){free(hello);qrx_close_socket(fd);return -1;}free(hello);char*r=recv_framed(fd);if(!r||!strstr(r,"status=OK")){free(r);qrx_close_socket(fd);return -1;}free(r);size_t n=strlen(wire_b64)+64;char*m=malloc(n);if(!m){qrx_close_socket(fd);return -1;}snprintf(m,n,"type=STORAGE_DISCOVERY_PUSH\nwire_b64=%s\n",wire_b64);int rc=send_framed(fd,m);free(m);if(!rc){r=recv_framed(fd);rc=r&&strstr(r,"status=OK")?0:-1;free(r);}qrx_close_socket(fd);return rc;
+    int fd=connect_to(host,port);if(fd<0)return -1;char*hello=NULL;if(build_hello_message(node_dir,&hello)!=0||!hello){free(hello);qrx_close_socket(fd);return -1;}if(send_framed(fd,hello)){free(hello);qrx_close_socket(fd);return -1;}free(hello);char*r=recv_framed(fd);if(!r||!strstr(r,"status=OK")){free(r);qrx_close_socket(fd);return -1;}free(r);size_t n=strlen(wire_b64)+64;char*m=malloc(n);if(!m){qrx_close_socket(fd);return -1;}snprintf(m,n,"type=STORAGE_DISCOVERY_PUSH\nwire_b64=%s\n",wire_b64);int rc=send_framed(fd,m);free(m);if(!rc){r=recv_framed(fd);rc=r&&strstr(r,"status=OK")?0:-1;free(r);}qrx_close_socket(fd);return rc;
 }
 static int storage_discovery_fanout(const char *node_dir,const char *wire_b64,const char *skip_host){
     char p[1024];snprintf(p,sizeof(p),"%s/known_peers.txt",node_dir);char*peers=read_file(p,NULL);if(!peers){snprintf(p,sizeof(p),"%s/peers.txt",node_dir);peers=read_file(p,NULL);}if(!peers)return 0;int sent=0;char*save=NULL;for(char*ln=strtok_r(peers,"\n",&save);ln&&sent<4;ln=strtok_r(NULL,"\n",&save)){char*colon=strrchr(ln,':');if(!colon)continue;*colon=0;if(skip_host&&!*skip_host?0:(skip_host&&!strcmp(skip_host,ln)))continue;int port=atoi(colon+1);if(port>0&&peer_rep_score(node_dir,ln)>PEER_REP_MIN&&!storage_discovery_push_to_peer(node_dir,wire_b64,ln,port))sent++;}free(peers);return sent;
 }
 
+static int aura_gossip_push_to_peer(const char *node_dir,const char *kind,const char *wire_b64,const char *host,int port){
+    if(!kind||(!strcmp(kind,"AURA_POD_PUSH")?0:strcmp(kind,"AURA_MODEL_PUSH"))||!wire_b64) return -1;
+    int fd=connect_to(host,port);
+    if(fd<0) return -1;
+    char*hello=NULL;
+    build_hello_message(node_dir,&hello);
+    if(!hello||send_framed(fd,hello)){free(hello);qrx_close_socket(fd);return -1;}
+    free(hello);
+    char*r=recv_framed(fd);
+    if(!r||!strstr(r,"status=OK")){free(r);qrx_close_socket(fd);return -1;}
+    free(r);
+    size_t n=strlen(kind)+strlen(wire_b64)+32;
+    char*m=malloc(n);
+    if(!m){qrx_close_socket(fd);return -1;}
+    snprintf(m,n,"type=%s\nwire_b64=%s\n",kind,wire_b64);
+    int rc=send_framed(fd,m);
+    free(m);
+    if(!rc){r=recv_framed(fd);rc=r&&strstr(r,"status=OK")?0:-1;free(r);}
+    qrx_close_socket(fd);
+    return rc;
+}
+static int aura_gossip_fanout(const char *node_dir,const char *kind,const char *wire_b64,const char *skip_host){
+    char p[1024];snprintf(p,sizeof(p),"%s/known_peers.txt",node_dir);char*peers=read_file(p,NULL);if(!peers){snprintf(p,sizeof(p),"%s/peers.txt",node_dir);peers=read_file(p,NULL);}if(!peers)return 0;int sent=0;char*save=NULL;for(char*ln=strtok_r(peers,"\n",&save);ln&&sent<4;ln=strtok_r(NULL,"\n",&save)){char*colon=strrchr(ln,':');if(!colon)continue;*colon=0;if(skip_host&&*skip_host&&!strcmp(skip_host,ln))continue;int port=atoi(colon+1);if(port>0&&peer_rep_score(node_dir,ln)>PEER_REP_MIN&&!aura_gossip_push_to_peer(node_dir,kind,wire_b64,ln,port))sent++;}free(peers);return sent;
+}
+
+static char *aura_gossip_request_peer(const char *node_dir,const char *host,int port,const char *request){
+    if(!node_dir||!host||port<=0||!request) return NULL;
+    int fd=connect_to(host,port);if(fd<0) return NULL;
+    char *hello=NULL;build_hello_message(node_dir,&hello);
+    if(!hello||send_framed(fd,hello)){free(hello);qrx_close_socket(fd);return NULL;}
+    free(hello);
+    char *r=recv_framed(fd);
+    if(!r||!strstr(r,"status=OK")){free(r);qrx_close_socket(fd);return NULL;}
+    free(r);
+    if(send_framed(fd,request)){qrx_close_socket(fd);return NULL;}
+    r=recv_framed(fd);qrx_close_socket(fd);return r;
+}
+static int aura_pull_remote_kind(const char *node_dir,const char *chain_dir,const char *host,int port,int models,uint64_t h,QrxAuraPodGossipTable *rp,QrxAuraModelGossipTable *rm){
+    if(!node_dir||!chain_dir||!host||port<=0||!rp||!rm) return -1;
+    size_t offset=0,total=SIZE_MAX;QrxDB db;int have_db=0;
+    if(!models){if(qrxdb_init(&db,chain_dir))return -2;have_db=1;}
+    for(unsigned page=0;page<300&&offset<total;page++){
+        char req[160];snprintf(req,sizeof(req),"type=%s\\noffset=%llu\\nlimit=16\\n",models?"AURA_MODEL_PULL":"AURA_POD_PULL",(unsigned long long)offset);
+        char *resp=aura_gossip_request_peer(node_dir,host,port,req);if(!resp||!strstr(resp,"status=OK")){free(resp);if(have_db)qrxdb_close(&db);return -3;}
+        char *rs=cfg_get(resp,"returned"),*ns=cfg_get(resp,"next_offset"),*ts=cfg_get(resp,"total");
+        if(!rs||!ns||!ts){free(rs);free(ns);free(ts);free(resp);if(have_db)qrxdb_close(&db);return -4;}
+        size_t returned=(size_t)strtoull(rs,NULL,10),next=(size_t)strtoull(ns,NULL,10);total=(size_t)strtoull(ts,NULL,10);free(rs);free(ns);free(ts);
+        size_t max_total=models?QRX_AURA_GOSSIP_MAX_MODELS:QRX_AURA_GOSSIP_MAX_PODS;
+        if(returned>16||total>max_total||next<offset||next>total||(returned&&next<=offset)){free(resp);if(have_db)qrxdb_close(&db);return -5;}
+        for(size_t i=0;i<returned;i++){
+            char key[64];snprintf(key,sizeof(key),"entry%llu_b64",(unsigned long long)i);char *wb=cfg_get(resp,key);if(!wb){free(resp);if(have_db)qrxdb_close(&db);return -6;}
+            size_t wn=0;uint8_t *wire=base64_decode(wb,&wn);free(wb);if(!wire){free(resp);if(have_db)qrxdb_close(&db);return -6;}
+            int irc=-1;
+            if(models){QrxAuraModelProfileAnnouncement a;uint8_t *sig=NULL;size_t sl=0;if(!qrx_aura_model_wire_decode(wire,wn,&a,&sig,&sl)){irc=qrx_aura_model_gossip_ingest(rm,&a,sig,sl,h,aura_model_gov_key_lookup,(void*)chain_dir,aura_model_gov_authorize,(void*)chain_dir);}free(sig);}
+            else {QrxAuraPodAnnouncement a;uint8_t *sig=NULL;size_t sl=0;if(!qrx_aura_pod_wire_decode(wire,wn,&a,&sig,&sl)){irc=qrx_aura_pod_gossip_ingest(rp,&a,sig,sl,h,aura_compute_provider_key_lookup,&db);}free(sig);}
+            free(wire);
+            if(irc){free(resp);if(have_db)qrxdb_close(&db);return -7;}
+        }
+        free(resp);
+        if(!returned){if(next!=total){if(have_db)qrxdb_close(&db);return -8;}break;}
+        offset=next;
+    }
+    if(have_db)qrxdb_close(&db);
+    return offset==total?0:-9;
+}
+static int aura_gossip_sync_peer(const char *node_dir,const char *chain_dir,const char *host,int port){
+    if(!g_aura_gossip_ready||!node_dir||!chain_dir||!host||port<=0) return -1;
+    long long hh=current_height_from_chain(chain_dir);uint64_t h=(uint64_t)(hh<0?0:hh);QrxAuraGossipDigest local;
+    if(qrx_aura_gossip_digest(&g_aura_pod_gossip,&g_aura_model_gossip,h,&local)) return -2;
+    char *resp=aura_gossip_request_peer(node_dir,host,port,"type=AURA_SYNC_DIGEST\\n");if(!resp||!strstr(resp,"status=OK")){free(resp);return -3;}
+    char *rh=cfg_get(resp,"height"),*rr=cfg_get(resp,"combined_root");
+    if(!rh||!rr||strlen(rr)!=64){free(rh);free(rr);free(resp);return -4;}
+    uint64_t peer_h=strtoull(rh,NULL,10);free(rh);int same=!strcmp(rr,local.combined_root);free(rr);free(resp);
+    uint64_t delta=peer_h>h?peer_h-h:h-peer_h;if(delta>8) return 1;
+    if(same) return 0;
+    QrxAuraPodGossipTable rp;QrxAuraModelGossipTable rm;qrx_aura_pod_gossip_init(&rp);qrx_aura_model_gossip_init(&rm);
+    int rc=aura_pull_remote_kind(node_dir,chain_dir,host,port,0,h,&rp,&rm);
+    if(!rc) rc=aura_pull_remote_kind(node_dir,chain_dir,host,port,1,h,&rp,&rm);
+    if(!rc){QrxDB db;if(qrxdb_init(&db,chain_dir))rc=-5;else{size_t pu=0,mu=0;rc=qrx_aura_gossip_anti_entropy_merge(&g_aura_pod_gossip,&g_aura_model_gossip,&rp,&rm,h,aura_compute_provider_key_lookup,&db,aura_model_gov_key_lookup,(void*)chain_dir,aura_model_gov_authorize,(void*)chain_dir,&pu,&mu);qrxdb_close(&db);if(!rc&&(pu||mu)){if(g_aura_pod_cache_path[0])qrx_aura_pod_gossip_cache_save(&g_aura_pod_gossip,g_aura_pod_cache_path);if(g_aura_model_cache_path[0])qrx_aura_model_gossip_cache_save(&g_aura_model_gossip,g_aura_model_cache_path);}}}
+    qrx_aura_pod_gossip_free(&rp);qrx_aura_model_gossip_free(&rm);return rc;
+}
+static int aura_gossip_anti_entropy_tick(const char *node_dir,const char *cfg){
+    static time_t last=0;time_t now=time(NULL);
+    if(!g_aura_gossip_ready||!node_dir||!cfg)return 0;
+    char *is=cfg_get(cfg,"aura_anti_entropy_interval_seconds");long long interval=is?atoll(is):15;free(is);if(interval<=0)return 0;if(interval<5)interval=5;if(interval>3600)interval=3600;
+    if(!last){last=now;return 0;}
+    if(now-last<interval) return 0;
+    last=now;
+    char *chain_dir=cfg_get(cfg,"chain_dir");if(!chain_dir)return 0;
+    char path[1024];snprintf(path,sizeof(path),"%s/known_peers.txt",node_dir);char *txt=read_file(path,NULL);if(!txt){snprintf(path,sizeof(path),"%s/peers.txt",node_dir);txt=read_file(path,NULL);}if(!txt){free(chain_dir);return 0;}
+    char peers[MAX_PEERS][256];int ports[MAX_PEERS];size_t n=0;char *save=NULL;
+    for(char *ln=strtok_r(txt,"\\n",&save);ln&&n<MAX_PEERS;ln=strtok_r(NULL,"\\n",&save)){char *colon=strrchr(ln,':');if(!colon)continue;*colon=0;int pt=atoi(colon+1);if(pt<=0||strlen(ln)>=sizeof(peers[n])||peer_rep_score(node_dir,ln)<=PEER_REP_MIN)continue;snprintf(peers[n],sizeof(peers[n]),"%s",ln);ports[n++]=pt;}
+    int synced=0;if(n){size_t start=(size_t)((unsigned long long)now/(unsigned long long)interval%n);for(size_t k=0;k<n&&k<2;k++){size_t i=(start+k)%n;int rc=aura_gossip_sync_peer(node_dir,chain_dir,peers[i],ports[i]);if(rc<0)peer_add_score(node_dir,peers[i],rc==-2||rc==-4?10:2);else synced++;}}
+    free(txt);free(chain_dir);return synced;
+}
+
 static int sendtx_to_peer(const char *node_dir, const char *tx_text, const char *host, int port) {
     int fd = connect_to(host, port); if (fd < 0) return -1;
-    char *hello = NULL; build_hello_message(node_dir, &hello); if (send_framed(fd, hello) != 0) { free(hello); qrx_close_socket(fd); return -1; } free(hello);
+    char *hello = NULL; if (build_hello_message(node_dir, &hello) != 0 || !hello) { free(hello); qrx_close_socket(fd); return -1; } if (send_framed(fd, hello) != 0) { free(hello); qrx_close_socket(fd); return -1; } free(hello);
     char *resp = recv_framed(fd); if (!resp || !strstr(resp, "status=OK")) { free(resp); qrx_close_socket(fd); return -1; } free(resp);
     char *tx_b64 = base64_encode((unsigned char*)tx_text, strlen(tx_text)); size_t cap = strlen(tx_b64)+32; char *msg = malloc(cap); snprintf(msg, cap, "type=TX\ntx_b64=%s\n", tx_b64);
     int rc = send_framed(fd, msg); free(msg); free(tx_b64); if (rc != 0) { qrx_close_socket(fd); return -1; }
@@ -5068,6 +5700,8 @@ static int node_run_cmd(const char *node_dir) {
     char *host = cfg_get(cfg, "host"), *port_s = cfg_get(cfg, "port"); int port = atoi(port_s);
     qrx_storage_discovery_init(&g_storage_discovery);g_storage_discovery_ready=1;
     {char *cd=cfg_get(cfg,"chain_dir");if(cd){snprintf(g_storage_discovery_cache_path,sizeof(g_storage_discovery_cache_path),"%s/storage-discovery.cache",cd);QrxDB db;if(!qrxdb_init(&db,cd)){long long hh=current_height_from_chain(cd);qrx_storage_discovery_cache_load(&g_storage_discovery,&db,g_storage_discovery_cache_path,(uint64_t)(hh<0?0:hh),qrx_storage_provider_discovery_key_lookup,&db);qrx_storage_discovery_prune(&g_storage_discovery,(uint64_t)(hh<0?0:hh));qrxdb_close(&db);}free(cd);}}
+    qrx_aura_pod_gossip_init(&g_aura_pod_gossip);qrx_aura_model_gossip_init(&g_aura_model_gossip);g_aura_gossip_ready=1;
+    {char *cd=cfg_get(cfg,"chain_dir");if(cd){long long hh=current_height_from_chain(cd);uint64_t h=(uint64_t)(hh<0?0:hh);snprintf(g_aura_pod_cache_path,sizeof(g_aura_pod_cache_path),"%s/aura-pod-gossip.cache",cd);snprintf(g_aura_model_cache_path,sizeof(g_aura_model_cache_path),"%s/aura-model-gossip.cache",cd);QrxDB db;if(!qrxdb_init(&db,cd)){qrx_aura_pod_gossip_cache_load(&g_aura_pod_gossip,g_aura_pod_cache_path,h,aura_compute_provider_key_lookup,&db);qrxdb_close(&db);}qrx_aura_model_gossip_cache_load(&g_aura_model_gossip,g_aura_model_cache_path,h,aura_model_gov_key_lookup,cd,aura_model_gov_authorize,cd);qrx_aura_pod_gossip_prune(&g_aura_pod_gossip,h);qrx_aura_model_gossip_prune(&g_aura_model_gossip,h);free(cd);}}
     char *storage_enabled=cfg_get(cfg,"storage_enabled");
     if(storage_enabled && atoi(storage_enabled)!=0){
         char *sp=cfg_get(cfg,"storage_path"), *pid=cfg_get(cfg,"storage_provider_id"), *mx=cfg_get(cfg,"storage_max_usage_bytes"), *mf=cfg_get(cfg,"storage_min_free_space_bytes");
@@ -5090,6 +5724,10 @@ static int node_run_cmd(const char *node_dir) {
         storage_provider_auto_accept(node_dir,cfg);
         storage_provider_auto_postor(node_dir,cfg);
         storage_provider_auto_repair(node_dir,cfg);
+        if(g_aura_gossip_ready){char*cd=cfg_get(cfg,"chain_dir");if(cd){long long hh=current_height_from_chain(cd);uint64_t h=(uint64_t)(hh<0?0:hh);qrx_aura_pod_gossip_prune(&g_aura_pod_gossip,h);qrx_aura_model_gossip_prune(&g_aura_model_gossip,h);free(cd);}aura_gossip_anti_entropy_tick(node_dir,cfg);}
+        fd_set rfds;FD_ZERO(&rfds);FD_SET(s,&rfds);struct timeval tv;tv.tv_sec=1;tv.tv_usec=0;int sr=select(s+1,&rfds,NULL,NULL,&tv);
+        if(sr<0){if(errno==EINTR)break;continue;}
+        if(sr==0)continue;
         struct sockaddr_in cli; socklen_t clilen = sizeof(cli); int fd = accept(s, (struct sockaddr*)&cli, &clilen);
         if (fd < 0) { if (errno == EINTR) break; continue; }
         char storage_magic[8]={0}; int storage_conn=0;
@@ -5109,6 +5747,8 @@ static int node_run_cmd(const char *node_dir) {
     if(g_velocity_mempool_ready){qrx_velocity_mempool_checkpoint(&g_velocity_mempool);qrx_velocity_mempool_close(&g_velocity_mempool);g_velocity_mempool_ready=0;}
     if(g_storage_ready){qrx_storage_fs_close(g_storage_fs);g_storage_fs=NULL;g_storage_ready=0;OPENSSL_cleanse(g_storage_provider_id,sizeof(g_storage_provider_id));}
     if(g_storage_discovery_ready){if(g_storage_discovery_cache_path[0])qrx_storage_discovery_cache_save(&g_storage_discovery,g_storage_discovery_cache_path);qrx_storage_discovery_free(&g_storage_discovery);g_storage_discovery_ready=0;g_storage_discovery_cache_path[0]=0;}
+    if(g_aura_gossip_ready){if(g_aura_pod_cache_path[0])qrx_aura_pod_gossip_cache_save(&g_aura_pod_gossip,g_aura_pod_cache_path);if(g_aura_model_cache_path[0])qrx_aura_model_gossip_cache_save(&g_aura_model_gossip,g_aura_model_cache_path);qrx_aura_pod_gossip_free(&g_aura_pod_gossip);qrx_aura_model_gossip_free(&g_aura_model_gossip);g_aura_gossip_ready=0;g_aura_pod_cache_path[0]=0;g_aura_model_cache_path[0]=0;}
+    hello_key_cache_clear();
     return 0;
 }
 
@@ -5181,7 +5821,7 @@ static int verify_vote_file_internal(const char *chain_dir, const char *vote_fil
     long long vh=atoll(height_s), vts=atoll(timestamp), now=(long long)time(NULL), gt=qrx_chain_get_ll_or_default(chain_dir,"genesis_time",0);
     if(network_id && strstr(network_id,"mainnet") && gt>0 && (now<gt || vts<gt)) goto done;
     if(vts>now+QRX_MAX_FUTURE_DRIFT_SECONDS) goto done;
-    if(validator_is_tombstoned(chain_dir,validator)||validator_is_jailed_now(chain_dir,validator)||validator_is_safely_paused(chain_dir,validator)) goto done;
+    if(validator_is_tombstoned(chain_dir,validator)||validator_is_jailed_now(chain_dir,validator)||validator_is_safely_paused(chain_dir,validator)||validator_is_compute_jailed_at(chain_dir,validator,vh)) goto done;
     unsigned char raw[32]; size_t rawlen=0; if (hex_to_bytes(pub_hex, raw, sizeof(raw), &rawlen) != 0 || rawlen != 32) goto done;
     EVP_PKEY *pub = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, raw, rawlen); if (!pub) goto done;
     if (address_matches_pub(pub, validator) != 0) { EVP_PKEY_free(pub); goto done; }
@@ -5215,6 +5855,7 @@ static int vote_block_cmd_as(const char *node_dir, const char *block_file, const
     if (validator_is_tombstoned(chain_dir, address)) die("validator tombstoned");
     if (validator_is_jailed_now(chain_dir, address)) die("validator jailed");
     char *block_hash=NULL, *validator=NULL, *height_s=NULL, *round_s=NULL; if (block_consensus_values(block_file, &block_hash, &validator, &height_s, &round_s) != 0) die("block values failed");
+    if (validator_is_compute_jailed_at(chain_dir,address,atoll(height_s))) die("validator is compute-fraud jailed on-chain");
     long long power = validator_power_from_snapshot(chain_dir, atoll(height_s), atoll(round_s), address); if (power <= 0) die("validator not active in snapshot");
     char lockp[1024], votesdir[1024]; node_lock_paths(node_dir, lockp, sizeof(lockp), votesdir, sizeof(votesdir)); mkdir_p(votesdir);
     /* Fleet signers share one P2P node but must never share the same local
@@ -5310,7 +5951,7 @@ static int finalize_block_cmd(const char *chain_dir, const char *block_file) {
 
 static int send_file_to_peer(const char *node_dir, const char *file_text, const char *kind, const char *host, int port) {
     int fd = connect_to(host, port); if (fd < 0) return -1;
-    char *hello = NULL; build_hello_message(node_dir, &hello); if (send_framed(fd, hello) != 0) { free(hello); qrx_close_socket(fd); return -1; } free(hello);
+    char *hello = NULL; if (build_hello_message(node_dir, &hello) != 0 || !hello) { free(hello); qrx_close_socket(fd); return -1; } if (send_framed(fd, hello) != 0) { free(hello); qrx_close_socket(fd); return -1; } free(hello);
     char *resp = recv_framed(fd); if (!resp || !strstr(resp, "status=OK")) { free(resp); qrx_close_socket(fd); return -1; } free(resp);
     char *b64 = base64_encode((unsigned char*)file_text, strlen(file_text)); size_t cap = strlen(b64)+64; char *msg = malloc(cap); snprintf(msg, cap, "type=%s\ndata_b64=%s\n", kind, b64);
     int rc = send_framed(fd, msg); free(msg); free(b64); if (rc != 0) { qrx_close_socket(fd); return -1; }
@@ -5365,6 +6006,7 @@ static int propose_block_cmd_as(const char *node_dir, int max_txs, const char *w
     if (validator_is_safely_paused(chain_dir,address)) die("validator is SAFE PAUSED on-chain; resume it before validating");
     long long height=0,parent_ts=0; char previous_block_hash[129],parent_state_root[129];
     if(qrx_expected_parent(chain_dir,&height,previous_block_hash,parent_state_root,&parent_ts)!=0) die("cannot resolve finalized parent");
+    if (validator_is_compute_jailed_at(chain_dir,address,height)) die("validator is compute-fraud jailed on-chain");
     long long validator_power = validator_power_total(chain_dir, address);
     if (!validator_has_min_self_stake_at(chain_dir, address, height)) die("validator self stake below minimum");
     if (validator_power <= 0) die("validator not active in current validator set");
@@ -5438,7 +6080,7 @@ static int verify_block_cmd(const char *chain_dir, const char *block_file) {
     unsigned char raw[32];size_t rawlen=0;if(hex_to_bytes(pub_hex,raw,sizeof(raw),&rawlen)!=0||rawlen!=32)die("bad block pub");EVP_PKEY*pub=EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519,NULL,raw,rawlen);if(!pub)die("block pub construct failed");if(address_matches_pub(pub,validator)!=0)die("validator address mismatch");
     unsigned char *sig=malloc(strlen(sig_hex)/2+1);size_t siglen=0;if(hex_to_bytes(sig_hex,sig,strlen(sig_hex)/2+1,&siglen)!=0)die("bad block sig");if(verify_oneshot(pub,(unsigned char*)blk,body_len,sig,siglen)!=0)die("block signature verify failed");
     /* Eligibility checks happen only after authenticating the signer. This prevents crafted unauthenticated conflicts from triggering slashing. */
-    if(validator_is_tombstoned(chain_dir,validator))die("validator tombstoned");if(validator_is_jailed_now(chain_dir,validator))die("validator jailed");if(validator_is_safely_paused(chain_dir,validator))die("validator SAFE PAUSED");if(!validator_has_min_self_stake_at(chain_dir,validator,height))die("validator self stake below minimum");if(validator_snapshot_write(chain_dir,height,round)!=0)die("validator snapshot unavailable");long long current_power=validator_power_from_snapshot(chain_dir,height,round,validator);if(current_power<=0||atoll(validator_power_s)!=current_power)die("validator power mismatch");char expected_proposer[385];if(expected_proposer_from_snapshot(chain_dir,height,round,expected_proposer)!=0)die("cannot derive deterministic proposer");if(strcmp(expected_proposer,validator))die("unexpected proposer for height/round");
+    if(validator_is_tombstoned(chain_dir,validator))die("validator tombstoned");if(validator_is_jailed_now(chain_dir,validator))die("validator jailed");if(validator_is_safely_paused(chain_dir,validator))die("validator SAFE PAUSED");if(validator_is_compute_jailed_at(chain_dir,validator,height))die("validator compute-fraud jailed");if(!validator_has_min_self_stake_at(chain_dir,validator,height))die("validator self stake below minimum");if(validator_snapshot_write(chain_dir,height,round)!=0)die("validator snapshot unavailable");long long current_power=validator_power_from_snapshot(chain_dir,height,round,validator);if(current_power<=0||atoll(validator_power_s)!=current_power)die("validator power mismatch");char expected_proposer[385];if(expected_proposer_from_snapshot(chain_dir,height,round,expected_proposer)!=0)die("cannot derive deterministic proposer");if(strcmp(expected_proposer,validator))die("unexpected proposer for height/round");
     if(check_and_record_double_sign_block(chain_dir,validator,height_s,round_s,block_hash)!=0)die("double sign detected and slashed");
     puts("OK");EVP_PKEY_free(pub);free(sig);free(blk);free(network_id);free(genesis_hash);free(protocol_version);free(consensus_version);free(chain_id);free(height_s);free(round_s);free(previous_block_hash);free(parent_state_root);free(validator);free(validator_power_s);free(timestamp_s);if(tx_count_s)free(tx_count_s);free(block_hash);free(hash_algo);if(block_hash_sha256_legacy)free(block_hash_sha256_legacy);free(sig_hex);free(pub_hex);free(exp_net);free(exp_gen);free(exp_ver);free(exp_cons);free(exp_chain);return 0;
 }
@@ -5922,7 +6564,7 @@ static int gov_keygen_cmd(const char*outdir,const char*name){if(!vp_valid_token(
 static int attester_keygen_cmd(const char*outdir,const char*issuer){if(!vp_valid_token(issuer))die("invalid issuer id");if(mkdir_p(outdir)!=0)die("cannot create attester key directory");char pass[256];if(gov_read_passphrase(pass,sizeof(pass),"QRX_ATTESTER_PASSPHRASE",1)!=0)die("passphrase failed");EVP_PKEY*p=gov_generate_ed25519();if(!p)die("Ed25519 attester key generation failed");unsigned char raw[32];ed25519_raw_pub(p,raw);char pubhex[65],fp[33];bytes_to_hex_local(raw,32,pubhex);gov_pub_fingerprint(pubhex,fp);char priv[1024],pub[1024],desc[1024];snprintf(priv,sizeof(priv),"%s/attester.key",outdir);snprintf(pub,sizeof(pub),"%s/attester.pub.pem",outdir);snprintf(desc,sizeof(desc),"%s/attester.pub",outdir);if(save_priv_pem(priv,p,pass)!=0||save_pub_pem(pub,p)!=0)die("attester key save failed");gov_secure_chmod(priv);char txt[1024];snprintf(txt,sizeof(txt),"format=qrx-privacy-attester-public-v1\nissuer=%s\nalgorithm=Ed25519\npublic_key_hex=%s\nfingerprint=%s\n",issuer,pubhex,fp);write_text(desc,txt);printf("status=generated\nissuer=%s\npublic_key=%s\nfingerprint=%s\nprivate_key=%s\npublic_descriptor=%s\n",issuer,pubhex,fp,priv,desc);OPENSSL_cleanse(pass,sizeof(pass));EVP_PKEY_free(p);return 0;}
 static int kyc_provider_keygen_cmd(const char*outdir,const char*provider){if(!vp_valid_token(provider))die("invalid KYC provider id");if(mkdir_p(outdir)!=0)die("cannot create KYC provider key directory");char pass[256];if(gov_read_passphrase(pass,sizeof(pass),"QRX_KYC_PROVIDER_PASSPHRASE",1)!=0)die("passphrase failed");EVP_PKEY*p=gov_generate_ed25519();if(!p)die("Ed25519 KYC provider key generation failed");unsigned char raw[32];if(ed25519_raw_pub(p,raw)!=0)die("KYC provider public key extraction failed");char pubhex[65],fp[33];bytes_to_hex_local(raw,32,pubhex);gov_pub_fingerprint(pubhex,fp);char priv[1024],pub[1024],desc[1024];snprintf(priv,sizeof(priv),"%s/kyc-provider.key",outdir);snprintf(pub,sizeof(pub),"%s/kyc-provider.pub.pem",outdir);snprintf(desc,sizeof(desc),"%s/kyc-provider.pub",outdir);if(save_priv_pem(priv,p,pass)!=0||save_pub_pem(pub,p)!=0)die("KYC provider key save failed");gov_secure_chmod(priv);char txt[1024];snprintf(txt,sizeof(txt),"format=qrx-kyc-provider-public-v1\nprovider_id=%s\nalgorithm=Ed25519\npublic_key_hex=%s\nfingerprint=%s\n",provider,pubhex,fp);if(write_text(desc,txt)!=0)die("KYC provider descriptor write failed");printf("status=generated\nprovider_id=%s\npublic_key=%s\nfingerprint=%s\nprivate_key=%s\npublic_descriptor=%s\n",provider,pubhex,fp,priv,desc);OPENSSL_cleanse(pass,sizeof(pass));EVP_PKEY_free(p);return 0;}
 
-static int gov_descriptor(const char*path,char keyid[128],char pubhex[65],char fp[33]){char*t=read_file(path,NULL);if(!t)return -1;char*f=cfg_get(t,"format"),*k=cfg_get(t,"key_id"),*p=cfg_get(t,"public_key_hex"),*x=cfg_get(t,"fingerprint");int ok=f&&k&&p&&x&&!strcmp(f,"qrx-governance-public-v1")&&strlen(p)==64&&strlen(x)==32; if(ok){snprintf(keyid,128,"%s",k);snprintf(pubhex,65,"%s",p);snprintf(fp,33,"%s",x);}free(f);free(k);free(p);free(x);free(t);return ok?0:-1;}
+static int gov_descriptor(const char*path,char keyid[128],char pubhex[65],char fp[33]){char*t=read_file(path,NULL);if(!t)return -1;char*f=cfg_get(t,"format"),*k=cfg_get(t,"key_id"),*p=cfg_get(t,"public_key_hex"),*x=cfg_get(t,"fingerprint");char calc[33]={0};int ok=f&&k&&p&&x&&!strcmp(f,"qrx-governance-public-v1")&&vp_valid_token(k)&&strlen(k)<128&&is_hex_string(p,64,64)&&is_hex_string(x,32,32);if(ok){gov_pub_fingerprint(p,calc);ok=!strcmp(calc,x);}if(ok){snprintf(keyid,128,"%s",k);snprintf(pubhex,65,"%s",p);snprintf(fp,33,"%s",x);}free(f);free(k);free(p);free(x);free(t);return ok?0:-1;}
 static int gov_genesis_init_cmd(int argc,char**argv){const char*chain=argv[2];if(chain_network_is(chain,"mainnet"))die("Mainnet governance roots are immutable Genesis parameters; edit qrx_genesis_governance.c before Genesis instead");long long threshold=parse_positive_ll_strict(argv[3],"threshold");int n=argc-4;if(n<1||threshold>n)die("threshold must be <= number of governance public descriptors");char conf[1024],roots[1024];gov_paths(chain,conf,sizeof(conf),roots,sizeof(roots),NULL,0,NULL,0);if(access_qrx(conf,F_OK)==0||access_qrx(roots,F_OK)==0)die("governance genesis root already initialized");FILE*r=fopen(roots,"wb");if(!r)die("cannot write governance roots");fprintf(r,"# key_id|public_key_hex|fingerprint|status\n");for(int i=4;i<argc;i++){char id[128],pk[65],fp[33],calc[33];if(gov_descriptor(argv[i],id,pk,fp)!=0){fclose(r);die("invalid governance public descriptor");}gov_pub_fingerprint(pk,calc);if(strcmp(calc,fp)){fclose(r);die("governance descriptor fingerprint mismatch");}fprintf(r,"%s|%s|%s|ACTIVE\n",id,pk,fp);}fclose(r);char c[512];snprintf(c,sizeof(c),"format=qrx-governance-genesis-v1\nthreshold=%lld\nroot_count=%d\ncreated_at=%lld\n",threshold,n,(long long)time(NULL));write_text(conf,c);printf("status=initialized\nthreshold=%lld\nroot_count=%d\nprivate_keys_on_chain=false\n",threshold,n);return 0;}
 static int gov_root_lookup(const char*chain,const char*id,char pubhex[65]){
     char cntbuf[64];
@@ -5933,15 +6575,69 @@ static int gov_root_lookup(const char*chain,const char*id,char pubhex[65]){
     }
     char roots[1024],line[512];gov_paths(chain,NULL,0,roots,sizeof(roots),NULL,0,NULL,0);FILE*f=fopen(roots,"rb");if(!f)return -1;int rc=-1;while(fgets(line,sizeof(line),f)){if(line[0]=='#')continue;char k[128]={0},p[65]={0},fp[33]={0},st[16]={0};if(sscanf(line,"%127[^|]|%64[^|]|%32[^|]|%15s",k,p,fp,st)==4&&!strcmp(k,id)&&!strcmp(st,"ACTIVE")){snprintf(pubhex,65,"%s",p);rc=0;break;}}fclose(f);return rc;
 }
+static int aura_compute_provider_key_lookup(void *ctx,const char *provider_id,EVP_PKEY **out){
+    if(!ctx||!provider_id||!out) return -1;
+    if(qrx_compute_provider_identity_key_lookup(ctx,provider_id,out)==0) return 0;
+    return qrx_storage_provider_discovery_key_lookup(ctx,provider_id,out);
+}
+
+static int aura_model_gov_key_lookup(void *ctx,const char *identity,EVP_PKEY **out){
+    if(!ctx||!identity||!out) return -1;
+    char pubhex[65];
+    if(gov_root_lookup((const char*)ctx,identity,pubhex)) return -1;
+    unsigned char raw[32];
+    if(hex_to_bytes_local(pubhex,raw,sizeof(raw))) return -1;
+    EVP_PKEY*k=EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519,NULL,raw,sizeof(raw));
+    if(!k) return -1;
+    *out=k;
+    return 0;
+}
+static int aura_model_gov_authorize(void *ctx,const char *publisher_id){char pubhex[65];return (!ctx||!publisher_id||gov_root_lookup((const char*)ctx,publisher_id,pubhex))?-1:0;}
+
 static long long gov_threshold(const char*chain){char b[64];if(qrx_chain_get_value(chain,"governance_threshold",b,sizeof(b))==0){long long x=atoll(b);if(x>0)return x;if(chain_network_is(chain,"mainnet"))return 0;}char conf[1024];gov_paths(chain,conf,sizeof(conf),NULL,0,NULL,0,NULL,0);char*t=read_file(conf,NULL);if(!t)return 0;char*v=cfg_get(t,"threshold");long long x=v?atoll(v):0;free(v);free(t);return x;}
 static int gov_proposal_hash(const char*path,char out[129],char**txtout){char*t=read_file(path,NULL);if(!t)return -1;char*f=cfg_get(t,"format");if(!f||strcmp(f,QRX_GOV_PROPOSAL_FORMAT)){free(f);free(t);return -1;}free(f);gov_hash_text("QUB-GOVERNANCE-PROPOSAL-v1",t,out);if(txtout)*txtout=t;else free(t);return 0;}
 static int gov_sign_cmd(const char*keydir,const char*proposal,const char*out){char desc[1024],privp[1024],id[128],pk[65],fp[33],ph[129];snprintf(desc,sizeof(desc),"%s/governance.pub",keydir);snprintf(privp,sizeof(privp),"%s/governance.key",keydir);if(gov_descriptor(desc,id,pk,fp)!=0)die("invalid governance key descriptor");char*txt=NULL;if(gov_proposal_hash(proposal,ph,&txt)!=0)die("invalid governance proposal");char pass[256];if(gov_read_passphrase(pass,sizeof(pass),"QRX_GOV_PASSPHRASE",0)!=0)die("passphrase failed");EVP_PKEY*priv=load_priv_pem(privp,pass);if(!priv)die("cannot unlock governance private key");unsigned char*sig=NULL;size_t sl=0;if(sign_oneshot(priv,(unsigned char*)txt,strlen(txt),&sig,&sl)!=0)die("governance signature failed");char*sh=malloc(sl*2+1);bytes_to_hex_local(sig,sl,sh);char b[4096];snprintf(b,sizeof(b),"format=%s\nkey_id=%s\nfingerprint=%s\nproposal_hash=%s\nsignature_hex=%s\n",QRX_GOV_SIGNATURE_FORMAT,id,fp,ph,sh);write_text(out,b);printf("status=signed\nkey_id=%s\nproposal_hash=%s\nsignature_file=%s\n",id,ph,out);OPENSSL_cleanse(pass,sizeof(pass));OPENSSL_cleanse(sig,sl);free(sig);free(sh);free(txt);EVP_PKEY_free(priv);return 0;}
+
+/* Phase 180: Governance Vault V1.
+   The consensus threshold remains 3-of-5. This layer only hardens operator UX:
+   - an OPERATIONAL vault may contain at most two private signing keys;
+   - OFFLINE entries are public descriptors only;
+   - an OFFLINE_BACKUP vault may contain all five encrypted private keys, but
+     stores them as governance.key.backup so the normal signing command cannot
+     consume them accidentally;
+   - offline signatures are exchanged as ordinary immutable signature files. */
+#define QRX_GOV_VAULT_FORMAT "qrx-governance-vault-v1"
+#define QRX_GOV_VAULT_MAX_ROOTS 5
+#define QRX_GOV_VAULT_THRESHOLD 3
+#define QRX_GOV_VAULT_MAX_ONLINE 2
+
+static void gov_vault_paths(const char*v,char*conf,size_t csz,char*idx,size_t isz){
+    if(conf&&csz)snprintf(conf,csz,"%s/vault.conf",v);
+    if(idx&&isz)snprintf(idx,isz,"%s/vault.index",v);
+}
+static int gov_copy_file_secure(const char*src,const char*dst,int secret){size_t n=0;char*b=read_file(src,&n);if(!b)return -1;int rc=write_file(dst,b,n);if(secret&&rc==0)gov_secure_chmod(dst);OPENSSL_cleanse(b,n);free(b);return rc;}
+static int gov_vault_read_type(const char*v,char*out,size_t osz){char c[1024];gov_vault_paths(v,c,sizeof(c),NULL,0);char*t=read_file(c,NULL);if(!t)return -1;char*f=cfg_get(t,"format"),*ty=cfg_get(t,"vault_type");int ok=f&&ty&&!strcmp(f,QRX_GOV_VAULT_FORMAT);if(ok)snprintf(out,osz,"%s",ty);free(f);free(ty);free(t);return ok?0:-1;}
+static int gov_vault_index_has(const char*v,const char*id,char*role,size_t rsz,int*has_private){char idx[1024],line[512];gov_vault_paths(v,NULL,0,idx,sizeof(idx));FILE*f=fopen(idx,"rb");if(!f)return 0;int hit=0;while(fgets(line,sizeof(line),f)){char kid[128]={0},fp[64]={0},r[32]={0};int hp=0;if(sscanf(line,"%127[^|]|%63[^|]|%31[^|]|%d",kid,fp,r,&hp)==4&&!strcmp(kid,id)){if(role&&rsz)snprintf(role,rsz,"%s",r);if(has_private)*has_private=hp;hit=1;break;}}fclose(f);return hit;}
+static int gov_vault_count_online(const char*v){char idx[1024],line[512];gov_vault_paths(v,NULL,0,idx,sizeof(idx));FILE*f=fopen(idx,"rb");if(!f)return 0;int n=0;while(fgets(line,sizeof(line),f)){char kid[128]={0},fp[64]={0},r[32]={0};int hp=0;if(sscanf(line,"%127[^|]|%63[^|]|%31[^|]|%d",kid,fp,r,&hp)==4&&hp&&!strcmp(r,"ONLINE"))n++;}fclose(f);return n;}
+static int gov_vault_count_entries(const char*v){char idx[1024],line[512];gov_vault_paths(v,NULL,0,idx,sizeof(idx));FILE*f=fopen(idx,"rb");if(!f)return 0;int n=0;while(fgets(line,sizeof(line),f))if(line[0]&&line[0]!='#')n++;fclose(f);return n;}
+static int gov_vault_append_index(const char*v,const char*id,const char*fp,const char*role,int hp){char idx[1024],b[512];gov_vault_paths(v,NULL,0,idx,sizeof(idx));snprintf(b,sizeof(b),"%s|%s|%s|%d\n",id,fp,role,hp);return append_text(idx,b);}
+static int gov_vault_init_cmd(const char*v){if(access_qrx(v,F_OK)==0)die("governance vault path already exists");if(mkdir_p(v)!=0)die("cannot create governance vault");char keys[1024];snprintf(keys,sizeof(keys),"%s/keys",v);if(mkdir_p(keys)!=0)die("cannot create governance vault keys directory");char conf[1024],idx[1024],b[1024];gov_vault_paths(v,conf,sizeof(conf),idx,sizeof(idx));snprintf(b,sizeof(b),"format=%s\nvault_type=OPERATIONAL\nroot_count=%d\nthreshold=%d\nmax_online_signers=%d\ncreated_at=%lld\nprivate_key_policy=max-two-online\n",QRX_GOV_VAULT_FORMAT,QRX_GOV_VAULT_MAX_ROOTS,QRX_GOV_VAULT_THRESHOLD,QRX_GOV_VAULT_MAX_ONLINE,(long long)time(NULL));if(write_text(conf,b)||write_text(idx,"# key_id|fingerprint|role|has_private\n"))die("cannot initialize governance vault metadata");gov_secure_chmod(conf);gov_secure_chmod(idx);printf("status=initialized\nvault_type=OPERATIONAL\nthreshold=3\nmax_online_signers=2\npath=%s\n",v);return 0;}
+static int gov_vault_add_online_cmd(const char*v,const char*keydir){char ty[32];if(gov_vault_read_type(v,ty,sizeof(ty))||strcmp(ty,"OPERATIONAL"))die("online keys require an OPERATIONAL governance vault");if(gov_vault_count_online(v)>=QRX_GOV_VAULT_MAX_ONLINE)die("operational governance vault already has two online signers; keep remaining roots offline");char d[1024],k[1024],pp[1024],id[128],pk[65],fp[33];snprintf(d,sizeof(d),"%s/governance.pub",keydir);snprintf(k,sizeof(k),"%s/governance.key",keydir);snprintf(pp,sizeof(pp),"%s/governance.pub.pem",keydir);if(gov_descriptor(d,id,pk,fp)!=0||access_qrx(k,F_OK)!=0)die("invalid governance key directory");if(gov_vault_index_has(v,id,NULL,0,NULL))die("governance root already exists in vault");if(gov_vault_count_entries(v)>=QRX_GOV_VAULT_MAX_ROOTS)die("governance vault already has five roots");char slot[1024],dst[1024];snprintf(slot,sizeof(slot),"%s/keys/%s",v,id);if(access_qrx(slot,F_OK)==0)die("governance vault slot path already exists");if(mkdir_p(slot)!=0)die("cannot create governance vault slot");snprintf(dst,sizeof(dst),"%s/governance.pub",slot);if(gov_copy_file_secure(d,dst,0))die("cannot copy governance descriptor");snprintf(dst,sizeof(dst),"%s/governance.key",slot);if(gov_copy_file_secure(k,dst,1))die("cannot copy encrypted governance private key");if(access_qrx(pp,F_OK)==0){snprintf(dst,sizeof(dst),"%s/governance.pub.pem",slot);if(gov_copy_file_secure(pp,dst,0))die("cannot copy governance public PEM");}if(gov_vault_append_index(v,id,fp,"ONLINE",1))die("cannot update governance vault index");printf("status=added\nkey_id=%s\nrole=ONLINE\nonline_signers=%d\nmax_online_signers=2\n",id,gov_vault_count_online(v));return 0;}
+static int gov_vault_add_offline_cmd(const char*v,const char*desc){char ty[32];if(gov_vault_read_type(v,ty,sizeof(ty))||strcmp(ty,"OPERATIONAL"))die("offline descriptors require an OPERATIONAL governance vault");char id[128],pk[65],fp[33];if(gov_descriptor(desc,id,pk,fp)!=0)die("invalid governance public descriptor");if(gov_vault_index_has(v,id,NULL,0,NULL))die("governance root already exists in vault");if(gov_vault_count_entries(v)>=QRX_GOV_VAULT_MAX_ROOTS)die("governance vault already has five roots");char slot[1024],dst[1024];snprintf(slot,sizeof(slot),"%s/keys/%s",v,id);if(access_qrx(slot,F_OK)==0)die("governance vault slot path already exists");if(mkdir_p(slot)!=0)die("cannot create governance vault slot");snprintf(dst,sizeof(dst),"%s/governance.pub",slot);if(gov_copy_file_secure(desc,dst,0))die("cannot copy governance descriptor");if(gov_vault_append_index(v,id,fp,"OFFLINE",0))die("cannot update governance vault index");printf("status=added\nkey_id=%s\nrole=OFFLINE\nprivate_key_present=false\n",id);return 0;}
+static int gov_vault_status_cmd(const char*v){char ty[32],idx[1024],line[512];if(gov_vault_read_type(v,ty,sizeof(ty)))die("invalid governance vault");printf("format=%s\nvault_type=%s\nthreshold=3\nmax_online_signers=2\nentries=%d\nonline_signers=%d\n",QRX_GOV_VAULT_FORMAT,ty,gov_vault_count_entries(v),gov_vault_count_online(v));gov_vault_paths(v,NULL,0,idx,sizeof(idx));FILE*f=fopen(idx,"rb");if(!f)return 0;while(fgets(line,sizeof(line),f)){if(line[0]=='#')continue;char id[128]={0},fp[64]={0},role[32]={0};int hp=0;if(sscanf(line,"%127[^|]|%63[^|]|%31[^|]|%d",id,fp,role,&hp)==4)printf("root=%s role=%s private=%s fingerprint=%s\n",id,role,hp?"present":"absent",fp);}fclose(f);return 0;}
+static int gov_vault_sign_cmd(const char*v,const char*id,const char*proposal,const char*out){char ty[32],role[32];int hp=0;if(gov_vault_read_type(v,ty,sizeof(ty))||strcmp(ty,"OPERATIONAL"))die("signing is disabled for offline backup vaults");if(!gov_vault_index_has(v,id,role,sizeof(role),&hp)||strcmp(role,"ONLINE")||!hp)die("requested governance root is not an online signer in this vault");char kd[1024];snprintf(kd,sizeof(kd),"%s/keys/%s",v,id);return gov_sign_cmd(kd,proposal,out);}
+static int gov_vault_backup_create_cmd(int argc,char**argv){const char*v=argv[2];if(argc!=8)die("offline governance backup requires exactly five governance key directories");if(access_qrx(v,F_OK)==0)die("governance backup vault path already exists");if(mkdir_p(v)!=0)die("cannot create offline governance backup vault");char keys[1024];snprintf(keys,sizeof(keys),"%s/keys",v);mkdir_p(keys);char conf[1024],idx[1024],b[1024];gov_vault_paths(v,conf,sizeof(conf),idx,sizeof(idx));snprintf(b,sizeof(b),"format=%s\nvault_type=OFFLINE_BACKUP\nroot_count=5\nthreshold=3\nmax_online_signers=0\ncreated_at=%lld\nsigning_disabled=true\nprivate_key_policy=encrypted-backup-only\n",QRX_GOV_VAULT_FORMAT,(long long)time(NULL));if(write_text(conf,b)||write_text(idx,"# key_id|fingerprint|role|has_private\n"))die("cannot initialize offline governance backup metadata");char seen[5][128];int seen_n=0;for(int i=3;i<8;i++){char srcd[1024],srck[1024],srcp[1024],id[128],pk[65],fp[33];snprintf(srcd,sizeof(srcd),"%s/governance.pub",argv[i]);snprintf(srck,sizeof(srck),"%s/governance.key",argv[i]);snprintf(srcp,sizeof(srcp),"%s/governance.pub.pem",argv[i]);if(gov_descriptor(srcd,id,pk,fp)!=0||access_qrx(srck,F_OK)!=0)die("invalid governance key directory in backup set");for(int j=0;j<seen_n;j++)if(!strcmp(seen[j],id))die("duplicate governance root in backup set");snprintf(seen[seen_n++],sizeof(seen[0]),"%s",id);char slot[1024],dst[1024];snprintf(slot,sizeof(slot),"%s/keys/%s",v,id);mkdir_p(slot);snprintf(dst,sizeof(dst),"%s/governance.pub",slot);if(gov_copy_file_secure(srcd,dst,0))die("backup descriptor copy failed");snprintf(dst,sizeof(dst),"%s/governance.key.backup",slot);if(gov_copy_file_secure(srck,dst,1))die("backup private-key copy failed");if(access_qrx(srcp,F_OK)==0){snprintf(dst,sizeof(dst),"%s/governance.pub.pem",slot);if(gov_copy_file_secure(srcp,dst,0))die("backup public-key copy failed");}if(gov_vault_append_index(v,id,fp,"OFFLINE_BACKUP",1))die("backup index update failed");}gov_secure_chmod(conf);gov_secure_chmod(idx);printf("status=backup-created\nvault_type=OFFLINE_BACKUP\nroots=5\nthreshold=3\nsigning_disabled=true\npath=%s\n",v);return 0;}
+static int gov_vault_restore_online_cmd(const char*backup,const char*id,const char*oper){char bty[32],oty[32];if(gov_vault_read_type(backup,bty,sizeof(bty))||strcmp(bty,"OFFLINE_BACKUP"))die("source is not an offline governance backup vault");if(gov_vault_read_type(oper,oty,sizeof(oty))||strcmp(oty,"OPERATIONAL"))die("destination is not an operational governance vault");if(gov_vault_count_online(oper)>=QRX_GOV_VAULT_MAX_ONLINE)die("destination already has two online signers");if(gov_vault_index_has(oper,id,NULL,0,NULL))die("governance root already exists in destination vault");char srcslot[1024],desc[1024],priv[1024],pubpem[1024],fp[33],pk[65],did[128];snprintf(srcslot,sizeof(srcslot),"%s/keys/%s",backup,id);snprintf(desc,sizeof(desc),"%s/governance.pub",srcslot);snprintf(priv,sizeof(priv),"%s/governance.key.backup",srcslot);snprintf(pubpem,sizeof(pubpem),"%s/governance.pub.pem",srcslot);if(gov_descriptor(desc,did,pk,fp)!=0||strcmp(did,id)||access_qrx(priv,F_OK)!=0)die("backup slot missing or invalid");char dstslot[1024],dst[1024];snprintf(dstslot,sizeof(dstslot),"%s/keys/%s",oper,id);if(access_qrx(dstslot,F_OK)==0)die("destination governance vault slot path already exists");if(mkdir_p(dstslot)!=0)die("cannot create destination governance vault slot");snprintf(dst,sizeof(dst),"%s/governance.pub",dstslot);if(gov_copy_file_secure(desc,dst,0))die("restore descriptor failed");snprintf(dst,sizeof(dst),"%s/governance.key",dstslot);if(gov_copy_file_secure(priv,dst,1))die("restore private key failed");if(access_qrx(pubpem,F_OK)==0){snprintf(dst,sizeof(dst),"%s/governance.pub.pem",dstslot);if(gov_copy_file_secure(pubpem,dst,0))die("restore public PEM failed");}if(gov_vault_append_index(oper,id,fp,"ONLINE",1))die("restore index update failed");printf("status=restored-online\nkey_id=%s\nonline_signers=%d\nmax_online_signers=2\n",id,gov_vault_count_online(oper));return 0;}
+
 static int gov_verify_signature(const char*chain,const char*proposal_txt,const char*proposal_hash,const char*sigfile,char keyid_out[128]){char*t=read_file(sigfile,NULL);if(!t)return -1;char*f=cfg_get(t,"format"),*id=cfg_get(t,"key_id"),*fp=cfg_get(t,"fingerprint"),*ph=cfg_get(t,"proposal_hash"),*sh=cfg_get(t,"signature_hex");int rc=-1;char pk[65],calc[33];if(!f||strcmp(f,QRX_GOV_SIGNATURE_FORMAT)||!id||!fp||!ph||strcmp(ph,proposal_hash)||!sh||gov_root_lookup(chain,id,pk)!=0)goto done;gov_pub_fingerprint(pk,calc);if(strcmp(calc,fp)||strlen(sh)%2)goto done;unsigned char raw[32];if(hex_to_bytes_local(pk,raw,32)!=0)goto done;EVP_PKEY*pub=EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519,NULL,raw,32);size_t sl=strlen(sh)/2;unsigned char*sig=malloc(sl);if(!pub||!sig||hex_to_bytes_local(sh,sig,sl)!=0){if(pub)EVP_PKEY_free(pub);free(sig);goto done;}if(verify_oneshot(pub,(unsigned char*)proposal_txt,strlen(proposal_txt),sig,sl)==0){snprintf(keyid_out,128,"%s",id);rc=0;}EVP_PKEY_free(pub);free(sig);done:free(f);free(id);free(fp);free(ph);free(sh);free(t);return rc;}
 static int gov_attester_propose_cmd(const char*out,const char*action,const char*issuer,const char*pubdesc,const char*cap,const char*height){if(strcmp(action,"ATTESTER_ADD")&&strcmp(action,"ATTESTER_DISABLE")&&strcmp(action,"ATTESTER_ROTATE_KEY"))die("unsupported attester governance action");if(!vp_valid_token(issuer))die("invalid issuer");char pk[65]="-";if(strcmp(action,"ATTESTER_DISABLE")){char*t=read_file(pubdesc,NULL);if(!t)die("attester public descriptor missing");char*f=cfg_get(t,"format"),*i=cfg_get(t,"issuer"),*p=cfg_get(t,"public_key_hex");if(!f||strcmp(f,"qrx-privacy-attester-public-v1")||!i||strcmp(i,issuer)||!p||strlen(p)!=64)die("attester descriptor mismatch");snprintf(pk,sizeof(pk),"%s",p);free(f);free(i);free(p);free(t);}char nonce[65];shielded_random_hex(nonce,32);char b[2048];snprintf(b,sizeof(b),"format=%s\naction=%s\nissuer=%s\npublic_key_hex=%s\ncapabilities=%s\nactivation_height=%s\nnonce=%s\n",QRX_GOV_PROPOSAL_FORMAT,action,issuer,pk,cap?cap:"verified-privacy,hidden-balance",height?height:"0",nonce);write_text(out,b);char ph[129];gov_hash_text("QUB-GOVERNANCE-PROPOSAL-v1",b,ph);printf("status=proposed\naction=%s\nissuer=%s\nproposal_hash=%s\nproposal_file=%s\n",action,issuer,ph,out);return 0;}
 static int gov_protocol_propose_cmd(const char*out,const char*pv,const char*height,const char*mintx,const char*minpriv,const char*flags){parse_positive_ll_strict(pv,"protocol_version");parse_nonnegative_ll_strict(height,"activation_height");parse_positive_ll_strict(mintx,"minimum_tx_version");parse_nonnegative_ll_strict(minpriv,"minimum_privacy_version");char nonce[65];shielded_random_hex(nonce,32);char b[2048];snprintf(b,sizeof(b),"format=%s\naction=PROTOCOL_UPGRADE\nprotocol_version=%s\nactivation_height=%s\nminimum_tx_version=%s\nminimum_privacy_version=%s\nfeature_flags=%s\nnonce=%s\n",QRX_GOV_PROPOSAL_FORMAT,pv,height,mintx,minpriv,flags?flags:"-",nonce);write_text(out,b);char ph[129];gov_hash_text("QUB-GOVERNANCE-PROPOSAL-v1",b,ph);printf("status=proposed\naction=PROTOCOL_UPGRADE\nproposal_hash=%s\nproposal_file=%s\n",ph,out);return 0;}
+static int gov_compute_liveness_propose_cmd(const char*out,const char*height,const char*threshold,const char*jail){parse_nonnegative_ll_strict(height,"activation_height");parse_positive_ll_strict(threshold,"verifier_miss_threshold");parse_positive_ll_strict(jail,"verifier_miss_jail_blocks");QrxPoucLivenessParams p={QRX_POUC_LIVENESS_PARAMS_VERSION,(uint64_t)strtoull(threshold,NULL,10),(uint64_t)strtoull(jail,NULL,10)};if(qrx_pouc_liveness_params_validate(&p))die("compute liveness parameters out of range");char nonce[65];shielded_random_hex(nonce,32);char b[2048];snprintf(b,sizeof(b),"format=%s\naction=COMPUTE_LIVENESS_PARAMS\nactivation_height=%s\nverifier_miss_threshold=%s\nverifier_miss_jail_blocks=%s\nnonce=%s\n",QRX_GOV_PROPOSAL_FORMAT,height,threshold,jail,nonce);write_text(out,b);char ph[129];gov_hash_text("QUB-GOVERNANCE-PROPOSAL-v1",b,ph);printf("status=proposed\naction=COMPUTE_LIVENESS_PARAMS\nproposal_hash=%s\nproposal_file=%s\n",ph,out);return 0;}
 static int gov_already_applied(const char*chain,const char*ph){char log[1024],line[512];gov_paths(chain,NULL,0,NULL,0,log,sizeof(log),NULL,0);FILE*f=fopen(log,"rb");if(!f)return 0;int hit=0;while(fgets(line,sizeof(line),f)){if(!strncmp(line,ph,128)){hit=1;break;}}fclose(f);return hit;}
-static int gov_apply_cmd(int argc,char**argv){const char*chain=argv[2],*proposal=argv[3];long long threshold=gov_threshold(chain);if(threshold<=0)die("governance genesis root not initialized");if(argc-4<threshold)die("not enough governance signatures");char ph[129],*pt=NULL;if(gov_proposal_hash(proposal,ph,&pt)!=0)die("invalid governance proposal");if(gov_already_applied(chain,ph))die("governance proposal replay rejected");char ids[16][128];int valid=0;for(int i=4;i<argc&&i<20;i++){char id[128];if(gov_verify_signature(chain,pt,ph,argv[i],id)!=0)continue;int dup=0;for(int j=0;j<valid;j++)if(!strcmp(ids[j],id))dup=1;if(!dup){snprintf(ids[valid],128,"%s",id);valid++;}}if(valid<threshold){free(pt);die("governance threshold not met with unique valid signatures");}char*action=cfg_get(pt,"action");if(!action)die("proposal missing action");if((!strcmp(action,"ATTESTER_ADD")||!strcmp(action,"ATTESTER_ROTATE_KEY")||!strcmp(action,"ATTESTER_DISABLE"))&&privacy_legacy_mainnet_gate(chain)!=0)die("legacy file-backed privacy governance disabled on Mainnet; submit PRIVACY_GOVERNANCE consensus transaction");long long applied_height=current_height_from_chain(chain);if(!strcmp(action,"ATTESTER_ADD")||!strcmp(action,"ATTESTER_ROTATE_KEY")||!strcmp(action,"ATTESTER_DISABLE")){char*issuer=cfg_get(pt,"issuer"),*pk=cfg_get(pt,"public_key_hex"),*cap=cfg_get(pt,"capabilities"),*ah=cfg_get(pt,"activation_height");if(!issuer||!pk||!ah)die("attester proposal malformed");long long act=atoll(ah);if(applied_height<act)die("attester proposal activation height not reached");char path[1024];vp_paths(chain,path,sizeof(path),NULL,0);FILE*f=fopen(path,"ab");if(!f)die("attester registry state write failed");const char*st=!strcmp(action,"ATTESTER_DISABLE")?"DISABLED":"ACTIVE";char existing[65];int ea=0;if(!strcmp(action,"ATTESTER_DISABLE")&&vp_attester_lookup(chain,issuer,existing,&ea)!=0){fclose(f);die("cannot disable unknown attester");}fprintf(f,"%s|%s|%s|%lld|%s|governance:%s\n",issuer,!strcmp(action,"ATTESTER_DISABLE")?existing:pk,st,(long long)time(NULL),cap?cap:"-",ph);fclose(f);free(issuer);free(pk);free(cap);free(ah);}else if(!strcmp(action,"PROTOCOL_UPGRADE")){char*pv=cfg_get(pt,"protocol_version"),*ah=cfg_get(pt,"activation_height"),*mt=cfg_get(pt,"minimum_tx_version"),*mp=cfg_get(pt,"minimum_privacy_version"),*ff=cfg_get(pt,"feature_flags");if(!pv||!ah||!mt||!mp)die("protocol proposal malformed");char upg[1024];gov_paths(chain,NULL,0,NULL,0,NULL,0,upg,sizeof(upg));FILE*f=fopen(upg,"ab");if(!f)die("protocol schedule write failed");fprintf(f,"%s|%s|%s|%s|%s|%s\n",ah,pv,mt,mp,ff?ff:"-",ph);fclose(f);free(pv);free(ah);free(mt);free(mp);free(ff);}else die("unsupported governance action");char log[1024];gov_paths(chain,NULL,0,NULL,0,log,sizeof(log),NULL,0);FILE*lf=fopen(log,"ab");if(!lf)die("governance replay-state write failed");fprintf(lf,"%s|%s|%lld|signers=",ph,action,(long long)time(NULL));for(int i=0;i<valid;i++)fprintf(lf,"%s%s",i?",":"",ids[i]);fprintf(lf,"\n");fclose(lf);printf("status=applied\naction=%s\nproposal_hash=%s\nvalid_unique_signatures=%d\nthreshold=%lld\n",action,ph,valid,threshold);free(action);free(pt);return 0;}
-static void gov_protocol_active(const char*chain,long long height,long long*outpv,long long*outtx,long long*outpriv,long long*next_h){char upg[1024],line[1024];gov_paths(chain,NULL,0,NULL,0,NULL,0,upg,sizeof(upg));FILE*f=fopen(upg,"rb");long long pv=0,tx=1,pr=0,next=0;if(f){while(fgets(line,sizeof(line),f)){long long h=0,p=0,t=0,r=0;char flags[256],hash[129];if(sscanf(line,"%lld|%lld|%lld|%lld|%255[^|]|%128s",&h,&p,&t,&r,flags,hash)==6){if(h<=height&&p>=pv){pv=p;tx=t;pr=r;}else if(h>height&&(next==0||h<next))next=h;}}fclose(f);}if(outpv)*outpv=pv;if(outtx)*outtx=tx;if(outpriv)*outpriv=pr;if(next_h)*next_h=next;}
+static int gov_apply_cmd(int argc,char**argv){const char*chain=argv[2],*proposal=argv[3];long long threshold=gov_threshold(chain);if(threshold<=0)die("governance genesis root not initialized");if(argc-4<threshold)die("not enough governance signatures");char ph[129],*pt=NULL;if(gov_proposal_hash(proposal,ph,&pt)!=0)die("invalid governance proposal");if(gov_already_applied(chain,ph))die("governance proposal replay rejected");char ids[16][128];int valid=0;for(int i=4;i<argc&&i<20;i++){char id[128];if(gov_verify_signature(chain,pt,ph,argv[i],id)!=0)continue;int dup=0;for(int j=0;j<valid;j++)if(!strcmp(ids[j],id))dup=1;if(!dup){snprintf(ids[valid],128,"%s",id);valid++;}}if(valid<threshold){free(pt);die("governance threshold not met with unique valid signatures");}char*action=cfg_get(pt,"action");if(!action)die("proposal missing action");if((!strcmp(action,"ATTESTER_ADD")||!strcmp(action,"ATTESTER_ROTATE_KEY")||!strcmp(action,"ATTESTER_DISABLE"))&&privacy_legacy_mainnet_gate(chain)!=0)die("legacy file-backed privacy governance disabled on Mainnet; submit PRIVACY_GOVERNANCE consensus transaction");long long applied_height=current_height_from_chain(chain);if(!strcmp(action,"ATTESTER_ADD")||!strcmp(action,"ATTESTER_ROTATE_KEY")||!strcmp(action,"ATTESTER_DISABLE")){char*issuer=cfg_get(pt,"issuer"),*pk=cfg_get(pt,"public_key_hex"),*cap=cfg_get(pt,"capabilities"),*ah=cfg_get(pt,"activation_height");if(!issuer||!pk||!ah)die("attester proposal malformed");long long act=atoll(ah);if(applied_height<act)die("attester proposal activation height not reached");char path[1024];vp_paths(chain,path,sizeof(path),NULL,0);FILE*f=fopen(path,"ab");if(!f)die("attester registry state write failed");const char*st=!strcmp(action,"ATTESTER_DISABLE")?"DISABLED":"ACTIVE";char existing[65];int ea=0;if(!strcmp(action,"ATTESTER_DISABLE")&&vp_attester_lookup(chain,issuer,existing,&ea)!=0){fclose(f);die("cannot disable unknown attester");}fprintf(f,"%s|%s|%s|%lld|%s|governance:%s\n",issuer,!strcmp(action,"ATTESTER_DISABLE")?existing:pk,st,(long long)time(NULL),cap?cap:"-",ph);fclose(f);free(issuer);free(pk);free(cap);free(ah);}else if(!strcmp(action,"PROTOCOL_UPGRADE")){if(privacy_legacy_mainnet_gate(chain)!=0)die("legacy file-backed protocol governance disabled on Mainnet; submit GOVERNANCE_PROTOCOL consensus transaction");char*pv=cfg_get(pt,"protocol_version"),*ah=cfg_get(pt,"activation_height"),*mt=cfg_get(pt,"minimum_tx_version"),*mp=cfg_get(pt,"minimum_privacy_version"),*ff=cfg_get(pt,"feature_flags");if(!pv||!ah||!mt||!mp)die("protocol proposal malformed");char upg[1024];gov_paths(chain,NULL,0,NULL,0,NULL,0,upg,sizeof(upg));FILE*f=fopen(upg,"ab");if(!f)die("protocol schedule write failed");fprintf(f,"%s|%s|%s|%s|%s|%s\n",ah,pv,mt,mp,ff?ff:"-",ph);fclose(f);free(pv);free(ah);free(mt);free(mp);free(ff);}else if(!strcmp(action,"COMPUTE_LIVENESS_PARAMS")){char*ah=cfg_get(pt,"activation_height"),*th=cfg_get(pt,"verifier_miss_threshold"),*jb=cfg_get(pt,"verifier_miss_jail_blocks");if(!ah||!th||!jb)die("compute liveness proposal malformed");long long act=parse_nonnegative_ll_strict(ah,"activation_height");if(applied_height<act)die("compute liveness proposal activation height not reached");QrxPoucLivenessParams cp={QRX_POUC_LIVENESS_PARAMS_VERSION,(uint64_t)parse_positive_ll_strict(th,"verifier_miss_threshold"),(uint64_t)parse_positive_ll_strict(jb,"verifier_miss_jail_blocks")};if(qrx_pouc_liveness_params_validate(&cp))die("compute liveness parameters out of range");QrxDB gdb;QrxDBBatch gb;if(qrxdb_init(&gdb,chain)!=0||qrxdb_batch_begin(&gdb,&gb)!=0)die("compute liveness governance QRXDB begin failed");char hk[512],hv[512];snprintf(hk,sizeof(hk),"consensus:compute:params_history:%020lld:%s",applied_height,ph);snprintf(hv,sizeof(hv),"activation_height=%lld|miss_threshold=%llu|miss_jail_blocks=%llu|governance=%s",act,(unsigned long long)cp.verifier_miss_threshold,(unsigned long long)cp.verifier_miss_jail_blocks,ph);if(qrx_pouc_liveness_params_stage(&gb,&cp)||qrxdb_batch_put(&gb,hk,hv)||qrxdb_batch_commit(&gb)){qrxdb_batch_abort(&gb);qrxdb_close(&gdb);die("compute liveness governance QRXDB commit failed");}qrxdb_close(&gdb);free(ah);free(th);free(jb);}else die("unsupported governance action");char log[1024];gov_paths(chain,NULL,0,NULL,0,log,sizeof(log),NULL,0);FILE*lf=fopen(log,"ab");if(!lf)die("governance replay-state write failed");fprintf(lf,"%s|%s|%lld|signers=",ph,action,(long long)time(NULL));for(int i=0;i<valid;i++)fprintf(lf,"%s%s",i?",":"",ids[i]);fprintf(lf,"\n");fclose(lf);printf("status=applied\naction=%s\nproposal_hash=%s\nvalid_unique_signatures=%d\nthreshold=%lld\n",action,ph,valid,threshold);free(action);free(pt);return 0;}
+typedef struct{long long height,pv,tx,pr,next;}GovProtocolScan;
+static int gov_protocol_scan_cb(const char*k,const char*v,uint32_t vl,void*x){(void)vl;const char*pre="governance:protocol:schedule:";if(strncmp(k,pre,strlen(pre)))return 0;GovProtocolScan*c=x;long long h=atoll(k+strlen(pre));char*t=strdup(v);if(!t)return-1;char*sv=NULL,*a[6];int n=0;for(char*q=strtok_r(t,"|",&sv);q&&n<6;q=strtok_r(NULL,"|",&sv))a[n++]=q;if(n==6){long long p=atoll(a[0]),mt=atoll(a[1]),mp=atoll(a[2]);if(h<=c->height&&p>=c->pv){c->pv=p;c->tx=mt;c->pr=mp;}else if(h>c->height&&(c->next==0||h<c->next))c->next=h;}free(t);return 0;}
+static void gov_protocol_active(const char*chain,long long height,long long*outpv,long long*outtx,long long*outpriv,long long*next_h){GovProtocolScan c={height,0,1,0,0};QrxDB db;if(qrxdb_init(&db,chain)==0){qrxdb_scan_prefix(&db,"governance:protocol:schedule:",gov_protocol_scan_cb,&c);qrxdb_close(&db);}if(!qrx_resource_is_mainnet(chain)&&c.pv==0&&c.next==0){char upg[1024],line[1024];gov_paths(chain,NULL,0,NULL,0,NULL,0,upg,sizeof(upg));FILE*f=fopen(upg,"rb");if(f){while(fgets(line,sizeof(line),f)){long long h=0,p=0,t=0,r=0;char flags[256],hash[129];if(sscanf(line,"%lld|%lld|%lld|%lld|%255[^|]|%128s",&h,&p,&t,&r,flags,hash)==6){if(h<=height&&p>=c.pv){c.pv=p;c.tx=t;c.pr=r;}else if(h>height&&(c.next==0||h<c.next))c.next=h;}}fclose(f);}}if(outpv)*outpv=c.pv;if(outtx)*outtx=c.tx;if(outpriv)*outpriv=c.pr;if(next_h)*next_h=c.next;}
 static int gov_protocol_info_cmd(const char*chain,long long height){if(height<0)height=current_height_from_chain(chain);long long pv,tx,pr,next;gov_protocol_active(chain,height,&pv,&tx,&pr,&next);int req=pv>QRX_GOV_SUPPORTED_PROTOCOL||pr>QRX_GOV_SUPPORTED_PRIVACY;printf("chain_height=%lld\nactive_protocol=%lld\nminimum_tx_version=%lld\nminimum_privacy_version=%lld\nwallet_supported_protocol=%d\nwallet_supported_privacy=%d\nupdate_required=%s\nnext_activation_height=%lld\n",height,pv,tx,pr,QRX_GOV_SUPPORTED_PROTOCOL,QRX_GOV_SUPPORTED_PRIVACY,req?"true":"false",next);return req?2:0;}
 static int gov_tx_version_allowed(const char*chain,const char*tx_version){long long pv,mt,pr,next;gov_protocol_active(chain,current_height_from_chain(chain),&pv,&mt,&pr,&next);(void)pv;(void)pr;(void)next;if(mt<=1)return 1;return tx_version&&atoll(tx_version)>=mt;}
 
@@ -6366,6 +7062,12 @@ static int shielded_history_cmd(const char*chain_dir,const char*wallet_dir){Shie
 
 
 #include "privacy/qrx_privacy_consensus.inc"
+
+static int gov_vault_sign_v2_cmd(const char*chain,const char*v,const char*id,const char*proposal,const char*out){
+    char ty[32],role[32];int hp=0;if(gov_vault_read_type(v,ty,sizeof(ty))||strcmp(ty,"OPERATIONAL"))die("signing is disabled for offline backup vaults");
+    if(!gov_vault_index_has(v,id,role,sizeof(role),&hp)||strcmp(role,"ONLINE")||!hp)die("requested governance root is not an online signer in this vault");
+    char kd[1024];snprintf(kd,sizeof(kd),"%s/keys/%s",v,id);return privacy_gov_sign_v2_cmd(chain,proposal,kd,out);
+}
 
 
 static long long history_timestamp(const char *line) {
@@ -6832,7 +7534,7 @@ static int reward_epoch_cmd(const char *chain_dir, long long reward, long long c
 
 static int getreward_cmd(const char *chain_dir, long long height) {
     long long h = height >= 0 ? height : current_height_from_chain(chain_dir);
-    long long reward = qrx_chain_get_block_reward_at_height(chain_dir, h, 25000000LL, 12614400LL);
+    long long reward = qrx_chain_get_block_reward_at_height(chain_dir, h, (long long)QRX_INITIAL_BLOCK_REWARD_ATOMS, QRX_HALVING_INTERVAL_BLOCKS);
     printf("height=%lld\nreward_atoms=%lld\n", h, reward);
     return 0;
 }
@@ -6855,8 +7557,8 @@ static int getparams_cmd(const char *chain_dir, long long height) {
     printf("max_txs_per_block=%lld\n", qrx_chain_get_ll_at_height_or_default(chain_dir, h, "max_txs_per_block", 100));
     printf("max_block_bytes=%lld\n", qrx_chain_get_ll_at_height_or_default(chain_dir, h, "max_block_bytes", 524288));
     printf("max_tx_bytes=%lld\n", qrx_chain_get_ll_at_height_or_default(chain_dir, h, "max_tx_bytes", 8192));
-    printf("initial_reward_atoms=%lld\n", qrx_chain_get_ll_at_height_or_default(chain_dir, h, "initial_reward_atoms", qrx_chain_get_ll_at_height_or_default(chain_dir, h, "epoch_reward_atoms", 25000000LL)));
-    printf("halving_interval_blocks=%lld\n", qrx_chain_get_ll_at_height_or_default(chain_dir, h, "halving_interval_blocks", 12614400LL));
+    printf("initial_reward_atoms=%lld\n", qrx_chain_get_ll_at_height_or_default(chain_dir, h, "initial_reward_atoms", qrx_chain_get_ll_at_height_or_default(chain_dir, h, "epoch_reward_atoms", (long long)QRX_INITIAL_BLOCK_REWARD_ATOMS)));
+    printf("halving_interval_blocks=%lld\n", qrx_chain_get_ll_at_height_or_default(chain_dir, h, "halving_interval_blocks", QRX_HALVING_INTERVAL_BLOCKS));
     printf("validator_reward_percent=%lld\n", qrx_chain_get_ll_at_height_or_default(chain_dir, h, "validator_reward_percent", 30));
     printf("delegator_reward_percent=%lld\n", qrx_chain_get_ll_at_height_or_default(chain_dir, h, "delegator_reward_percent", 70));
     printf("network_pool_percent=%lld\n", qrx_chain_get_ll_at_height_or_default(chain_dir, h, "network_pool_percent", 0));
@@ -6914,7 +7616,7 @@ static int getparams_cmd(const char *chain_dir, long long height) {
 
 static int gethalving_cmd(const char *chain_dir, long long height) {
     long long h = height >= 0 ? height : current_height_from_chain(chain_dir);
-    long long next = qrx_chain_get_next_halving_height(chain_dir, h, 12614400LL);
+    long long next = qrx_chain_get_next_halving_height(chain_dir, h, QRX_HALVING_INTERVAL_BLOCKS);
     printf("height=%lld\nnext_halving_height=%lld\nblocks_remaining=%lld\n", h, next, next >= 0 ? (next - h) : -1);
     return 0;
 }
@@ -6940,11 +7642,11 @@ static int getactivefork_cmd(const char *chain_dir, long long height) {
 
 static int tokenomics_cmd(const char *chain_dir) {
     long long current_height = current_height_from_chain(chain_dir);
-    long long max_supply = chain_cfg_ll_or_default(chain_dir, "max_supply_atoms", 2100000000000000LL);
-    long long initial_reward = qrx_chain_get_ll_at_height_or_default(chain_dir, current_height, "initial_reward_atoms", qrx_chain_get_ll_at_height_or_default(chain_dir, current_height, "epoch_reward_atoms", 25000000LL));
+    long long max_supply = chain_cfg_ll_or_default(chain_dir, "max_supply_atoms", (long long)QRX_MAX_SUPPLY_ATOMS);
+    long long initial_reward = qrx_chain_get_ll_at_height_or_default(chain_dir, current_height, "initial_reward_atoms", qrx_chain_get_ll_at_height_or_default(chain_dir, current_height, "epoch_reward_atoms", (long long)QRX_INITIAL_BLOCK_REWARD_ATOMS));
     long long faucet_cap = chain_cfg_ll_or_default(chain_dir, "faucet_cap_atoms", 1000000000000LL);
-    long long current_reward = qrx_chain_get_block_reward_at_height(chain_dir, current_height, 25000000LL, 12614400LL);
-    long long next_halving = qrx_chain_get_next_halving_height(chain_dir, current_height, 12614400LL);
+    long long current_reward = qrx_chain_get_block_reward_at_height(chain_dir, current_height, (long long)QRX_INITIAL_BLOCK_REWARD_ATOMS, QRX_HALVING_INTERVAL_BLOCKS);
+    long long next_halving = qrx_chain_get_next_halving_height(chain_dir, current_height, QRX_HALVING_INTERVAL_BLOCKS);
     printf("max_supply_atoms=%lld\n"
            "initial_reward_atoms=%lld\n"
            "faucet_cap_atoms=%lld\n"
@@ -6958,7 +7660,20 @@ static int tokenomics_cmd(const char *chain_dir) {
            "redistributed_supply=%lld\n"
            "pending_fee_pool_atoms=%lld\n"
            "tx_fee_atoms=%lld\n"
-           "remaining_supply=%lld\n",
+           "remaining_supply=%lld\n"
+           "service_reward_mint_policy=user_funded_no_additional_mint\n"
+           "storage_provider_bps=%llu\n"
+           "storage_resilience_bps=%llu\n"
+           "storage_development_bps=%llu\n"
+           "compute_fasttrack_provider_bps=%u\n"
+           "compute_fasttrack_network_bps=%u\n"
+           "compute_fasttrack_development_bps=%u\n"
+           "compute_fasttrack_max_premium_bps=%u\n"
+           "advertising_delivery_bps=%u\n"
+           "advertising_publisher_bps=%u\n"
+           "advertising_viewer_bps=%u\n"
+           "advertising_protocol_bps=%u\n"
+           "advertising_development_bps=%u\n",
            max_supply, initial_reward, faucet_cap, current_height, current_reward, next_halving,
            supply_get(chain_dir, "minted_supply"),
            supply_get(chain_dir, "faucet_minted"),
@@ -6967,13 +7682,25 @@ static int tokenomics_cmd(const char *chain_dir) {
            supply_get(chain_dir, "redistributed_supply"),
            fee_pool_pending(chain_dir),
            qrx_chain_get_ll_at_height_or_default(chain_dir, current_height, "tx_fee_atoms", 1000),
-           max_supply - supply_get(chain_dir, "minted_supply"));
+           max_supply - supply_get(chain_dir, "minted_supply"),
+           (unsigned long long)QRX_STORAGE_PROVIDER_BUDGET_BPS,
+           (unsigned long long)QRX_STORAGE_RESILIENCE_RESERVE_BPS,
+           (unsigned long long)QRX_STORAGE_DEV_SHARE_BPS,
+           QRX_FASTTRACK_PROVIDER_SHARE_BPS,
+           QRX_FASTTRACK_NETWORK_SHARE_BPS,
+           QRX_FASTTRACK_DEV_SHARE_BPS,
+           QRX_FASTTRACK_MAX_PREMIUM_BPS,
+           QRX_AD_REWARD_DELIVERY_BPS,
+           QRX_AD_REWARD_PUBLISHER_BPS,
+           QRX_AD_REWARD_VIEWER_BPS,
+           QRX_AD_REWARD_PROTOCOL_BPS,
+           QRX_AD_REWARD_DEVELOPMENT_BPS);
     return 0;
 }
 static int reward_epoch_auto_cmd(const char *chain_dir, long long commission_bps, int from_finalized_block_loop) {
     if (!from_finalized_block_loop) require_manual_mint_allowed(chain_dir, "reward-epoch-auto");
     long long height = current_height_from_chain(chain_dir);
-    long long subsidy = qrx_chain_get_block_reward_at_height(chain_dir, height, 25000000LL, 12614400LL);
+    long long subsidy = qrx_chain_get_block_reward_at_height(chain_dir, height, (long long)QRX_INITIAL_BLOCK_REWARD_ATOMS, QRX_HALVING_INTERVAL_BLOCKS);
     long long fees = fee_pool_pending(chain_dir);
     long long dev_share = (long long)qrx_dev_reward_share((uint64_t)subsidy, height);
     long long validator_subsidy = subsidy - dev_share;
@@ -7090,7 +7817,8 @@ static int supply_inv_cb(const char*k,const char*v,uint32_t vl,void*ctx){(void)v
     if(!strncmp(k,"staking:unbonding:",18)||!strncmp(k,"staking:undelegating:",21)) return supply_inv_add(&a->unbonding,x);
     if(!strncmp(k,"consensus:fee_pool:",19)||strstr(k,"treasury")||strstr(k,"prize_pool_atoms")||
        !strcmp(k,"consensus:storage:provider_bonds")||!strcmp(k,"consensus:storage:provider_escrow")||
-       !strcmp(k,"consensus:storage:resilience")||!strcmp(k,"consensus:qrxnet:domain_bonds")) return supply_inv_add(&a->protocol,x); return 0;}
+       !strcmp(k,"consensus:storage:resilience")||!strcmp(k,"consensus:qrxnet:domain_bonds")||
+       !strcmp(k,"consensus:compute:escrow_pool")||!strcmp(k,"consensus:compute:slashing_pool")) return supply_inv_add(&a->protocol,x); return 0;}
 static int supply_invariant_cmd(const char*c){QrxDB db;if(qrxdb_init(&db,c))die("QRXDB init failed");SupplyInvariantAcc a={0};if(qrxdb_scan_prefix(&db,"",supply_inv_cb,&a)){qrxdb_close(&db);die("supply invariant scan failed");}qrxdb_close(&db);
  long long accounted=0,t=0;checked_add_ll(a.balances,a.bonded,"supply accounted",&t);checked_add_ll(t,a.unbonding,"supply accounted",&accounted);checked_add_ll(accounted,a.protocol,"supply accounted",&accounted);
  long long minted=supply_get(c,"minted_supply"),burned=supply_get(c,"burned_supply"),expected=minted-burned;
@@ -7099,12 +7827,20 @@ int qrx_backend_main(int argc, char **argv) {
     OpenSSL_add_all_algorithms();
     if (argc < 2) { usage(); return 1; }
     if (!strcmp(argv[1], "governance-keygen") && argc == 4) return gov_keygen_cmd(argv[2], argv[3]);
+    if (!strcmp(argv[1], "governance-vault-init") && argc == 3) return gov_vault_init_cmd(argv[2]);
+    if (!strcmp(argv[1], "governance-vault-add-online") && argc == 4) return gov_vault_add_online_cmd(argv[2], argv[3]);
+    if (!strcmp(argv[1], "governance-vault-add-offline") && argc == 4) return gov_vault_add_offline_cmd(argv[2], argv[3]);
+    if (!strcmp(argv[1], "governance-vault-status") && argc == 3) return gov_vault_status_cmd(argv[2]);
+    if (!strcmp(argv[1], "governance-vault-sign") && argc == 6) return gov_vault_sign_cmd(argv[2], argv[3], argv[4], argv[5]);
+    if (!strcmp(argv[1], "governance-vault-backup-create") && argc == 8) return gov_vault_backup_create_cmd(argc, argv);
+    if (!strcmp(argv[1], "governance-vault-restore-online") && argc == 5) return gov_vault_restore_online_cmd(argv[2], argv[3], argv[4]);
     if (!strcmp(argv[1], "privacy-attester-keygen") && argc == 4) return attester_keygen_cmd(argv[2], argv[3]);
     if (!strcmp(argv[1], "kyc-provider-keygen") && argc == 4) return kyc_provider_keygen_cmd(argv[2], argv[3]);
     if (!strcmp(argv[1], "governance-genesis-init") && argc >= 6) return gov_genesis_init_cmd(argc, argv);
     if (!strcmp(argv[1], "governance-sign") && argc == 5) return gov_sign_cmd(argv[2], argv[3], argv[4]);
     if (!strcmp(argv[1], "governance-attester-propose") && argc == 8) return gov_attester_propose_cmd(argv[2], argv[3], argv[4], argv[5], argv[6], argv[7]);
     if (!strcmp(argv[1], "governance-protocol-propose") && argc == 8) return gov_protocol_propose_cmd(argv[2], argv[3], argv[4], argv[5], argv[6], argv[7]);
+    if (!strcmp(argv[1], "governance-compute-liveness-propose") && argc == 6) return gov_compute_liveness_propose_cmd(argv[2], argv[3], argv[4], argv[5]);
     if (!strcmp(argv[1], "governance-apply") && argc >= 7) return gov_apply_cmd(argc, argv);
     if (!strcmp(argv[1], "protocol-info") && (argc == 3 || argc == 4)) return gov_protocol_info_cmd(argv[2], argc==4?atoll(argv[3]):-1);
     if (!strcmp(argv[1], "keygen") && argc == 3) return wallet_keygen(argv[2]);
@@ -7120,7 +7856,7 @@ int qrx_backend_main(int argc, char **argv) {
     if (!strcmp(argv[1], "legacy-address") && argc == 3) return legacy_address_cmd(argv[2]);
     if (!strcmp(argv[1], "migrate-address") && argc == 3) return migrate_address_cmd(argv[2]);
     if (!strcmp(argv[1], "state-migrate-address") && argc == 5) return state_migrate_address_cmd(argv[2], argv[3], argv[4]);
-    if (!strcmp(argv[1], "init-chain") && (argc == 3 || argc == 5 || argc == 8 || argc == 12 || argc == 19 || argc == 20)) return chain_init(argv[2], argc >= 4 ? atoll(argv[3]) : 20, argc >= 5 ? atoll(argv[4]) : 5000, argc >= 8 ? atoll(argv[5]) : 2100000000000000LL, argc >= 8 ? atoll(argv[6]) : 25000000LL, argc >= 8 ? atoll(argv[7]) : 0LL, argc >= 12 ? argv[8] : NULL, argc >= 12 ? argv[9] : NULL, argc >= 12 ? argv[10] : NULL, argc >= 12 ? argv[11] : NULL, argc >= 19 ? atoll(argv[12]) : 10, argc >= 19 ? atoll(argv[13]) : 100, argc >= 19 ? atoll(argv[14]) : 524288, argc >= 19 ? atoll(argv[15]) : 8192, argc >= 19 ? atoll(argv[16]) : 70, argc >= 19 ? atoll(argv[17]) : 30, argc >= 19 ? atoll(argv[18]) : 0, argc == 20 ? argv[19] : NULL);
+    if (!strcmp(argv[1], "init-chain") && (argc == 3 || argc == 5 || argc == 8 || argc == 12 || argc == 19 || argc == 20)) return chain_init(argv[2], argc >= 4 ? atoll(argv[3]) : 20, argc >= 5 ? atoll(argv[4]) : 5000, argc >= 8 ? atoll(argv[5]) : (long long)QRX_MAX_SUPPLY_ATOMS, argc >= 8 ? atoll(argv[6]) : (long long)QRX_INITIAL_BLOCK_REWARD_ATOMS, argc >= 8 ? atoll(argv[7]) : 0LL, argc >= 12 ? argv[8] : NULL, argc >= 12 ? argv[9] : NULL, argc >= 12 ? argv[10] : NULL, argc >= 12 ? argv[11] : NULL, argc >= 19 ? atoll(argv[12]) : 10, argc >= 19 ? atoll(argv[13]) : 100, argc >= 19 ? atoll(argv[14]) : 524288, argc >= 19 ? atoll(argv[15]) : 8192, argc >= 19 ? atoll(argv[16]) : 70, argc >= 19 ? atoll(argv[17]) : 30, argc >= 19 ? atoll(argv[18]) : 0, argc == 20 ? argv[19] : NULL);
     if (!strcmp(argv[1], "getreward") && (argc == 3 || argc == 4)) return getreward_cmd(argv[2], argc == 4 ? atoll(argv[3]) : -1);
     if (!strcmp(argv[1], "getparams") && (argc == 3 || argc == 4)) return getparams_cmd(argv[2], argc == 4 ? atoll(argv[3]) : -1);
     if (!strcmp(argv[1], "gethalving") && (argc == 3 || argc == 4)) return gethalving_cmd(argv[2], argc == 4 ? atoll(argv[3]) : -1);
@@ -7163,9 +7899,13 @@ int qrx_backend_main(int argc, char **argv) {
     if (!strcmp(argv[1], "prepare-privacy-payload") && argc == 7) return privacy_prepare_payload_cmd(argv[2], argv[3], argv[4], atoll(argv[5]), argv[6]);
     if (!strcmp(argv[1], "privacy-consensus-balance") && argc == 4) return privacy_consensus_balance_cmd(argv[2], argv[3]);
     if (!strcmp(argv[1], "privacy-credential-issue-v2") && argc == 7) return privacy_credential_issue_v2_cmd(argv[2], argv[3], argv[4], argv[5], atoll(argv[6]));
+    if (!strcmp(argv[1], "governance-protocol-propose-v2") && argc == 9) return gov_protocol_propose_v2_cmd(argv[2], argv[3], atoll(argv[4]), atoll(argv[5]), atoll(argv[6]), atoll(argv[7]), argv[8]);
     if (!strcmp(argv[1], "privacy-governance-propose-v2") && argc == 8) return privacy_gov_propose_v2_cmd(argv[2], argv[3], argv[4], argv[5], argv[6], atoll(argv[7]));
     if (!strcmp(argv[1], "kyc-provider-propose-v2") && argc == 10) return kyc_provider_propose_v2_cmd(argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8], atoll(argv[9]));
     if (!strcmp(argv[1], "kyc-provider-info") && argc == 4) return kyc_provider_info_cmd(argv[2], argv[3]);
+    if (!strcmp(argv[1], "governance-sign-v2") && argc == 6) return privacy_gov_sign_v2_cmd(argv[2], argv[3], argv[4], argv[5]);
+    if (!strcmp(argv[1], "governance-vault-sign-v2") && argc == 7) return gov_vault_sign_v2_cmd(argv[2], argv[3], argv[4], argv[5], argv[6]);
+    if (!strcmp(argv[1], "governance-payload-v2") && argc >= 4) return privacy_gov_payload_v2_cmd(argv[2], argc-3, &argv[3]);
     if (!strcmp(argv[1], "privacy-governance-sign-v2") && argc == 6) return privacy_gov_sign_v2_cmd(argv[2], argv[3], argv[4], argv[5]);
     if (!strcmp(argv[1], "privacy-governance-payload-v2") && argc >= 4) return privacy_gov_payload_v2_cmd(argv[2], argc-3, &argv[3]);
     if (!strcmp(argv[1], "getnonce") && (argc == 4 || argc == 5)) return getnonce_cmd(argv[2], argv[3], argc == 5 ? argv[4] : NULL);

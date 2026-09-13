@@ -1,0 +1,7 @@
+  [PASS] output geometry 21x15
+  [PASS] repeated run is byte-identical
+  [PASS] nearest preserves source pixels
+  [PASS] constant image is preserved exactly (no rounding drift)
+  [PASS] oversized request rejected
+  [PASS] out-of-range scale rejected
+SELFTEST PASS

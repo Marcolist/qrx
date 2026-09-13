@@ -1,0 +1,110 @@
+Internal ctest changing into directory: /mnt/data/qrx_tokenomics_san_build
+Test project /mnt/data/qrx_tokenomics_san_build
+      Start  38: storage_phase106_gossip_streaming
+      Start  56: net_phase123_youth_safety
+ 1/52 Test  #56: net_phase123_youth_safety .................   Passed    0.76 sec
+      Start  36: storage_phase104_drive_runtime
+ 2/52 Test  #36: storage_phase104_drive_runtime ............   Passed    0.39 sec
+      Start  51: net_phase118_hosting_activation
+ 3/52 Test  #51: net_phase118_hosting_activation ...........   Passed    0.32 sec
+      Start  41: storage_phase109_prepare
+ 4/52 Test  #41: storage_phase109_prepare ..................   Passed    0.28 sec
+      Start  47: storage_phase114_repair_runtime
+ 5/52 Test  #47: storage_phase114_repair_runtime ...........   Passed    0.45 sec
+      Start  43: storage_phase111_contract_orchestration
+ 6/52 Test  #43: storage_phase111_contract_orchestration ...   Passed    0.12 sec
+      Start  40: storage_phase108_private_pq
+ 7/52 Test  #40: storage_phase108_private_pq ...............   Passed    0.17 sec
+      Start  42: storage_phase110_prepared_runtime
+ 8/52 Test  #42: storage_phase110_prepared_runtime .........   Passed    0.22 sec
+      Start  14: storage_phase087_erasure
+ 9/52 Test  #38: storage_phase106_gossip_streaming .........   Passed    2.77 sec
+      Start  30: storage_phase097_large_object
+10/52 Test  #14: storage_phase087_erasure ..................   Passed    0.14 sec
+      Start  31: storage_phase099_discovery
+11/52 Test  #30: storage_phase097_large_object .............   Passed    0.13 sec
+      Start  34: storage_phase102_drive_live
+12/52 Test  #34: storage_phase102_drive_live ...............   Passed    0.07 sec
+      Start  48: net_phase115_domain_management
+13/52 Test  #31: storage_phase099_discovery ................   Passed    0.12 sec
+      Start  39: storage_phase107_identity_gossip
+14/52 Test  #48: net_phase115_domain_management ............   Passed    0.06 sec
+      Start  46: storage_phase113_postor_runtime
+15/52 Test  #39: storage_phase107_identity_gossip ..........   Passed    0.05 sec
+      Start  52: net_phase119_browser_fetch
+16/52 Test  #52: net_phase119_browser_fetch ................   Passed    0.06 sec
+      Start  49: net_phase116_site_package
+17/52 Test  #46: storage_phase113_postor_runtime ...........   Passed    0.07 sec
+      Start  55: net_phase122_ad_economy
+18/52 Test  #49: net_phase116_site_package .................   Passed    0.04 sec
+      Start  35: storage_phase103_network_transfer
+19/52 Test  #55: net_phase122_ad_economy ...................   Passed    0.06 sec
+      Start  28: storage_phase095_attestation
+20/52 Test  #35: storage_phase103_network_transfer .........   Passed    0.04 sec
+      Start  45: storage_phase112_provider_activation
+21/52 Test  #28: storage_phase095_attestation ..............   Passed    0.04 sec
+      Start  50: net_phase117_directory_publisher
+22/52 Test  #45: storage_phase112_provider_activation ......   Passed    0.04 sec
+      Start  33: storage_phase101_live_dashboard
+23/52 Test  #50: net_phase117_directory_publisher ..........   Passed    0.11 sec
+      Start  29: storage_phase096_p2p
+24/52 Test  #29: storage_phase096_p2p ......................   Passed    0.10 sec
+      Start  24: net_phase847_site
+25/52 Test  #33: storage_phase101_live_dashboard ...........   Passed    0.19 sec
+      Start  22: net_phase844_registry
+26/52 Test  #24: net_phase847_site .........................   Passed    0.03 sec
+      Start  44: storage_phase098_multifetch
+27/52 Test  #22: net_phase844_registry .....................   Passed    0.03 sec
+      Start   9: storage_phase081_filesystem
+28/52 Test   #9: storage_phase081_filesystem ...............   Passed    0.02 sec
+      Start  26: storage_phase094_consensus
+29/52 Test  #26: storage_phase094_consensus ................   Passed    0.03 sec
+      Start  27: net_phase855_consensus
+30/52 Test  #27: net_phase855_consensus ....................   Passed    0.03 sec
+      Start  21: net_phase844_name
+31/52 Test  #21: net_phase844_name .........................   Passed    0.02 sec
+      Start  32: storage_phase100_resource_dashboard
+32/52 Test  #32: storage_phase100_resource_dashboard .......   Passed    0.02 sec
+      Start  11: storage_phase084_capacity_proof
+33/52 Test  #11: storage_phase084_capacity_proof ...........   Passed    0.03 sec
+      Start  12: storage_phase085_pq_crypto
+34/52 Test  #12: storage_phase085_pq_crypto ................   Passed    0.02 sec
+      Start  13: storage_phase086_manifest
+35/52 Test  #13: storage_phase086_manifest .................   Passed    0.02 sec
+      Start  37: storage_phase105_drive_recovery
+36/52 Test  #37: storage_phase105_drive_recovery ...........   Passed    0.02 sec
+      Start  16: storage_phase089_postor
+37/52 Test  #44: storage_phase098_multifetch ...............   Passed    0.24 sec
+      Start  53: net_phase120_browser_sandbox
+38/52 Test  #16: storage_phase089_postor ...................   Passed    0.02 sec
+      Start  17: storage_phase090_market
+39/52 Test  #53: net_phase120_browser_sandbox ..............   Passed    0.02 sec
+      Start  57: net_phase124_hosting_missions
+40/52 Test  #17: storage_phase090_market ...................   Passed    0.02 sec
+      Start  15: storage_phase088_placement
+41/52 Test  #57: net_phase124_hosting_missions .............   Passed    0.02 sec
+      Start  18: storage_phase091_repair
+42/52 Test  #15: storage_phase088_placement ................   Passed    0.03 sec
+      Start 111: genesis_phase178_tokenomics_policy
+43/52 Test  #18: storage_phase091_repair ...................   Passed    0.02 sec
+      Start  10: storage_phase082_capacity
+44/52 Test #111: genesis_phase178_tokenomics_policy ........   Passed    0.02 sec
+      Start  54: net_phase121_dapp_bridge
+45/52 Test  #10: storage_phase082_capacity .................   Passed    0.02 sec
+      Start  58: net_phase125_final_readiness
+46/52 Test  #58: net_phase125_final_readiness ..............   Passed    0.02 sec
+      Start  25: net_phase854_permissions
+47/52 Test  #54: net_phase121_dapp_bridge ..................   Passed    0.02 sec
+      Start  23: net_phase846_resolver
+48/52 Test  #25: net_phase854_permissions ..................   Passed    0.02 sec
+      Start  19: storage_phase092_atlas
+49/52 Test  #23: net_phase846_resolver .....................   Passed    0.02 sec
+      Start  20: storage_phase093_transport
+50/52 Test  #19: storage_phase092_atlas ....................   Passed    0.02 sec
+      Start   8: resource_phase080_foundation
+51/52 Test  #20: storage_phase093_transport ................   Passed    0.02 sec
+52/52 Test   #8: resource_phase080_foundation ..............   Passed    0.02 sec
+
+100% tests passed, 0 tests failed out of 52
+
+Total Test time (real) =   3.83 sec

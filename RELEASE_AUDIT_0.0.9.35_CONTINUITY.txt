@@ -1,0 +1,16 @@
+removed=0
+added=10
+ADDED IMPLEMENTATION_0.0.9.35.md
+ADDED RELEASE_AUDIT_0.0.9.35.md
+ADDED RELEASE_AUDIT_0.0.9.35_BUILD.log
+ADDED RELEASE_AUDIT_0.0.9.35_CTEST_93_OF_93_PASS.log
+ADDED RELEASE_MANIFEST_0.0.9.35_SHA256.txt
+ADDED qrx-core/IMPLEMENTATION_0.0.9.35.md
+ADDED qrx-core/RELEASE_AUDIT_0.0.9.35.md
+ADDED qrx-core/src/compute/qrx_aura_model_fabric.c
+ADDED qrx-core/src/compute/qrx_aura_model_fabric.h
+ADDED qrx-core/tests/compute_phase160_aura_adaptive_model_fabric.c
+changed=3
+CHANGED QRX_0.0.8_0.0.10_ROADMAP_STORAGE_COMPUTE_OUROBOROS.txt
+CHANGED qrx-core/CMakeLists.txt
+CHANGED qrx-core/QRX_0.0.8_0.0.10_ROADMAP_STORAGE_COMPUTE_OUROBOROS.txt

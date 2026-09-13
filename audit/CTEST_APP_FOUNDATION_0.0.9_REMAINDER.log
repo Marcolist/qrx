@@ -1,0 +1,22 @@
+Internal ctest changing into directory: /mnt/data/qrx_app_foundation_work/build
+Test project /mnt/data/qrx_app_foundation_work/build
+    Start 115: genesis_phase182_onchain_protocol_governance
+1/8 Test #115: genesis_phase182_onchain_protocol_governance ....   Passed    0.81 sec
+    Start 116: genesis_phase183_protocol_readiness_framework
+2/8 Test #116: genesis_phase183_protocol_readiness_framework ...   Passed    0.09 sec
+    Start 117: apps_phase187_upscaler
+3/8 Test #117: apps_phase187_upscaler ..........................   Passed    0.00 sec
+    Start 118: apps_phase188_upscaler_capabilities
+4/8 Test #118: apps_phase188_upscaler_capabilities .............   Passed    0.00 sec
+    Start 119: apps_phase189_qrxapp_foundation
+5/8 Test #119: apps_phase189_qrxapp_foundation .................   Passed    0.59 sec
+    Start 120: genesis_phase184_untrusted_guard_semantics
+6/8 Test #120: genesis_phase184_untrusted_guard_semantics ......   Passed    0.01 sec
+    Start 121: genesis_phase185_remote_malformed_tx_survival
+7/8 Test #121: genesis_phase185_remote_malformed_tx_survival ...   Passed    6.44 sec
+    Start 122: genesis_phase186_untrusted_abort_reachability
+8/8 Test #122: genesis_phase186_untrusted_abort_reachability ...   Passed    0.77 sec
+
+100% tests passed, 0 tests failed out of 8
+
+Total Test time (real) =   8.72 sec

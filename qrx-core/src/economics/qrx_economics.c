@@ -19,3 +19,10 @@ uint64_t qrx_validator_reward_share(uint64_t total_reward_atoms, int64_t block_h
     if(dev > total_reward_atoms) return 0;
     return total_reward_atoms - dev;
 }
+
+uint64_t qrx_asset_burn_from_reward_units(uint64_t block_reward_atoms, uint64_t reward_units) {
+    if (!reward_units) return 0;
+    if (!block_reward_atoms) return reward_units; /* 1 atom per reward unit floor after subsidy exhaustion. */
+    if (block_reward_atoms > UINT64_MAX / reward_units) return UINT64_MAX;
+    return block_reward_atoms * reward_units;
+}

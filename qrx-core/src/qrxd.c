@@ -4,9 +4,13 @@
 #define _GNU_SOURCE
 #include "core_frontend.h"
 #include "resource/qrx_resource_live.h"
+#include "resource/qrx_activation_readiness.h"
 #include "resource/qrx_drive_live.h"
 #include "resource/qrx_storage_consensus.h"
 #include "resource/qrx_storage_repair.h"
+#include "compute/qrx_aura_fabric_gossip.h"
+#include "compute/qrx_compute_provider_identity.h"
+#include "compute/qrx_aura_runtime_delivery.h"
 #include "storage/qrx_drive_runtime.h"
 #include "storage/qrx_drive_prepare.h"
 #include "storage/qrx_drive_contract.h"
@@ -333,6 +337,128 @@ static void dirname_of(const char *path, char *out, size_t out_sz){
 #endif
     if(slash) { *slash = 0; if(!*out) snprintf(out, out_sz, "/"); }
     else snprintf(out, out_sz, ".");
+}
+
+
+static uint64_t qrxnet_height(void);
+
+static int qrx_path_readable(const char *p) {
+    if(!p || !*p) return 0;
+#ifdef _WIN32
+    return _access(p, 4) == 0;
+#else
+    return access(p, R_OK) == 0;
+#endif
+}
+
+static EVP_PKEY *qrx_load_public_key_file(const char *path) {
+    if(!path || !*path) return NULL;
+    FILE *f = fopen(path, "rb");
+    if(!f) return NULL;
+    EVP_PKEY *k = PEM_read_PUBKEY(f, NULL, NULL, NULL);
+    fclose(f);
+    return k;
+}
+
+static QrxAuraPowerProfile qrx_aura_power_profile_from_env(void) {
+    const char *v = getenv("QRX_AURA_POWER_PROFILE");
+    if(v && !strcmp(v, "eco")) return QRX_AURA_POWER_ECO;
+    if(v && !strcmp(v, "performance")) return QRX_AURA_POWER_PERFORMANCE;
+    return QRX_AURA_POWER_BALANCED;
+}
+
+static void qrx_aura_runtime_resource_defaults(const char *argv0,
+                                                char catalog[PATH_MAX],
+                                                char pubkey[PATH_MAX]) {
+    const char *ce = getenv("QRX_AURA_RUNTIME_CATALOG");
+    const char *ke = getenv("QRX_AURA_RUNTIME_PUBLISHER_KEY");
+    if(ce && *ce) snprintf(catalog, PATH_MAX, "%s", ce); else catalog[0] = 0;
+    if(ke && *ke) snprintf(pubkey, PATH_MAX, "%s", ke); else pubkey[0] = 0;
+    if(catalog[0] && pubkey[0]) return;
+    char dir[PATH_MAX]; dirname_of(argv0, dir, sizeof(dir));
+#ifdef _WIN32
+    if(!catalog[0]) snprintf(catalog, PATH_MAX, "%s\\aura\\official-runtime-catalog.qrx", dir);
+    if(!pubkey[0]) snprintf(pubkey, PATH_MAX, "%s\\aura\\official-runtime-publisher.pem", dir);
+#else
+    if(!catalog[0]) snprintf(catalog, PATH_MAX, "%s/aura/official-runtime-catalog.qrx", dir);
+    if(!pubkey[0]) snprintf(pubkey, PATH_MAX, "%s/aura/official-runtime-publisher.pem", dir);
+#endif
+}
+
+/* Best-effort zero-touch AURA runtime bootstrap. A missing release catalog/key
+ * never prevents the node from starting; it only leaves AURA AUTO pending.
+ * A present but invalid/tampered package fails closed and is not activated. */
+static int qrx_aura_runtime_bootstrap_startup(const char *argv0) {
+    const char *host_path = getenv("QRX_AURA_PROVIDER_CONFIG");
+    if(!host_path || !*host_path || !qrx_path_readable(host_path)) return 1;
+
+    QrxAuraProviderHostConfig host;
+    if(qrx_aura_provider_host_config_load(host_path, &host) != 0 || !host.enabled) return 1;
+    if(host.runtime_adapter.kind != QRX_AURA_ADAPTER_AUTO && host.runtime_adapter.explicit_path[0]) return 2;
+
+    char catalog[PATH_MAX], pubkey_path[PATH_MAX];
+    qrx_aura_runtime_resource_defaults(argv0, catalog, pubkey_path);
+    if(!qrx_path_readable(catalog) || !qrx_path_readable(pubkey_path)) {
+        fprintf(stderr, "AURA: AUTO runtime catalog/key not packaged yet; provider remains pending\n");
+        return 3;
+    }
+
+    EVP_PKEY *pubkey = qrx_load_public_key_file(pubkey_path);
+    if(!pubkey) {
+        fprintf(stderr, "AURA: could not load official runtime publisher key; AUTO runtime disabled\n");
+        return -1;
+    }
+
+    char cache_dir[PATH_MAX], work_dir[PATH_MAX], install_dir[PATH_MAX];
+#ifdef _WIN32
+    snprintf(cache_dir, sizeof(cache_dir), "%s\\aura-runtime-cas", g_ndir);
+    snprintf(work_dir, sizeof(work_dir), "%s\\aura-runtime-work", g_ndir);
+    snprintf(install_dir, sizeof(install_dir), "%s\\aura-runtimes", g_ndir);
+#else
+    snprintf(cache_dir, sizeof(cache_dir), "%s/aura-runtime-cas", g_ndir);
+    snprintf(work_dir, sizeof(work_dir), "%s/aura-runtime-work", g_ndir);
+    snprintf(install_dir, sizeof(install_dir), "%s/aura-runtimes", g_ndir);
+#endif
+    if(qrx_mkdir_simple(cache_dir) || qrx_mkdir_simple(work_dir) || qrx_mkdir_simple(install_dir)) {
+        EVP_PKEY_free(pubkey);
+        fprintf(stderr, "AURA: could not create runtime directories\n");
+        return -2;
+    }
+
+    QrxStorageFs *cache = NULL;
+    if(qrx_storage_fs_open(cache_dir, 0, 0, &cache) != 0) {
+        EVP_PKEY_free(pubkey);
+        fprintf(stderr, "AURA: could not open runtime CAS\n");
+        return -3;
+    }
+
+    QrxAuraRuntimeDeliveryContext delivery;
+    qrx_aura_runtime_delivery_defaults(&delivery, work_dir);
+    delivery.local_cache = cache;
+    delivery.allow_https_origin = 1;
+    delivery.allow_file_origin = 0;
+
+    QrxAuraRuntimeProbeActivation probe;
+    memset(&probe, 0, sizeof(probe));
+    probe.model_cache = NULL; /* plugin ABI probe does not load a model */
+    QrxAuraRuntimeSinglePublisherKey key = { "qrx:runtime:official", pubkey };
+    QrxAuraRuntimeOneClickResult result;
+    memset(&result, 0, sizeof(result));
+    uint64_t height = qrxnet_height();
+    int rc = qrx_aura_runtime_auto_bootstrap(host_path, catalog, height,
+                                              qrx_aura_power_profile_from_env(), install_dir,
+                                              qrx_aura_runtime_single_publisher_lookup, &key,
+                                              &delivery, &probe, &result);
+    if(rc == 0) {
+        fprintf(stderr, "AURA: AUTO runtime activated package=%s path=%s\n",
+                result.plan.package.package_id, result.installed_path);
+    } else if(rc < 0) {
+        fprintf(stderr, "AURA: AUTO runtime bootstrap rejected (%d); no unverified runtime activated\n", rc);
+    }
+    qrx_aura_runtime_probe_activation_close(&probe);
+    qrx_storage_fs_close(cache);
+    EVP_PKEY_free(pubkey);
+    return rc;
 }
 
 static void build_backend_path(const char *argv0){
@@ -1113,6 +1239,26 @@ static int parse_rpc_bind_arg(const char *arg) {
     return 0;
 }
 
+/* Genesis hardening (Finding 3): explicit send/receive timeouts on an accepted
+ * socket. Listener-level timeouts are not portably inherited by accept(), so a
+ * peer that opens a connection and then stalls would otherwise pin the
+ * single-threaded RPC loop indefinitely. */
+#define QRX_RPC_SOCKET_TIMEOUT_SECS 10
+
+static void qrx_rpc_set_socket_timeouts(qrx_socket_t fd) {
+#ifdef _WIN32
+    DWORD tv = QRX_RPC_SOCKET_TIMEOUT_SECS * 1000;
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof(tv));
+#else
+    struct timeval tv;
+    tv.tv_sec = QRX_RPC_SOCKET_TIMEOUT_SECS;
+    tv.tv_usec = 0;
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const void*)&tv, sizeof(tv));
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const void*)&tv, sizeof(tv));
+#endif
+}
+
 static int rpc_bind_is_ipv4_loopback(const char *host) {
     struct in_addr addr;
     if(!host || inet_pton(AF_INET, host, &addr) != 1) return 0;
@@ -1120,8 +1266,22 @@ static int rpc_bind_is_ipv4_loopback(const char *host) {
     return octets[0] == 127;
 }
 
+/* Genesis hardening (Finding 2): on Mainnet the wallet RPC is loopback-only.
+ * Remote administration must go through an SSH tunnel or VPN, never through a
+ * directly exposed RPC port. */
+static int qrx_rpc_is_mainnet(void) {
+    return g_network[0] && strstr(g_network, "mainnet") == g_network;
+}
+
 static int validate_rpc_exposure(void) {
     if(rpc_bind_is_ipv4_loopback(g_rpc_bind)) return 0;
+    if(qrx_rpc_is_mainnet()) {
+        fprintf(stderr,
+            "SECURITY: refusing non-loopback RPC bind %s:%d on Mainnet. "
+            "Mainnet wallet RPC is loopback-only; use an SSH tunnel or VPN for remote administration.\n",
+            g_rpc_bind, g_rpc_port);
+        return -1;
+    }
     if(!g_allow_remote_rpc) {
         fprintf(stderr,
             "SECURITY: refusing non-loopback RPC bind %s:%d. "
@@ -1321,6 +1481,27 @@ static void handle_json_rpc_http(const char *req, char *resp, size_t resp_sz) {
 }
 
 
+static int aura_hex32(const char *hex,unsigned char out[32]){
+    if(!hex||strlen(hex)!=64)return -1;for(size_t i=0;i<32;i++){char a=hex[i*2],b=hex[i*2+1];int hi=(a>='0'&&a<='9')?a-'0':(a>='a'&&a<='f')?a-'a'+10:(a>='A'&&a<='F')?a-'A'+10:-1;int lo=(b>='0'&&b<='9')?b-'0':(b>='a'&&b<='f')?b-'a'+10:(b>='A'&&b<='F')?b-'A'+10:-1;if(hi<0||lo<0)return -1;out[i]=(unsigned char)((hi<<4)|lo);}return 0;
+}
+static int aura_gov_root_lookup_qrxd(const char *chain,const char *id,char pubhex[65]){
+    if(!chain||!id||!pubhex)return -1;char cnt[64];if(qrx_chain_get_value(chain,"governance_root_count",cnt,sizeof(cnt))==0){long long n=atoll(cnt);for(long long i=1;i<=n&&i<=32;i++){char kk[128],pkkey[128],kid[128],pk[128];snprintf(kk,sizeof(kk),"governance_root_%lld_key_id",i);snprintf(pkkey,sizeof(pkkey),"governance_root_%lld_public_key_hex",i);if(qrx_chain_get_value(chain,kk,kid,sizeof(kid))==0&&qrx_chain_get_value(chain,pkkey,pk,sizeof(pk))==0&&!strcmp(kid,id)&&strlen(pk)==64){memcpy(pubhex,pk,64);pubhex[64]=0;return 0;}}char net[64]={0};if(qrx_chain_get_value(chain,"network_id",net,sizeof(net))==0&&!strcmp(net,"mainnet"))return -1;}
+    char path[PATH_MAX],line[512];snprintf(path,sizeof(path),"%s/governance/governance_roots.db",chain);FILE*f=fopen(path,"rb");if(!f)return -1;int rc=-1;while(fgets(line,sizeof(line),f)){if(line[0]=='#')continue;char k[128]={0},pk[65]={0},fp[33]={0},st[16]={0};if(sscanf(line,"%127[^|]|%64[^|]|%32[^|]|%15s",k,pk,fp,st)==4&&!strcmp(k,id)&&!strcmp(st,"ACTIVE")){snprintf(pubhex,65,"%s",pk);rc=0;break;}}fclose(f);return rc;
+}
+static int aura_gov_key_lookup_qrxd(void *ctx,const char *id,EVP_PKEY **out){
+    char pk[65];unsigned char raw[32];if(!ctx||!id||!out||aura_gov_root_lookup_qrxd((const char*)ctx,id,pk)||aura_hex32(pk,raw))return -1;EVP_PKEY*k=EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519,NULL,raw,sizeof(raw));if(!k)return -1;*out=k;return 0;
+}
+static int aura_gov_authorize_qrxd(void *ctx,const char *id){char pk[65];return (!ctx||!id||aura_gov_root_lookup_qrxd((const char*)ctx,id,pk))?-1:0;}
+static uint64_t aura_live_height_qrxd(void){char b[PATH_MAX];snprintf(b,sizeof(b),"%s/blocks",g_cdir);return (uint64_t)count_regular_files(b);}
+static int aura_compute_key_lookup_qrxd(void *ctx,const char *provider_id,EVP_PKEY **out){
+    if(!ctx||!provider_id||!out) return -1;
+    if(qrx_compute_provider_identity_key_lookup(ctx,provider_id,out)==0) return 0;
+    return qrx_storage_provider_discovery_key_lookup(ctx,provider_id,out);
+}
+static int aura_live_load_qrxd(QrxAuraPodGossipTable *pods,QrxAuraModelGossipTable *models,uint64_t *height){
+    if(!pods||!models)return -1;qrx_aura_pod_gossip_init(pods);qrx_aura_model_gossip_init(models);uint64_t h=aura_live_height_qrxd();char pc[PATH_MAX],mc[PATH_MAX];snprintf(pc,sizeof(pc),"%s/aura-pod-gossip.cache",g_cdir);snprintf(mc,sizeof(mc),"%s/aura-model-gossip.cache",g_cdir);QrxDB db;if(qrxdb_init(&db,g_cdir)!=0)return -1;(void)qrx_aura_pod_gossip_cache_load(pods,pc,h,aura_compute_key_lookup_qrxd,&db);qrxdb_close(&db);(void)qrx_aura_model_gossip_cache_load(models,mc,h,aura_gov_key_lookup_qrxd,g_cdir,aura_gov_authorize_qrxd,g_cdir);qrx_aura_pod_gossip_prune(pods,h);qrx_aura_model_gossip_prune(models,h);if(height)*height=h;return 0;
+}
+
 static int drive_discovery_reload(QrxDB *db){
     if(!db)return -1; char bdir[PATH_MAX],cache[PATH_MAX];snprintf(bdir,sizeof(bdir),"%s/blocks",g_cdir);g_drive_discovery_height=(uint64_t)count_regular_files(bdir);
     snprintf(cache,sizeof(cache),"%s/storage-discovery.cache",g_cdir);QrxStorageDiscoveryTable fresh;qrx_storage_discovery_init(&fresh);
@@ -1391,6 +1572,30 @@ static int handle_command(const char *cmdline, char *resp, size_t resp_sz){
         json_string(net,sizeof(net),g_network); json_string(datadir,sizeof(datadir),g_base); json_string(chain,sizeof(chain),g_cdir); json_string(wallet,sizeof(wallet),g_wdir); json_string(node,sizeof(node),g_ndir); json_string(sock,sizeof(sock),g_sock);
         snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"getinfo\",\"result\":{\"network\":%s,\"datadir\":%s,\"chain_dir\":%s,\"wallet_dir\":%s,\"node_dir\":%s,\"control_socket\":%s,\"node_pid\":%ld}}\n", net, datadir, chain, wallet, node, sock, (long)g_node_pid);
         return 0;
+    }
+    if(!strcmp(args[0], "getaurafabric")){
+        QrxAuraPodGossipTable pods;QrxAuraModelGossipTable models;uint64_t h=0;if(aura_live_load_qrxd(&pods,&models,&h)){json_error(resp,resp_sz,"getaurafabric","AURA gossip state unavailable");return 0;}QrxAuraFabricSnapshot snap;QrxAuraGlobeCell*cells=NULL;size_t cn=0;if(qrx_aura_gossip_live_snapshot(&pods,&models,h,3,&snap,&cells,&cn)){qrx_aura_pod_gossip_free(&pods);qrx_aura_model_gossip_free(&models);json_error(resp,resp_sz,"getaurafabric","AURA fabric snapshot failed");return 0;}
+        snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"getaurafabric\",\"result\":{\"height\":%llu,\"providers\":%llu,\"pods\":%llu,\"inference_pods\":%llu,\"utility_pods\":%llu,\"ai_milli_tokens_per_second\":%llu,\"free_memory_bytes\":%llu,\"model_cache_free_bytes\":%llu,\"avg_latency_ms\":%u,\"avg_utilization_bps\":%u,\"avg_reliability_bps\":%u,\"avg_cache_hit_bps\":%u,\"avg_expert_locality_bps\":%u,\"k2_readiness_bps\":%u,\"k3_readiness_bps\":%u,\"max_ready_tier\":\"%s\",\"visible_regions\":%u,\"hidden_regions\":%u,\"active_model_profiles\":%llu}}\n",(unsigned long long)h,(unsigned long long)snap.provider_count,(unsigned long long)snap.total_pods,(unsigned long long)snap.inference_pods,(unsigned long long)snap.utility_pods,(unsigned long long)snap.ai_milli_tokens_per_second,(unsigned long long)snap.free_memory_bytes,(unsigned long long)snap.model_cache_free_bytes,snap.avg_latency_ms,snap.avg_utilization_bps,snap.avg_reliability_bps,snap.avg_cache_hit_bps,snap.avg_expert_locality_bps,snap.k2_readiness_bps,snap.k3_readiness_bps,qrx_aura_tier_name(snap.max_ready_tier),snap.visible_regions,snap.hidden_regions,(unsigned long long)models.count);qrx_aura_globe_free(cells);qrx_aura_pod_gossip_free(&pods);qrx_aura_model_gossip_free(&models);return 0;
+    }
+    if(!strcmp(args[0], "getauraatlas")){
+        QrxAuraPodGossipTable pods;QrxAuraModelGossipTable models;uint64_t h=0;if(aura_live_load_qrxd(&pods,&models,&h)){json_error(resp,resp_sz,"getauraatlas","AURA gossip state unavailable");return 0;}QrxAuraFabricSnapshot snap;QrxAuraGlobeCell*cells=NULL;size_t cn=0;if(qrx_aura_gossip_live_snapshot(&pods,&models,h,3,&snap,&cells,&cn)){qrx_aura_pod_gossip_free(&pods);qrx_aura_model_gossip_free(&models);json_error(resp,resp_sz,"getauraatlas","AURA atlas failed");return 0;}size_t off=0;off+=(size_t)snprintf(resp+off,resp_sz-off,"{\"ok\":true,\"method\":\"getauraatlas\",\"result\":{\"height\":%llu,\"privacy_min_providers\":3,\"hidden_region_count\":%u,\"regions\":[",(unsigned long long)h,snap.hidden_regions);int first=1;for(size_t i=0;i<cn&&off+900<resp_sz;i++){if(!cells[i].publicly_visible)continue;char rjs[256];json_string(rjs,sizeof(rjs),cells[i].region);off+=(size_t)snprintf(resp+off,resp_sz-off,"%s{\"region\":%s,\"providers\":%llu,\"pods\":%llu,\"inference_pods\":%llu,\"utility_pods\":%llu,\"free_memory_bytes\":%llu,\"model_cache_free_bytes\":%llu,\"ai_milli_tokens_per_second\":%llu,\"avg_latency_ms\":%u,\"avg_utilization_bps\":%u,\"avg_reliability_bps\":%u,\"avg_cache_hit_bps\":%u,\"avg_expert_locality_bps\":%u,\"k2_readiness_bps\":%u,\"k3_readiness_bps\":%u}",first?"":",",rjs,(unsigned long long)cells[i].provider_count,(unsigned long long)cells[i].pod_count,(unsigned long long)cells[i].inference_pods,(unsigned long long)cells[i].utility_pods,(unsigned long long)cells[i].free_memory_bytes,(unsigned long long)cells[i].model_cache_free_bytes,(unsigned long long)cells[i].ai_milli_tokens_per_second,cells[i].avg_latency_ms,cells[i].avg_utilization_bps,cells[i].avg_reliability_bps,cells[i].avg_cache_hit_bps,cells[i].avg_expert_locality_bps,cells[i].k2_readiness_bps,cells[i].k3_readiness_bps);first=0;}snprintf(resp+off,resp_sz-off,"]}}\n");qrx_aura_globe_free(cells);qrx_aura_pod_gossip_free(&pods);qrx_aura_model_gossip_free(&models);return 0;
+    }
+    if(!strcmp(args[0], "listauramodels")){
+        QrxAuraPodGossipTable pods;QrxAuraModelGossipTable models;uint64_t h=0;if(aura_live_load_qrxd(&pods,&models,&h)){json_error(resp,resp_sz,"listauramodels","AURA gossip state unavailable");return 0;}size_t off=0;off+=(size_t)snprintf(resp+off,resp_sz-off,"{\"ok\":true,\"method\":\"listauramodels\",\"result\":{\"height\":%llu,\"models\":[",(unsigned long long)h);for(size_t i=0;i<models.count&&off+1100<resp_sz;i++){const QrxAuraModelProfileAnnouncement*a=&models.entries[i].announcement;char id[300],ver[160],fam[256],rt[256],q[128],pub[300],commit[180];json_string(id,sizeof(id),a->profile.model_id);json_string(ver,sizeof(ver),a->profile.model_version);json_string(fam,sizeof(fam),a->profile.family);json_string(rt,sizeof(rt),a->profile.runtime_id);json_string(q,sizeof(q),a->profile.quantization);json_string(pub,sizeof(pub),a->publisher_id);json_string(commit,sizeof(commit),a->model_registry_commitment);off+=(size_t)snprintf(resp+off,resp_sz-off,"%s{\"model_id\":%s,\"version\":%s,\"family\":%s,\"runtime\":%s,\"quantization\":%s,\"tier\":\"%s\",\"quality_bps\":%u,\"min_memory_bytes\":%llu,\"min_pods\":%u,\"publisher\":%s,\"registry_commitment\":%s,\"valid_until_height\":%llu}",i?",":"",id,ver,fam,rt,q,qrx_aura_tier_name(a->profile.tier),a->profile.quality_bps,(unsigned long long)a->profile.min_memory_bytes,a->profile.min_pods,pub,commit,(unsigned long long)a->valid_until_height);}snprintf(resp+off,resp_sz-off,"]}}\n");qrx_aura_pod_gossip_free(&pods);qrx_aura_model_gossip_free(&models);return 0;
+    }
+    if(!strcmp(args[0], "getprotocolreadiness")){
+        if(argc!=2){json_error(resp,resp_sz,"getprotocolreadiness","usage: getprotocolreadiness FEATURE_FLAG");return 0;}
+        char bdir[PATH_MAX];snprintf(bdir,sizeof(bdir),"%s/blocks",g_cdir);uint64_t h=(uint64_t)count_regular_files(bdir);QrxProtocolActivationReadiness r;
+        if(qrx_protocol_activation_readiness(g_cdir,args[1],h,(int64_t)time(NULL),&r)!=0){json_error(resp,resp_sz,"getprotocolreadiness","unsupported feature or readiness unavailable");return 0;}
+        char fjs[128],why[512];json_string(fjs,sizeof(fjs),r.feature_flag);json_string(why,sizeof(why),r.blocking_reason);
+        snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"getprotocolreadiness\",\"result\":{\"feature\":%s,\"status\":\"%s\",\"ready\":%s,\"current_height\":%llu,\"target_time\":%lld,\"activation_height\":%lld,\"dependencies_active\":%u,\"dependencies_required\":%u,\"criteria_passed\":%u,\"criteria_required\":%u,\"readiness_bps\":%u,\"soak_blocks\":%llu,\"required_soak_blocks\":%llu,\"serving_providers\":%llu,\"mature_attested_providers\":%llu,\"independent_operators\":%llu,\"independent_asns\":%llu,\"visible_regions\":%llu,\"proven_bytes\":%llu,\"active_contracts\":%llu,\"active_domains\":%llu,\"compute_providers\":%llu,\"compute_safety_flags\":%u,\"avg_availability_bps\":%u,\"avg_proof_success_bps\":%u,\"health_score\":%u,\"blocking_reason\":%s}}\n",
+            fjs,qrx_protocol_readiness_status_name(r.status),r.status==QRX_PROTOCOL_READINESS_READY_FOR_GOVERNANCE?"true":"false",(unsigned long long)r.current_height,(long long)r.target_time,(long long)r.activation_height,r.dependencies_active,r.dependencies_required,r.criteria_passed,r.criteria_required,r.readiness_bps,(unsigned long long)r.soak_blocks,(unsigned long long)r.required_soak_blocks,(unsigned long long)r.serving_providers,(unsigned long long)r.mature_attested_providers,(unsigned long long)r.independent_operators,(unsigned long long)r.independent_asns,(unsigned long long)r.visible_regions,(unsigned long long)r.proven_bytes,(unsigned long long)r.active_contracts,(unsigned long long)r.active_domains,(unsigned long long)r.compute_providers,r.compute_safety_flags,r.avg_availability_bps,r.avg_proof_success_bps,r.health_score,why);return 0;
+    }
+    if(!strcmp(args[0], "getdriveactivationreadiness")){
+        char bdir[PATH_MAX];snprintf(bdir,sizeof(bdir),"%s/blocks",g_cdir);uint64_t h=(uint64_t)count_regular_files(bdir);QrxDriveActivationReadiness r;
+        if(qrx_drive_activation_readiness(g_cdir,h,(int64_t)time(NULL),&r)!=0){json_error(resp,resp_sz,"getdriveactivationreadiness","readiness unavailable");return 0;}
+        snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"getdriveactivationreadiness\",\"result\":{\"status\":\"%s\",\"ready\":%s,\"current_height\":%llu,\"target_time\":%lld,\"activation_height\":%lld,\"criteria_passed\":%u,\"criteria_required\":%u,\"serving_providers\":%llu,\"required_providers\":%llu,\"mature_attested_providers\":%llu,\"independent_operators\":%llu,\"required_operators\":%llu,\"independent_asns\":%llu,\"required_asns\":%llu,\"visible_regions\":%llu,\"required_regions\":%llu,\"proven_bytes\":%llu,\"required_proven_bytes\":%llu,\"avg_availability_bps\":%u,\"required_availability_bps\":%u,\"avg_proof_success_bps\":%u,\"required_proof_bps\":%u,\"health_score\":%u,\"required_health_score\":%u,\"soak_blocks\":%llu,\"required_soak_blocks\":%llu,\"preflight_only_before_activation\":true}}\n",
+            qrx_drive_readiness_status_name(r.status),r.status==QRX_DRIVE_READINESS_READY?"true":"false",(unsigned long long)r.current_height,(long long)r.target_time,(long long)r.activation_height,r.criteria_passed,r.criteria_required,(unsigned long long)r.serving_providers,(unsigned long long)QRX_DRIVE_READINESS_MIN_PROVIDERS,(unsigned long long)r.mature_attested_providers,(unsigned long long)r.independent_operators,(unsigned long long)QRX_DRIVE_READINESS_MIN_OPERATORS,(unsigned long long)r.independent_asns,(unsigned long long)QRX_DRIVE_READINESS_MIN_ASNS,(unsigned long long)r.visible_regions,(unsigned long long)QRX_DRIVE_READINESS_MIN_REGIONS,(unsigned long long)r.proven_bytes,(unsigned long long)QRX_DRIVE_READINESS_MIN_PROVEN_BYTES,r.avg_availability_bps,QRX_DRIVE_READINESS_MIN_AVAILABILITY_BPS,r.avg_proof_success_bps,QRX_DRIVE_READINESS_MIN_PROOF_BPS,r.health_score,QRX_DRIVE_READINESS_MIN_HEALTH_SCORE,(unsigned long long)r.soak_blocks,(unsigned long long)r.soak_blocks_required);return 0;
     }
     if(!strcmp(args[0], "getresourcedashboard")){
         QrxResourceDashboardSnapshot d; QrxStorageAtlasCell *cells=NULL; size_t cn=0;
@@ -2303,6 +2508,7 @@ int main(int argc, char **argv){
     configure_wallet_passphrase(network);
     build_backend_path(argv[0]);
     if(qrx_ensure_node(network,datadir,wallet,listen_arg,addnodes,addnode_count,g_base,sizeof(g_base),g_cdir,sizeof(g_cdir),g_wdir,sizeof(g_wdir),g_ndir,sizeof(g_ndir))!=0){ fprintf(stderr,"qrxd: failed to initialize\n"); return 1; }
+    (void)qrx_aura_runtime_bootstrap_startup(argv[0]);
     qrx_storage_discovery_init(&g_drive_discovery);
     {QrxDB ddb;if(qrxdb_init(&ddb,g_cdir)==0){drive_discovery_reload(&ddb);qrxdb_close(&ddb);}}
     char drive_journal_dir[PATH_MAX]; snprintf(drive_journal_dir,sizeof(drive_journal_dir),"%s/drive-transfers",g_ndir);
@@ -2342,15 +2548,30 @@ qrx_wsa_init_once();
     if(listen(s, 16) != 0){ fprintf(stderr, "listen rpc failed\n"); return 1; }
     printf("qrxd running network=%s datadir=%s node=%s rpc=%s node_pid=%ld blocktime=%d commission_bps=%lld auth=%s overrides=%s validator_fleet=%d\n", g_network, g_base, g_ndir, g_sock, (long)g_node_pid, g_blocktime_seconds, g_commission_bps, (g_rpc_user[0]||g_rpc_password[0]) ? "enabled" : "disabled", profile->allow_runtime_overrides ? "allowed" : "disabled", g_validator_wallet_count);
     while(g_running){
-        qrx_socket_t fd = accept(s, NULL, NULL);
+        struct sockaddr_in peer;
+        socklen_t peerlen = sizeof(peer);
+        memset(&peer, 0, sizeof(peer));
+        qrx_socket_t fd = accept(s, (struct sockaddr*)&peer, &peerlen);
 #ifdef _WIN32
         if(fd == INVALID_SOCKET) break;
 #else
         if(fd < 0){ if(errno == EINTR) continue; break; }
 #endif
+        /* Genesis hardening (Finding 3): listener timeouts are not reliably
+         * inherited by accepted sockets on every platform. Without an explicit
+         * timeout a peer that sends one byte and then stalls blocks this
+         * single-threaded RPC loop forever (Slowloris). */
+        qrx_rpc_set_socket_timeouts(fd);
+
+        /* Genesis hardening (Finding 2): the legacy plaintext control channel
+         * has no authentication whatsoever. Restrict it to loopback peers. */
+        int peer_is_loopback = (peer.sin_family == AF_INET) &&
+            ((ntohl(peer.sin_addr.s_addr) >> 24) == 127);
+
         char cmd[196608];
         size_t cmd_off = 0;
         size_t expected_total = 0;
+        int oversized_body = 0;
         for(;;){
 #ifdef _WIN32
             int n = recv(fd, cmd + cmd_off, (int)(sizeof(cmd)-1-cmd_off), 0);
@@ -2371,7 +2592,7 @@ qrx_wsa_init_once();
                         cl += strlen("Content-Length:");
                         while(*cl==' '||*cl=='\t') cl++;
                         unsigned long long body_len = strtoull(cl,NULL,10);
-                        if(body_len > sizeof(cmd)-1-hdr_len){ expected_total=sizeof(cmd); }
+                        if(body_len > sizeof(cmd)-1-hdr_len){ oversized_body = 1; break; }
                         else expected_total=hdr_len+(size_t)body_len;
                     } else expected_total=hdr_len;
                 }
@@ -2384,9 +2605,31 @@ qrx_wsa_init_once();
         cmd[cmd_off] = 0;
         char resp[196608];
         int stop_after = 0;
+        if(oversized_body) {
+            /* Genesis hardening (Finding 2): reject instead of silently
+             * truncating an over-long request body. */
+            http_response(resp, sizeof(resp), 413,
+                          "{\"ok\":false,\"error\":\"request body too large\"}\n", 0);
+            write_all(fd, resp, strlen(resp));
+#ifdef _WIN32
+            closesocket(fd);
+#else
+            close(fd);
+#endif
+            continue;
+        }
         if(strstr(cmd, "POST ") == cmd || strstr(cmd, "OPTIONS ") == cmd || strstr(cmd, "GET ") == cmd) {
             handle_json_rpc_http(cmd, resp, sizeof(resp));
             if(strstr(cmd, "\"method\"") && strstr(cmd, "\"stop\"")) stop_after = 1;
+        } else if(!peer_is_loopback) {
+            /* Unauthenticated plaintext control commands must never be served
+             * to a remote peer: this path bypasses token and HTTP auth. */
+            snprintf(resp, sizeof(resp),
+                     "ERR legacy plaintext RPC is loopback-only\n");
+        } else if(qrx_rpc_is_mainnet()) {
+            /* Disabled entirely on Mainnet; use authenticated HTTP JSON-RPC. */
+            snprintf(resp, sizeof(resp),
+                     "ERR legacy plaintext RPC is disabled on mainnet; use authenticated HTTP JSON-RPC\n");
         } else {
             stop_after = handle_command(cmd, resp, sizeof(resp));
         }

@@ -1,3 +1,15 @@
+# QRX 0.0.9 Final Source Snapshot
+
+**Roadmap closeout:** 0.0.9.45-0.0.9.49 complete on 2026-09-11.  
+**Registered Core regression:** 108/108 PASS (including Genesis Freeze AURA real-model bootstrap).  
+**Canonical handbook:** `docs/QRX_A_TO_Z_0.0.9.md` (also HTML/PDF in the release).
+
+Highlights of the final 0.0.9 AURA block include zero-config model discovery/replication, autonomous expert placement and repair, provider supervision/relay failover, signed runtime packages and hardware auto-detection, model provenance/license governance, heterogeneous quality/cost/energy routing, release readiness gates and an automated GUI-to-documentation coverage gate.
+
+> Validation boundary: the 108/108 result is the registered C/Core regression suite. Native Tauri builds, platform code signing and notarization must still run on their target release hosts/CI and are not implied by the Linux C test result.
+
+---
+
 # QRX 0.0.7.7 Phase 7.2.11
 
 Wallet UX, Accounting Completion & Advanced Market Chart.

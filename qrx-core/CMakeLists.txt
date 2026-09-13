@@ -27,6 +27,15 @@ option(QRX_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 option(QRX_ENABLE_HARDENING "Enable basic hardening flags" ON)
 option(QRX_REQUIRE_PQC "Require OpenSSL with ML-DSA / post-quantum support" ON)
 option(QRX_BUILD_TESTS "Build QRX internal test executables" OFF)
+option(QRX_BUILD_LLAMA_RUNTIME_PLUGIN "Build the production QRX AURA llama.cpp runtime plugin" OFF)
+set(QRX_LLAMA_CPP_ROOT "" CACHE PATH "Path to a pinned llama.cpp checkout when building the AURA runtime plugin")
+set(QRX_AURA_LLAMA_PLUGIN_KIND "CPU" CACHE STRING "AURA llama.cpp plugin kind: CPU, CUDA or METAL")
+if(QRX_BUILD_LLAMA_RUNTIME_PLUGIN)
+    enable_language(CXX)
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
 
 # Prefer caller-supplied OpenSSL root/library paths.
 # Recommended static build:
@@ -40,6 +49,11 @@ endif()
 
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
+find_package(CURL QUIET)
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+  pkg_check_modules(QRX_LIBCURL QUIET IMPORTED_TARGET libcurl)
+endif()
 
 # Different CMake/OpenSSL versions expose the version string under
 # different variable names. Normalize it first.
@@ -85,12 +99,51 @@ set(QRX_CORE_SOURCES
     src/economics/qrx_economics.c
     src/treasury/qrx_dev_addresses.c
     src/resource/qrx_resource.c
+    src/resource/qrx_activation_readiness.c
+    src/compute/qrx_compute.c
+    src/compute/qrx_os_compute.c
+    src/compute/qrx_compute_adversarial.c
+    src/compute/qrx_pouc_mainnet.c
+    src/compute/qrx_pouc_journal.c
+    src/compute/qrx_pouc_consensus.c
+    src/compute/qrx_pouc_pipeline.c
+    src/compute/qrx_pouc_verifier.c
+    src/compute/qrx_pouc_liveness.c
+    src/compute/qrx_pouc_reorg.c
+    src/compute/qrx_pouc_undo.c
+    src/compute/qrx_aura_model_fabric.c
+    src/compute/qrx_aura_fabric_gossip.c
+    src/compute/qrx_compute_provider_identity.c
+    src/compute/qrx_aura_live_dispatch.c
+    src/compute/qrx_aura_remote_dispatch.c
+    src/compute/qrx_aura_provider_service.c
+    src/compute/qrx_aura_runtime_plugin.c
+    src/compute/qrx_aura_moe_aggregate.c
+    src/compute/qrx_aura_provider_bootstrap.c
+    src/compute/qrx_aura_runtime_adapters.c
+    src/compute/qrx_aura_runtime_packages.c
+    src/compute/qrx_aura_runtime_delivery.c
+    src/compute/qrx_aura_job_journal.c
+    src/compute/qrx_aura_relay.c
+    src/compute/qrx_aura_provider_host.c
+    src/compute/qrx_aura_model_distribution.c
+    src/compute/qrx_aura_model_origin.c
+    src/compute/qrx_aura_model_governance.c
+    src/compute/qrx_aura_production_routing.c
+    src/compute/qrx_aura_release.c
+    src/compute/qrx_aura_model_autoplacement.c
+    src/compute/qrx_aura_provider_supervisor.c
     src/resource/qrx_storage_capacity.c
     src/resource/qrx_capacity_proof.c
     src/resource/qrx_storage_placement.c
     src/resource/qrx_storage_market.c
     src/resource/qrx_storage_repair.c
     src/resource/qrx_storage_atlas.c
+    src/resource/qrx_resource_globe.c
+    src/resource/qrx_resource_provider.c
+    src/resource/qrx_resource_provider_runtime.c
+    src/resource/qrx_compute_opportunity.c
+    src/resource/qrx_task_globe.c
     src/resource/qrx_resource_dashboard.c
     src/resource/qrx_resource_live.c
     src/resource/qrx_drive_live.c
@@ -136,6 +189,18 @@ target_include_directories(qrxcore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${OPENSSL_INCLUDE_DIR}
 )
+
+if(TARGET PkgConfig::QRX_LIBCURL)
+  target_link_libraries(qrxcore PUBLIC PkgConfig::QRX_LIBCURL)
+  target_compile_definitions(qrxcore PRIVATE QRX_HAVE_CURL=1)
+  message(STATUS "AURA external model origins: libcurl enabled (pkg-config dependency closure)")
+elseif(CURL_FOUND)
+  target_link_libraries(qrxcore PUBLIC CURL::libcurl)
+  target_compile_definitions(qrxcore PRIVATE QRX_HAVE_CURL=1)
+  message(STATUS "AURA external model origins: libcurl enabled")
+else()
+  message(WARNING "libcurl not found: AURA Hugging Face/external-origin bootstrap will be unavailable in this build")
+endif()
 
 # OpenSSL is a required part of the QRX ABI.  Always link through CMake's
 # imported OpenSSL::Crypto target so include paths, architecture selection and
@@ -201,12 +266,65 @@ if(NOT MSVC)
     if(QRX_ENABLE_ASAN)
         target_compile_options(qrxcore PRIVATE -fsanitize=address -fno-omit-frame-pointer)
         target_link_options(qrxcore PRIVATE -fsanitize=address)
+        # qrxcore is a static library; sanitizer runtimes must also be linked by
+        # every executable/test that consumes it. Directory-level options apply
+        # to targets declared below this point and make sanitizer builds complete.
+        add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=address)
     endif()
 
     if(QRX_ENABLE_UBSAN)
         target_compile_options(qrxcore PRIVATE -fsanitize=undefined -fno-omit-frame-pointer)
         target_link_options(qrxcore PRIVATE -fsanitize=undefined)
+        add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=undefined)
     endif()
+endif()
+
+# -----------------------------
+# Optional production llama.cpp AURA runtime plugin
+# -----------------------------
+if(QRX_BUILD_LLAMA_RUNTIME_PLUGIN)
+    if(NOT QRX_LLAMA_CPP_ROOT OR NOT EXISTS "${QRX_LLAMA_CPP_ROOT}/CMakeLists.txt")
+        message(FATAL_ERROR "QRX_BUILD_LLAMA_RUNTIME_PLUGIN requires -DQRX_LLAMA_CPP_ROOT=/path/to/pinned/llama.cpp")
+    endif()
+    string(TOUPPER "${QRX_AURA_LLAMA_PLUGIN_KIND}" QRX_AURA_LLAMA_PLUGIN_KIND_UPPER)
+    if(NOT QRX_AURA_LLAMA_PLUGIN_KIND_UPPER MATCHES "^(CPU|CUDA|METAL)$")
+        message(FATAL_ERROR "QRX_AURA_LLAMA_PLUGIN_KIND must be CPU, CUDA or METAL")
+    endif()
+    set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(LLAMA_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+    set(LLAMA_BUILD_SERVER OFF CACHE BOOL "" FORCE)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
+    if(QRX_AURA_LLAMA_PLUGIN_KIND_UPPER STREQUAL "CUDA")
+        set(GGML_CUDA ON CACHE BOOL "" FORCE)
+        set(GGML_METAL OFF CACHE BOOL "" FORCE)
+        set(QRX_LLAMA_PLUGIN_DEFINE 1)
+        set(QRX_LLAMA_PLUGIN_OUTPUT "qrx-aura-llama-cuda")
+    elseif(QRX_AURA_LLAMA_PLUGIN_KIND_UPPER STREQUAL "METAL")
+        if(NOT APPLE)
+            message(FATAL_ERROR "METAL runtime plugin can only be built on macOS")
+        endif()
+        set(GGML_CUDA OFF CACHE BOOL "" FORCE)
+        set(GGML_METAL ON CACHE BOOL "" FORCE)
+        set(QRX_LLAMA_PLUGIN_DEFINE 2)
+        set(QRX_LLAMA_PLUGIN_OUTPUT "qrx-aura-llama-metal")
+    else()
+        set(GGML_CUDA OFF CACHE BOOL "" FORCE)
+        if(APPLE)
+            set(GGML_METAL OFF CACHE BOOL "" FORCE)
+        endif()
+        set(QRX_LLAMA_PLUGIN_DEFINE 0)
+        set(QRX_LLAMA_PLUGIN_OUTPUT "qrx-aura-llama-cpu")
+    endif()
+    add_subdirectory("${QRX_LLAMA_CPP_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/llama-cpp" EXCLUDE_FROM_ALL)
+    add_library(qrx-aura-llama-runtime SHARED runtime/llama/qrx_aura_llama_plugin.cpp)
+    target_include_directories(qrx-aura-llama-runtime PRIVATE "${QRX_LLAMA_CPP_ROOT}/include")
+    target_compile_definitions(qrx-aura-llama-runtime PRIVATE QRX_LLAMA_PLUGIN_KIND=${QRX_LLAMA_PLUGIN_DEFINE})
+    target_link_libraries(qrx-aura-llama-runtime PRIVATE qrxcore llama ${QRX_OPENSSL_LINK_LIBS})
+    set_target_properties(qrx-aura-llama-runtime PROPERTIES PREFIX "" OUTPUT_NAME "${QRX_LLAMA_PLUGIN_OUTPUT}")
 endif()
 
 # -----------------------------
@@ -225,6 +343,9 @@ target_link_libraries(qrxd PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_L
 
 add_executable(qrx-cli src/qrx_cli.c ${QRX_OPENSSL_APPLINK_SRC})
 target_link_libraries(qrx-cli PRIVATE qrxcore ${QRX_OPENSSL_LINK_LIBS})
+
+add_executable(qrx-aura-model-seed src/qrx_aura_model_seed.c ${QRX_OPENSSL_APPLINK_SRC})
+target_link_libraries(qrx-aura-model-seed PRIVATE qrxcore ${QRX_OPENSSL_LINK_LIBS})
 
 # Keep the extended command-line wallet in the build output beside qrx-cli.
 # It is the shared non-shell frontend for Phase 4F.2 arbitrage, secure Kraken
@@ -262,6 +383,7 @@ if(WIN32)
     target_link_libraries(qrx PRIVATE ws2_32)
     target_link_libraries(qrxd PRIVATE ws2_32)
     target_link_libraries(qrx-cli PRIVATE ws2_32)
+    target_link_libraries(qrx-aura-model-seed PRIVATE ws2_32)
     target_link_libraries(qrxdb_verify PRIVATE ws2_32)
     target_link_libraries(qrxdb_salvage PRIVATE ws2_32)
     target_link_libraries(qrxdb_compact PRIVATE ws2_32)
@@ -271,7 +393,7 @@ endif()
 # -----------------------------
 # Linker options
 # -----------------------------
-foreach(tgt qrx qrxd qrx-cli qrxdb_verify qrxdb_salvage qrxdb_compact qrxdb_snapshot)
+foreach(tgt qrx qrxd qrx-cli qrx-aura-model-seed qrxdb_verify qrxdb_salvage qrxdb_compact qrxdb_snapshot)
 
     if(QRX_ENABLE_HARDENING)
 
@@ -329,6 +451,32 @@ endforeach()
 # -----------------------------
 # Internal tests (off for normal release builds)
 # -----------------------------
+# ---------------------------------------------------------------------------
+# QRX Upscaler (Apps). Permissive dependencies only: the core is MIT and PNG
+# support uses libpng/zlib. No GPL/LGPL component is linked or bundled; video
+# demux/mux is delegated to an external tool the operator supplies at runtime.
+# ---------------------------------------------------------------------------
+find_package(PNG QUIET)
+if(PNG_FOUND)
+  set(QRX_UPSCALER_PNG ON)
+  message(STATUS "QRX Upscaler: PNG support enabled (libpng/zlib)")
+else()
+  set(QRX_UPSCALER_PNG OFF)
+  message(STATUS "QRX Upscaler: libpng not found, PPM/PGM only")
+endif()
+
+add_executable(qrx-upscaler src/apps/qrx_upscaler.c src/apps/qrx_upscaler_capabilities.c src/apps/qrx_upscaler_main.c)
+target_include_directories(qrx-upscaler PRIVATE src)
+if(CMAKE_DL_LIBS)
+  target_link_libraries(qrx-upscaler PRIVATE ${CMAKE_DL_LIBS})
+endif()
+target_link_libraries(qrx-upscaler PRIVATE m)
+if(QRX_UPSCALER_PNG)
+  target_compile_definitions(qrx-upscaler PRIVATE QRX_HAVE_PNG)
+  target_link_libraries(qrx-upscaler PRIVATE PNG::PNG)
+endif()
+
+
 if(QRX_BUILD_TESTS)
     enable_testing()
     add_executable(qrx_velocity_engine_test tests/velocity_phase4_engine.c)
@@ -591,9 +739,310 @@ if(QRX_BUILD_TESTS)
   target_link_libraries(net_phase125_final_readiness PRIVATE qrxcore)
   add_test(NAME net_phase125_final_readiness COMMAND net_phase125_final_readiness)
 
+  add_executable(compute_phase126_foundation tests/compute_phase126_foundation.c)
+  target_link_libraries(compute_phase126_foundation PRIVATE qrxcore)
+  add_test(NAME compute_phase126_foundation COMMAND compute_phase126_foundation)
+
+  add_executable(compute_phase127_capability_discovery tests/compute_phase127_capability_discovery.c)
+  target_link_libraries(compute_phase127_capability_discovery PRIVATE qrxcore)
+  add_test(NAME compute_phase127_capability_discovery COMMAND compute_phase127_capability_discovery)
+
+  add_executable(compute_phase128_benchmark_normalization tests/compute_phase128_benchmark_normalization.c)
+  target_link_libraries(compute_phase128_benchmark_normalization PRIVATE qrxcore)
+  add_test(NAME compute_phase128_benchmark_normalization COMMAND compute_phase128_benchmark_normalization)
+
+  add_executable(compute_phase129_model_registry tests/compute_phase129_model_registry.c)
+  target_link_libraries(compute_phase129_model_registry PRIVATE qrxcore)
+  add_test(NAME compute_phase129_model_registry COMMAND compute_phase129_model_registry)
+
+  add_executable(compute_phase130_job_protocol tests/compute_phase130_job_protocol.c)
+  target_link_libraries(compute_phase130_job_protocol PRIVATE qrxcore)
+  add_test(NAME compute_phase130_job_protocol COMMAND compute_phase130_job_protocol)
+
+  add_executable(compute_phase131_market_escrow tests/compute_phase131_market_escrow.c)
+  target_link_libraries(compute_phase131_market_escrow PRIVATE qrxcore)
+  add_test(NAME compute_phase131_market_escrow COMMAND compute_phase131_market_escrow)
+
+  add_executable(compute_phase132_secure_sandbox tests/compute_phase132_secure_sandbox.c)
+  target_link_libraries(compute_phase132_secure_sandbox PRIVATE qrxcore)
+  add_test(NAME compute_phase132_secure_sandbox COMMAND compute_phase132_secure_sandbox)
+
+  add_executable(compute_phase133_pouc_verification tests/compute_phase133_pouc_verification.c)
+  target_link_libraries(compute_phase133_pouc_verification PRIVATE qrxcore)
+  add_test(NAME compute_phase133_pouc_verification COMMAND compute_phase133_pouc_verification)
+
+  add_executable(compute_phase134_aura_runtime tests/compute_phase134_aura_runtime.c)
+  target_link_libraries(compute_phase134_aura_runtime PRIVATE qrxcore)
+  add_test(NAME compute_phase134_aura_runtime COMMAND compute_phase134_aura_runtime)
+
+  add_executable(compute_phase135_aura_chat tests/compute_phase135_aura_chat.c)
+  target_link_libraries(compute_phase135_aura_chat PRIVATE qrxcore)
+  add_test(NAME compute_phase135_aura_chat COMMAND compute_phase135_aura_chat)
+
+  add_executable(compute_phase136_aura_artifacts tests/compute_phase136_aura_artifacts.c)
+  target_link_libraries(compute_phase136_aura_artifacts PRIVATE qrxcore)
+  add_test(NAME compute_phase136_aura_artifacts COMMAND compute_phase136_aura_artifacts)
+
+  add_executable(compute_phase137_aura_code_workspace tests/compute_phase137_aura_code_workspace.c)
+  target_link_libraries(compute_phase137_aura_code_workspace PRIVATE qrxcore)
+  add_test(NAME compute_phase137_aura_code_workspace COMMAND compute_phase137_aura_code_workspace)
+
+  add_executable(compute_phase138_aura_code_lifecycle tests/compute_phase138_aura_code_lifecycle.c)
+  target_link_libraries(compute_phase138_aura_code_lifecycle PRIVATE qrxcore)
+  add_test(NAME compute_phase138_aura_code_lifecycle COMMAND compute_phase138_aura_code_lifecycle)
+
+  add_executable(compute_phase139_moe_traffic_optimistic tests/compute_phase139_moe_traffic_optimistic.c)
+  target_link_libraries(compute_phase139_moe_traffic_optimistic PRIVATE qrxcore)
+  add_test(NAME compute_phase139_moe_traffic_optimistic COMMAND compute_phase139_moe_traffic_optimistic)
+  add_executable(compute_phase140_moe_coordinator_prefetch tests/compute_phase140_moe_coordinator_prefetch.c)
+  target_link_libraries(compute_phase140_moe_coordinator_prefetch PRIVATE qrxcore)
+  add_test(NAME compute_phase140_moe_coordinator_prefetch COMMAND compute_phase140_moe_coordinator_prefetch)
+
+  add_executable(compute_phase141_moe_batch_stream_aggregation tests/compute_phase141_moe_batch_stream_aggregation.c)
+  target_link_libraries(compute_phase141_moe_batch_stream_aggregation PRIVATE qrxcore)
+  add_test(NAME compute_phase141_moe_batch_stream_aggregation COMMAND compute_phase141_moe_batch_stream_aggregation)
+
+  add_executable(compute_phase142_moe_adaptive_scheduler_telemetry tests/compute_phase142_moe_adaptive_scheduler_telemetry.c)
+  target_link_libraries(compute_phase142_moe_adaptive_scheduler_telemetry PRIVATE qrxcore)
+  add_test(NAME compute_phase142_moe_adaptive_scheduler_telemetry COMMAND compute_phase142_moe_adaptive_scheduler_telemetry)
+
+  add_executable(compute_phase143_moe_runtime_benchmark tests/compute_phase143_moe_runtime_benchmark.c)
+  target_link_libraries(compute_phase143_moe_runtime_benchmark PRIVATE qrxcore)
+  add_test(NAME compute_phase143_moe_runtime_benchmark COMMAND compute_phase143_moe_runtime_benchmark)
+
+  add_executable(compute_phase144_native_runtime_calibration tests/compute_phase144_native_runtime_calibration.c)
+  target_link_libraries(compute_phase144_native_runtime_calibration PRIVATE qrxcore)
+  add_test(NAME compute_phase144_native_runtime_calibration COMMAND compute_phase144_native_runtime_calibration)
+
+  add_executable(compute_phase145_resource_globe tests/compute_phase145_resource_globe.c)
+  target_link_libraries(compute_phase145_resource_globe PRIVATE qrxcore)
+  add_test(NAME compute_phase145_resource_globe COMMAND compute_phase145_resource_globe)
+
+  add_executable(compute_phase146_opportunity_engine tests/compute_phase146_opportunity_engine.c)
+  target_link_libraries(compute_phase146_opportunity_engine PRIVATE qrxcore)
+  add_test(NAME compute_phase146_opportunity_engine COMMAND compute_phase146_opportunity_engine)
+
+  add_executable(compute_phase147_task_globe tests/compute_phase147_task_globe.c)
+  target_link_libraries(compute_phase147_task_globe PRIVATE qrxcore)
+  add_test(NAME compute_phase147_task_globe COMMAND compute_phase147_task_globe)
+
+  add_executable(compute_phase148_qrx_os_compute tests/compute_phase148_qrx_os_compute.c)
+  target_link_libraries(compute_phase148_qrx_os_compute PRIVATE qrxcore)
+  add_test(NAME compute_phase148_qrx_os_compute COMMAND compute_phase148_qrx_os_compute)
+
+  add_executable(compute_phase149_resource_provider_ux tests/compute_phase149_resource_provider_ux.c)
+  target_link_libraries(compute_phase149_resource_provider_ux PRIVATE qrxcore)
+  add_test(NAME compute_phase149_resource_provider_ux COMMAND compute_phase149_resource_provider_ux)
+
+  add_executable(compute_phase150_provider_runtime_market tests/compute_phase150_provider_runtime_market.c)
+  target_link_libraries(compute_phase150_provider_runtime_market PRIVATE qrxcore)
+  add_test(NAME compute_phase150_provider_runtime_market COMMAND compute_phase150_provider_runtime_market)
+
+  add_executable(compute_phase151_adversarial_testnet tests/compute_phase151_adversarial_testnet.c)
+  target_link_libraries(compute_phase151_adversarial_testnet PRIVATE qrxcore)
+  add_test(NAME compute_phase151_adversarial_testnet COMMAND compute_phase151_adversarial_testnet)
+
+  add_executable(compute_phase152_pouc_mainnet_activation tests/compute_phase152_pouc_mainnet_activation.c)
+  target_link_libraries(compute_phase152_pouc_mainnet_activation PRIVATE qrxcore)
+  add_test(NAME compute_phase152_pouc_mainnet_activation COMMAND compute_phase152_pouc_mainnet_activation)
+
+  add_executable(compute_phase153_pouc_durable_journal tests/compute_phase153_pouc_durable_journal.c)
+  target_link_libraries(compute_phase153_pouc_durable_journal PRIVATE qrxcore)
+  add_test(NAME compute_phase153_pouc_durable_journal COMMAND compute_phase153_pouc_durable_journal)
+
+  add_executable(compute_phase154_pouc_block_pipeline tests/compute_phase154_pouc_block_pipeline.c)
+  target_link_libraries(compute_phase154_pouc_block_pipeline PRIVATE qrxcore)
+  add_test(NAME compute_phase154_pouc_block_pipeline COMMAND compute_phase154_pouc_block_pipeline)
+
+  add_executable(compute_phase155_pouc_upstream_transactions tests/compute_phase155_pouc_upstream_transactions.c)
+  target_link_libraries(compute_phase155_pouc_upstream_transactions PRIVATE qrxcore)
+  add_test(NAME compute_phase155_pouc_upstream_transactions COMMAND compute_phase155_pouc_upstream_transactions)
+
+  add_executable(compute_phase156_verifier_selection_rewards_slashing tests/compute_phase156_verifier_selection_rewards_slashing.c)
+  target_link_libraries(compute_phase156_verifier_selection_rewards_slashing PRIVATE qrxcore)
+  add_test(NAME compute_phase156_verifier_selection_rewards_slashing COMMAND compute_phase156_verifier_selection_rewards_slashing)
+
+  add_executable(compute_phase157_verifier_timeout_reorg_penalty tests/compute_phase157_verifier_timeout_reorg_penalty.c)
+  target_link_libraries(compute_phase157_verifier_timeout_reorg_penalty PRIVATE qrxcore)
+  add_test(NAME compute_phase157_verifier_timeout_reorg_penalty COMMAND compute_phase157_verifier_timeout_reorg_penalty)
+
+  add_executable(compute_phase158_canonical_reorg_reward_governance tests/compute_phase158_canonical_reorg_reward_governance.c)
+  target_link_libraries(compute_phase158_canonical_reorg_reward_governance PRIVATE qrxcore)
+  add_test(NAME compute_phase158_canonical_reorg_reward_governance COMMAND compute_phase158_canonical_reorg_reward_governance)
+
+  add_executable(compute_phase159_pouc_upstream_undo_e2e_reorg tests/compute_phase159_pouc_upstream_undo_e2e_reorg.c)
+  target_link_libraries(compute_phase159_pouc_upstream_undo_e2e_reorg PRIVATE qrxcore)
+  add_test(NAME compute_phase159_pouc_upstream_undo_e2e_reorg COMMAND compute_phase159_pouc_upstream_undo_e2e_reorg)
+
+  add_executable(compute_phase160_aura_adaptive_model_fabric tests/compute_phase160_aura_adaptive_model_fabric.c)
+  target_link_libraries(compute_phase160_aura_adaptive_model_fabric PRIVATE qrxcore)
+  add_test(NAME compute_phase160_aura_adaptive_model_fabric COMMAND compute_phase160_aura_adaptive_model_fabric)
+
+  add_executable(compute_phase161_aura_pod_gossip_live_globe tests/compute_phase161_aura_pod_gossip_live_globe.c)
+  target_link_libraries(compute_phase161_aura_pod_gossip_live_globe PRIVATE qrxcore)
+  add_test(NAME compute_phase161_aura_pod_gossip_live_globe COMMAND compute_phase161_aura_pod_gossip_live_globe)
+
+  add_executable(compute_phase162_aura_live_admission_identity_cache_dispatch tests/compute_phase162_aura_live_admission_identity_cache_dispatch.c)
+  target_link_libraries(compute_phase162_aura_live_admission_identity_cache_dispatch PRIVATE qrxcore)
+  add_test(NAME compute_phase162_aura_live_admission_identity_cache_dispatch COMMAND compute_phase162_aura_live_admission_identity_cache_dispatch)
+
+  add_executable(compute_phase163_aura_remote_dispatch_leases_drive_anti_entropy tests/compute_phase163_aura_remote_dispatch_leases_drive_anti_entropy.c)
+  target_link_libraries(compute_phase163_aura_remote_dispatch_leases_drive_anti_entropy PRIVATE qrxcore)
+  add_test(NAME compute_phase163_aura_remote_dispatch_leases_drive_anti_entropy COMMAND compute_phase163_aura_remote_dispatch_leases_drive_anti_entropy)
+
+  add_executable(compute_phase164_aura_provider_service_secure_durable_moe tests/compute_phase164_aura_provider_service_secure_durable_moe.c)
+  target_link_libraries(compute_phase164_aura_provider_service_secure_durable_moe PRIVATE qrxcore)
+  add_test(NAME compute_phase164_aura_provider_service_secure_durable_moe COMMAND compute_phase164_aura_provider_service_secure_durable_moe)
+
+  add_library(qrx_aura_test_runtime_plugin SHARED tests/qrx_aura_test_runtime_plugin.c)
+  target_include_directories(qrx_aura_test_runtime_plugin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  set_target_properties(qrx_aura_test_runtime_plugin PROPERTIES PREFIX "")
+
+  add_executable(compute_phase165_aura_autobootstrap_pq_runtime_moe tests/compute_phase165_aura_autobootstrap_pq_runtime_moe.c)
+  target_link_libraries(compute_phase165_aura_autobootstrap_pq_runtime_moe PRIVATE qrxcore)
+  add_dependencies(compute_phase165_aura_autobootstrap_pq_runtime_moe qrx_aura_test_runtime_plugin)
+  add_test(NAME compute_phase165_aura_autobootstrap_pq_runtime_moe COMMAND compute_phase165_aura_autobootstrap_pq_runtime_moe $<TARGET_FILE:qrx_aura_test_runtime_plugin>)
+
+  add_executable(compute_phase166_aura_host_runtime_journal_relay tests/compute_phase166_aura_host_runtime_journal_relay.c)
+  target_link_libraries(compute_phase166_aura_host_runtime_journal_relay PRIVATE qrxcore)
+  add_dependencies(compute_phase166_aura_host_runtime_journal_relay qrx_aura_test_runtime_plugin)
+  add_test(NAME compute_phase166_aura_host_runtime_journal_relay COMMAND compute_phase166_aura_host_runtime_journal_relay $<TARGET_FILE:qrx_aura_test_runtime_plugin>)
+
+  add_executable(compute_phase167_aura_zero_config_model_fabric tests/compute_phase167_aura_zero_config_model_fabric.c)
+  target_link_libraries(compute_phase167_aura_zero_config_model_fabric PRIVATE qrxcore)
+  add_test(NAME compute_phase167_aura_zero_config_model_fabric COMMAND compute_phase167_aura_zero_config_model_fabric)
+
+  add_executable(compute_phase168_aura_autoplacement_repair_hot_expert tests/compute_phase168_aura_autoplacement_repair_hot_expert.c)
+  target_link_libraries(compute_phase168_aura_autoplacement_repair_hot_expert PRIVATE qrxcore)
+  add_test(NAME compute_phase168_aura_autoplacement_repair_hot_expert COMMAND compute_phase168_aura_autoplacement_repair_hot_expert)
+
+  add_executable(compute_phase169_aura_provider_supervisor_failover_health tests/compute_phase169_aura_provider_supervisor_failover_health.c)
+  target_link_libraries(compute_phase169_aura_provider_supervisor_failover_health PRIVATE qrxcore)
+  add_test(NAME compute_phase169_aura_provider_supervisor_failover_health COMMAND compute_phase169_aura_provider_supervisor_failover_health)
+
+  add_executable(compute_phase170_aura_signed_runtime_oneclick tests/compute_phase170_aura_signed_runtime_oneclick.c)
+  target_link_libraries(compute_phase170_aura_signed_runtime_oneclick PRIVATE qrxcore)
+  add_test(NAME compute_phase170_aura_signed_runtime_oneclick COMMAND compute_phase170_aura_signed_runtime_oneclick)
+
+  add_executable(compute_phase171_aura_model_governance_provenance_rollback tests/compute_phase171_aura_model_governance_provenance_rollback.c)
+  target_link_libraries(compute_phase171_aura_model_governance_provenance_rollback PRIVATE qrxcore)
+  add_test(NAME compute_phase171_aura_model_governance_provenance_rollback COMMAND compute_phase171_aura_model_governance_provenance_rollback)
+
+  add_executable(compute_phase172_aura_production_wan_routing_telemetry tests/compute_phase172_aura_production_wan_routing_telemetry.c)
+  target_link_libraries(compute_phase172_aura_production_wan_routing_telemetry PRIVATE qrxcore)
+  add_test(NAME compute_phase172_aura_production_wan_routing_telemetry COMMAND compute_phase172_aura_production_wan_routing_telemetry)
+
+  add_executable(compute_phase173_aura_mainnet_release_hardening tests/compute_phase173_aura_mainnet_release_hardening.c)
+  target_link_libraries(compute_phase173_aura_mainnet_release_hardening PRIVATE qrxcore)
+  add_test(NAME compute_phase173_aura_mainnet_release_hardening COMMAND compute_phase173_aura_mainnet_release_hardening)
+
+  add_executable(compute_phase174_qrx_a_to_z_documentation_gate tests/compute_phase174_qrx_a_to_z_documentation_gate.c)
+  target_link_libraries(compute_phase174_qrx_a_to_z_documentation_gate PRIVATE qrxcore)
+  add_test(NAME compute_phase174_qrx_a_to_z_documentation_gate COMMAND compute_phase174_qrx_a_to_z_documentation_gate "${CMAKE_CURRENT_SOURCE_DIR}/../GUIWALLET/src/index.html" "${CMAKE_CURRENT_SOURCE_DIR}/../docs/QRX_A_TO_Z_0.0.9.md")
+
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
+  add_executable(compute_phase175_aura_real_model_origin_bootstrap tests/compute_phase175_aura_real_model_origin_bootstrap.c)
+  target_link_libraries(compute_phase175_aura_real_model_origin_bootstrap PRIVATE qrxcore)
+  add_test(NAME compute_phase175_aura_real_model_origin_bootstrap
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/aura_https_fixture_runner.py
+      --cert ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/aura_https/localhost-cert.pem
+      --key ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/aura_https/localhost-key.pem
+      -- $<TARGET_FILE:compute_phase175_aura_real_model_origin_bootstrap>
+      "${CMAKE_CURRENT_SOURCE_DIR}/../config/aura/models/official-origin-catalog.qrx")
+
+  add_executable(compute_phase176_aura_edge_models_zero_touch tests/compute_phase176_aura_edge_models_zero_touch.c)
+  target_link_libraries(compute_phase176_aura_edge_models_zero_touch PRIVATE qrxcore)
+  add_test(NAME compute_phase176_aura_edge_models_zero_touch
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/aura_https_fixture_runner.py
+      --cert ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/aura_https/localhost-cert.pem
+      --key ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/aura_https/localhost-key.pem
+      -- $<TARGET_FILE:compute_phase176_aura_edge_models_zero_touch>
+      "${CMAKE_CURRENT_SOURCE_DIR}/../config/aura/models/official-origin-catalog.qrx"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../config/aura/models/optional-gated-origin-catalog.qrx")
+
+  add_executable(compute_phase177_aura_runtime_delivery_matrix tests/compute_phase177_aura_runtime_delivery_matrix.c)
+  target_link_libraries(compute_phase177_aura_runtime_delivery_matrix PRIVATE qrxcore)
+  add_dependencies(compute_phase177_aura_runtime_delivery_matrix qrx_aura_test_runtime_plugin)
+  add_test(NAME compute_phase177_aura_runtime_delivery_matrix COMMAND compute_phase177_aura_runtime_delivery_matrix $<TARGET_FILE:qrx_aura_test_runtime_plugin>)
+
+  add_executable(genesis_phase178_tokenomics_policy tests/genesis_phase178_tokenomics_policy.c)
+  target_link_libraries(genesis_phase178_tokenomics_policy PRIVATE qrxcore)
+  add_test(NAME genesis_phase178_tokenomics_policy COMMAND genesis_phase178_tokenomics_policy)
+
+  add_executable(genesis_phase179_memo_assetburn_ad_activation tests/genesis_phase179_memo_assetburn_ad_activation.c)
+  target_link_libraries(genesis_phase179_memo_assetburn_ad_activation PRIVATE qrxcore)
+  add_test(NAME genesis_phase179_memo_assetburn_ad_activation COMMAND genesis_phase179_memo_assetburn_ad_activation)
+
+  add_test(NAME genesis_phase180_governance_vault
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/genesis_phase180_governance_vault.py $<TARGET_FILE:qrx>)
+
+  add_executable(genesis_phase181_drive_activation_readiness tests/genesis_phase181_drive_activation_readiness.c)
+  target_link_libraries(genesis_phase181_drive_activation_readiness PRIVATE qrxcore)
+  add_test(NAME genesis_phase181_drive_activation_readiness COMMAND genesis_phase181_drive_activation_readiness)
+
+  add_test(NAME genesis_phase182_onchain_protocol_governance
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/genesis_phase182_onchain_protocol_governance.py $<TARGET_FILE:qrx>)
+
+  add_executable(genesis_phase183_protocol_readiness_framework tests/genesis_phase183_protocol_readiness_framework.c)
+  target_link_libraries(genesis_phase183_protocol_readiness_framework PRIVATE qrxcore)
+  add_test(NAME genesis_phase183_protocol_readiness_framework COMMAND genesis_phase183_protocol_readiness_framework)
+
+  # Phase 187: QRX Upscaler. Determinism and sharding equivalence are what the
+  # accelerated PoUC mode depends on, so they are regression-gated.
+  add_executable(apps_phase187_upscaler tests/apps_phase187_upscaler.c src/apps/qrx_upscaler.c)
+  target_include_directories(apps_phase187_upscaler PRIVATE src)
+  target_link_libraries(apps_phase187_upscaler PRIVATE m)
+  if(QRX_UPSCALER_PNG)
+    target_compile_definitions(apps_phase187_upscaler PRIVATE QRX_HAVE_PNG)
+    target_link_libraries(apps_phase187_upscaler PRIVATE PNG::PNG)
+  endif()
+  add_test(NAME apps_phase187_upscaler COMMAND apps_phase187_upscaler)
+
+  # Phase 188: host capability profiles for zero-touch AI/classical fallback.
+  add_executable(apps_phase188_upscaler_capabilities tests/apps_phase188_upscaler_capabilities.c src/apps/qrx_upscaler_capabilities.c)
+  target_include_directories(apps_phase188_upscaler_capabilities PRIVATE src)
+  if(CMAKE_DL_LIBS)
+    target_link_libraries(apps_phase188_upscaler_capabilities PRIVATE ${CMAKE_DL_LIBS})
+  endif()
+  add_test(NAME apps_phase188_upscaler_capabilities COMMAND apps_phase188_upscaler_capabilities)
+
+  # Phase 189: QRX third-party app foundation. Static/package regression gate for
+  # .qrxapp v1, sandbox host, permission bridge, Mini JS SDK and demo package.
+  add_test(NAME apps_phase189_qrxapp_foundation
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/apps_phase189_qrxapp_foundation.py ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
+  # Phase 190: translated Apps/Upscaler/App Host UX and full-width workspace regression gate.
+  add_test(NAME apps_phase190_i18n_fullwidth
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/apps_phase190_i18n_fullwidth.py ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
+  # --- Genesis whitehat hardening 0.0.9 -----------------------------------
+  # Phase 184: fault-barrier semantics for untrusted network input.
+  add_executable(genesis_phase184_untrusted_guard_semantics tests/test_untrusted_guard_semantics.c)
+  add_test(NAME genesis_phase184_untrusted_guard_semantics COMMAND genesis_phase184_untrusted_guard_semantics)
+  find_package(Threads REQUIRED)
+  target_link_libraries(genesis_phase184_untrusted_guard_semantics PRIVATE Threads::Threads)
+
+  # Phase 185: MAINNET BLOCKER. A live node must survive remote malformed
+  # transactions instead of terminating through die()/exit().
+  add_test(NAME genesis_phase185_remote_malformed_tx_survival
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/genesis_phase185_remote_malformed_tx_survival.py $<TARGET_FILE:qrx>)
+  set_tests_properties(genesis_phase185_remote_malformed_tx_survival PROPERTIES TIMEOUT 900)
+
+  # Phase 186: static proof that no unguarded die()/exit()/abort()/assert()
+  # is reachable from an untrusted network ingress point.
+  add_test(NAME genesis_phase186_untrusted_abort_reachability
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/audit-untrusted-abort-reachability.py ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
   if(NOT MSVC)
-    foreach(test_tgt qrx_resource_live_test qrx_drive_live_test qrx_storage_network_transfer_test qrx_drive_runtime_test qrx_drive_recovery_test qrx_storage_gossip_streaming_test qrx_storage_identity_gossip_test qrx_drive_private_pq_test qrx_drive_prepare_test qrx_drive_prepared_runtime_test qrx_drive_contract_orchestration_test storage_phase112_provider_activation storage_phase113_postor_runtime storage_phase114_repair_runtime net_phase115_domain_management net_phase116_site_package net_phase117_directory_publisher net_phase118_hosting_activation net_phase119_browser_fetch net_phase120_browser_sandbox net_phase121_dapp_bridge net_phase122_ad_economy net_phase123_youth_safety net_phase124_hosting_missions net_phase125_final_readiness)
+    foreach(test_tgt qrx_resource_live_test qrx_drive_live_test qrx_storage_network_transfer_test qrx_drive_runtime_test qrx_drive_recovery_test qrx_storage_gossip_streaming_test qrx_storage_identity_gossip_test qrx_drive_private_pq_test qrx_drive_prepare_test qrx_drive_prepared_runtime_test qrx_drive_contract_orchestration_test storage_phase112_provider_activation storage_phase113_postor_runtime storage_phase114_repair_runtime net_phase115_domain_management net_phase116_site_package net_phase117_directory_publisher net_phase118_hosting_activation net_phase119_browser_fetch net_phase120_browser_sandbox net_phase121_dapp_bridge net_phase122_ad_economy net_phase123_youth_safety net_phase124_hosting_missions net_phase125_final_readiness compute_phase126_foundation compute_phase127_capability_discovery compute_phase128_benchmark_normalization compute_phase129_model_registry compute_phase130_job_protocol compute_phase131_market_escrow compute_phase132_secure_sandbox compute_phase133_pouc_verification compute_phase134_aura_runtime compute_phase135_aura_chat compute_phase136_aura_artifacts compute_phase137_aura_code_workspace compute_phase138_aura_code_lifecycle compute_phase139_moe_traffic_optimistic compute_phase140_moe_coordinator_prefetch compute_phase141_moe_batch_stream_aggregation compute_phase142_moe_adaptive_scheduler_telemetry compute_phase143_moe_runtime_benchmark compute_phase144_native_runtime_calibration compute_phase145_resource_globe compute_phase146_opportunity_engine compute_phase147_task_globe compute_phase148_qrx_os_compute compute_phase149_resource_provider_ux compute_phase150_provider_runtime_market compute_phase151_adversarial_testnet compute_phase152_pouc_mainnet_activation compute_phase153_pouc_durable_journal compute_phase154_pouc_block_pipeline compute_phase155_pouc_upstream_transactions compute_phase156_verifier_selection_rewards_slashing compute_phase157_verifier_timeout_reorg_penalty compute_phase158_canonical_reorg_reward_governance compute_phase159_pouc_upstream_undo_e2e_reorg compute_phase160_aura_adaptive_model_fabric compute_phase161_aura_pod_gossip_live_globe compute_phase162_aura_live_admission_identity_cache_dispatch compute_phase163_aura_remote_dispatch_leases_drive_anti_entropy compute_phase164_aura_provider_service_secure_durable_moe compute_phase165_aura_autobootstrap_pq_runtime_moe compute_phase166_aura_host_runtime_journal_relay compute_phase167_aura_zero_config_model_fabric compute_phase168_aura_autoplacement_repair_hot_expert compute_phase169_aura_provider_supervisor_failover_health compute_phase170_aura_signed_runtime_oneclick compute_phase171_aura_model_governance_provenance_rollback compute_phase172_aura_production_wan_routing_telemetry compute_phase173_aura_mainnet_release_hardening compute_phase174_qrx_a_to_z_documentation_gate compute_phase175_aura_real_model_origin_bootstrap compute_phase176_aura_edge_models_zero_touch compute_phase177_aura_runtime_delivery_matrix genesis_phase178_tokenomics_policy genesis_phase179_memo_assetburn_ad_activation genesis_phase181_drive_activation_readiness genesis_phase183_protocol_readiness_framework)
       target_compile_options(${test_tgt} PRIVATE -UNDEBUG)
+      if(QRX_ENABLE_ASAN)
+        target_link_options(${test_tgt} PRIVATE -fsanitize=address)
+      endif()
+      if(QRX_ENABLE_UBSAN)
+        target_link_options(${test_tgt} PRIVATE -fsanitize=undefined)
+      endif()
     endforeach()
   endif()
 endif()
