@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Backup di sicurezza",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Directory dati",
-  "wallet.auto.541343a73972": "Socket di controllo",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Ispezione portafoglio",
   "wallet.auto.fd8e754f76a8": "Premi Ispeziona portafoglio per controllare formato, indirizzi, chiavi ibride e protezione passphrase. È un'operazione in sola lettura.",
   "wallet.auto.47765d59fc64": "Portafogli Core disponibili",

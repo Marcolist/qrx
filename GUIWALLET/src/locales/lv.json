@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Drošības dublējumi",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Datu direktorija",
-  "wallet.auto.541343a73972": "Vadības ligzda",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Maka pārbaude",
   "wallet.auto.fd8e754f76a8": "Nospied Pārbaudīt maku, lai pārbaudītu formātu, adreses, hibrīdās atslēgas un paroles frāzes aizsardzību. Šī darbība ir tikai lasāma.",
   "wallet.auto.47765d59fc64": "Pieejamie Core maki",

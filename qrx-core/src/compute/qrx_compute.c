@@ -17,6 +17,7 @@
 #elif defined(__APPLE__)
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <mach/mach.h>
 #include <unistd.h>
 #else
 #include <unistd.h>
@@ -109,9 +110,23 @@ static void detect_memory(uint64_t *total, uint64_t *avail) {
     MEMORYSTATUSEX ms; memset(&ms,0,sizeof(ms)); ms.dwLength=sizeof(ms);
     if (GlobalMemoryStatusEx(&ms)) { *total=(uint64_t)ms.ullTotalPhys; *avail=(uint64_t)ms.ullAvailPhys; }
 #elif defined(__APPLE__)
-    uint64_t mem=0; size_t len=sizeof(mem); if (sysctlbyname("hw.memsize", &mem, &len, NULL, 0)==0) *total=mem;
-    long pages=sysconf(_SC_AVPHYS_PAGES), psz=sysconf(_SC_PAGESIZE); if (pages>0 && psz>0) *avail=(uint64_t)pages*(uint64_t)psz;
-    if (!*avail || *avail>*total) *avail=*total;
+    /* macOS does not provide _SC_AVPHYS_PAGES.  Use the native Mach VM
+     * counters instead.  Free + inactive pages is a conservative amount
+     * of memory that can normally be reclaimed for compute workloads. */
+    uint64_t mem=0; size_t len=sizeof(mem);
+    if (sysctlbyname("hw.memsize", &mem, &len, NULL, 0)==0) *total=mem;
+    vm_statistics64_data_t vmstat;
+    mach_msg_type_number_t count=HOST_VM_INFO64_COUNT;
+    vm_size_t page_size=0;
+    mach_port_t host=mach_host_self();
+    if (host_page_size(host, &page_size)==KERN_SUCCESS &&
+        host_statistics64(host, HOST_VM_INFO64, (host_info64_t)&vmstat, &count)==KERN_SUCCESS &&
+        page_size>0) {
+        uint64_t pages=(uint64_t)vmstat.free_count + (uint64_t)vmstat.inactive_count;
+        *avail=pages*(uint64_t)page_size;
+    }
+    mach_port_deallocate(mach_task_self(), host);
+    if (!*avail || (*total && *avail>*total)) *avail=*total;
 #elif defined(__linux__)
     struct sysinfo si; if (sysinfo(&si)==0) { *total=(uint64_t)si.totalram*(uint64_t)si.mem_unit; *avail=(uint64_t)si.freeram*(uint64_t)si.mem_unit; }
 #else

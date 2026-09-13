@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AURA · QRX Assistant</title><style>
+:root{color-scheme:dark}*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,sans-serif;background:radial-gradient(circle at 20% 0,#16375f,#06101d 44%,#02050b);color:#f3f7ff}body{display:grid;grid-template-rows:auto 1fr auto}.top{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #ffffff1a;background:#0a1526df;backdrop-filter:blur(18px)}.brand{display:flex;gap:11px;align-items:center}.orb{width:38px;height:38px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#21d4fd33,#8c79ff44);border:1px solid #79c7ff55}.muted{color:#9cabbd;font-size:12px}.actions{display:flex;gap:8px}.btn{cursor:pointer;border:1px solid #ffffff20;background:#ffffff0d;color:#f5f8ff;border-radius:12px;padding:9px 12px}.btn:hover{background:#79c7ff20;border-color:#79c7ff55}.primary{background:linear-gradient(135deg,#79c7ff44,#9b8cff33)}#messages{padding:20px;overflow:auto;display:grid;align-content:start;gap:12px}.msg{max-width:min(820px,88%);padding:13px 15px;border-radius:17px;line-height:1.5;white-space:pre-wrap}.ai{justify-self:start;background:#ffffff0d;border:1px solid #ffffff18}.user{justify-self:end;background:#79c7ff24;border:1px solid #79c7ff36}.compose{border-top:1px solid #ffffff18;padding:14px;display:grid;gap:9px;background:#07111ee8}.compose textarea{width:100%;min-height:76px;resize:vertical;border:1px solid #ffffff20;background:#091425;color:white;border-radius:13px;padding:12px}.hint{font-size:12px;color:#9cabbd}.toolbar{display:flex;gap:8px;flex-wrap:wrap}@media(max-width:700px){.top{align-items:flex-start}.top .muted{display:none}.msg{max-width:94%}}
+</style></head><body><header class="top"><div class="brand"><div class="orb">✦</div><div><strong>AURA</strong><div class="muted">QRX Wallet Assistant · local integrated help</div></div></div><div class="actions"><button class="btn" id="full">⛶ Fullscreen</button><button class="btn" id="clear">Clear</button></div></header><main id="messages"></main><footer class="compose"><textarea id="q" placeholder="Ask about QUB, staking, validator mode, recovery, BTC Light, QRX Drive, QRX-Net or wallet commands…"></textarea><div class="toolbar"><button class="btn primary" id="ask" title="Send · Enter" aria-label="Send">➤</button><button class="btn" data-q="How do I send QUB?">Send QUB</button><button class="btn" data-q="Explain Validator Mode and slashing">Validator help</button><button class="btn" data-q="How do recovery backups work?">Recovery</button></div><div class="hint">Local Help runs on-device. Press Enter to send; Shift+Enter inserts a new line. Recovery phrases and private keys must never be pasted into chat.</div></footer><script>
+const $=id=>document.getElementById(id), params=new URLSearchParams(location.search);let network=params.get('network')||'alpha',wallet=params.get('wallet')||'node1';
+function add(k,t){const d=document.createElement('div');d.className='msg '+k;d.textContent=t;$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;}
+async function liveContext(){
+  const c={wallet,network,rpc:null,daemon:null,balance:null};
+  try{const x=await invoke('get_context',{network,wallet});c.ctx=x;c.rpc=x?.rpc_endpoint||null;}catch(_){}
+  try{c.daemon=await invoke('daemon_health',{network,wallet,passphrase:null});}catch(_){}
+  try{c.balance=await invoke('get_balance',{network,wallet,passphrase:null});}catch(_){}
+  return c;
+}
+function answer(q,c){
+  const t=q.toLowerCase(),live=`Wallet ${wallet} · ${network} · node ${c.daemon?.running?'online':'offline'}${c.rpc?' · '+c.rpc:''}.`;
+  if(t.includes('balance')||t.includes('guthaben'))return `${c.balance!=null?'Local QUB balance response: '+JSON.stringify(c.balance)+'. ':''}${live}`;
+  if(t.includes('node')||t.includes('daemon')||t.includes('rpc'))return `${live} Start/Stop controls local qrxd. RPC is local HTTP JSON-RPC.`;
+  if(t.includes('send')&&t.includes('qub'))return `Open Send → QUB, verify recipient and amount, review, then sign. Unlock is needed only for signing. ${live}`;
+  if(t.includes('receive')||t.includes('empfang'))return 'Open Receive and select QUB or BTC. Never paste recovery phrases or private keys into chats or websites.';
+  if(t.includes('validator')||t.includes('slash'))return 'Validator Mode carries consensus responsibility. Never run the same signer identity on two nodes. Double-signing remains a serious slash/tombstone risk.';
+  if(t.includes('delegate'))return 'Delegation assigns QUB consensus weight to a validator while your wallet keys remain local. After confirmation, your computer can be offline.';
+  if(t.includes('stake'))return 'Self-stake creates validator responsibility; delegation does not. Wallet Mode is the safe default for ordinary holding and sending.';
+  if(t.includes('recover')||t.includes('seed')||t.includes('backup'))return 'Keep the recovery phrase and matching .qrxseed offline. Restore into a new wallet name and verify its address first.';
+  if(t.includes('btc'))return 'BTC Light uses the bundled light-wallet service; no full Bitcoin node is required. Sync first and use tiny test amounts.';
+  if(t.includes('swap')||t.includes('velocity'))return 'Quantum Swaps use VELOCITY: QUB consensus actions plus BTC SPV funding verification with deadline/safety checks.';
+  if(t.includes('drive'))return 'QRX Drive live provider/shard state needs a running synchronized QRX node and the staged storage state.';
+  if(t.includes('globe')||t.includes('atlas'))return 'Resource Globe shows privacy-preserving regional aggregates. Live cells require resource_atlas_snapshot data from a synchronized QRX node.';
+  if(t.includes('qrx-net')||t.includes('.qrx')||t.includes('browser'))return 'QRX-Net names use the QRX resolver and never silently fall back to DNS. Normal HTTPS is a separate WWW route.';
+  if(t.includes('privacy'))return 'QUB is transparent by default; privacy is optional and user-controlled.';
+  return `AURA Local Help is deterministic in this release rather than a full local LLM. I can answer wallet, node/RPC, send/receive, staking, delegation, validator safety, recovery, BTC Light, swaps, Drive, QRX-Net, Browser, Globe and privacy questions. ${live}`;
+}
+async function ask(){
+  const q=$('q').value.trim();if(!q)return;add('user',q);$('q').value='';
+  const wait=document.createElement('div');wait.className='msg ai';wait.textContent='Checking local wallet context…';$('messages').appendChild(wait);
+  try{const c=await liveContext();wait.textContent=answer(q,c);}catch(e){wait.textContent='Local help error: '+String(e);}
+  $('messages').scrollTop=$('messages').scrollHeight;
+}
+$('ask').onclick=ask;$('q').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask();}});document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{$('q').value=b.dataset.q;ask();});$('clear').onclick=()=>{$('messages').innerHTML='';welcome();};$('full').onclick=async()=>{try{const w=window.__TAURI__?.window?.appWindow;if(w){const f=await w.isFullscreen();await w.setFullscreen(!f);}}catch(e){add('ai','Fullscreen toggle failed: '+e);}};function welcome(){add('ai',`Hi — I am AURA, the integrated QRX help assistant. Active context: ${network} · ${wallet}. Local Help works offline.`);}welcome();
+</script></body></html>

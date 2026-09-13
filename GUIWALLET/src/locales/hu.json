@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Biztonsági mentések",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Adatkönyvtár",
-  "wallet.auto.541343a73972": "Vezérlő socket",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Pénztárca vizsgálata",
   "wallet.auto.fd8e754f76a8": "Nyomja meg a Pénztárca vizsgálata gombot a formátum, címek, hibrid kulcsok és jelszóvédelem ellenőrzéséhez. Ez csak olvasható.",
   "wallet.auto.47765d59fc64": "Elérhető Core-pénztárcák",

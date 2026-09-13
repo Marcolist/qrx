@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Güvenlik yedekleri",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Veri dizini",
-  "wallet.auto.541343a73972": "Kontrol soketi",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Cüzdan incelemesi",
   "wallet.auto.fd8e754f76a8": "Biçimi, adresleri, hibrit anahtarları ve parola korumasını kontrol etmek için Cüzdanı incele'ye basın. Bu işlem salt okunurdur.",
   "wallet.auto.47765d59fc64": "Kullanılabilir Core cüzdanları",

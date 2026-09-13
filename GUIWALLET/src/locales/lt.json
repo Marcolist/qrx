@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Saugos atsarginės kopijos",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Duomenų katalogas",
-  "wallet.auto.541343a73972": "Valdymo lizdas",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Piniginės patikra",
   "wallet.auto.fd8e754f76a8": "Paspauskite Patikrinti piniginę, kad patikrintumėte formatą, adresus, hibridinius raktus ir slaptafrazės apsaugą. Tai tik skaitymo veiksmas.",
   "wallet.auto.47765d59fc64": "Galimos Core piniginės",

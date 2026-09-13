@@ -117,6 +117,8 @@ struct WalletContext {
     wallet: String,
     data_dir: String,
     wallet_dir: String,
+    rpc_endpoint: String,
+    rpc_port: u16,
     daemon_running: bool,
 }
 
@@ -590,6 +592,8 @@ fn ensure_context(network: &str, wallet: &str) -> Result<WalletContext, AppError
         wallet,
         data_dir: data_dir.to_string_lossy().to_string(),
         wallet_dir: wallet_dir.to_string_lossy().to_string(),
+        rpc_endpoint: rpc_endpoint(network),
+        rpc_port: rpc_port_for_network(network),
         daemon_running: false,
     })
 }
@@ -1991,7 +1995,7 @@ fn start_daemon(
     ctx.daemon_running = health.running;
     if !health.running {
         return Err(format!(
-            "qrxd started but did not answer on the control socket. Check logs at {}",
+            "qrxd started but did not answer on the HTTP RPC endpoint. Check logs at {}",
             health.stderr_log
         ));
     }
@@ -3652,6 +3656,28 @@ fn generals_submit_action(app:tauri::AppHandle,network:Option<String>,wallet:Opt
 }
 
 #[tauri::command]
+fn open_aura_window(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>) -> Result<String, String> {
+    if let Some(window) = app.get_window("qrx-aura") {
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok("AURA focused.".to_string());
+    }
+    tauri::WindowBuilder::new(
+        &app,
+        "qrx-aura",
+        tauri::WindowUrl::App(format!("aura/index.html?network={}&wallet={}", network.unwrap_or_else(|| "alpha".into()), sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?).into()),
+    )
+    .title("AURA · QRX Assistant")
+    .inner_size(980.0, 760.0)
+    .min_inner_size(640.0, 520.0)
+    .resizable(true)
+    .center()
+    .build()
+    .map_err(|e| format!("Could not create AURA window: {e}"))?;
+    Ok("AURA opened in its own window.".to_string())
+}
+
+#[tauri::command]
 fn open_generals_window(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, demo: Option<bool>) -> Result<String, String> {
     if let Some(window) = app.get_window("qrx-generals") {
         window.show().map_err(|e| e.to_string())?;
@@ -3704,26 +3730,77 @@ fn qrx_family_policy_status(network:String,wallet:String)->Result<Value,String>{
 
 #[tauri::command]
 fn open_qrx_browser_window(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>) -> Result<String, String> {
-    if let Some(window) = app.get_window("qrx-browser") {
+    let network = network.unwrap_or_else(|| "alpha".into());
+    if !matches!(network.as_str(), "mainnet" | "alpha" | "testnet" | "regtest") {
+        return Err("Unsupported QRX Browser network".into());
+    }
+    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("default")).map_err(String::from)?;
+    let browser = resolve_binary(Some(&app), "qrx-browser").map_err(String::from)?;
+    Command::new(browser)
+        .arg("--network").arg(&network)
+        .arg("--wallet").arg(&wallet)
+        .env("QRX_BIN_DIR", app.path_resolver().resource_dir().unwrap_or_else(|| PathBuf::from(".")))
+        .spawn()
+        .map_err(|e| format!("Could not start QRX Browser sidecar: {e}"))?;
+    Ok(format!("QRX Browser started for {network}/{wallet}."))
+}
+
+#[tauri::command]
+fn open_browser_www_window(app: tauri::AppHandle, url: String) -> Result<String, String> {
+    let trimmed = url.trim();
+    if !trimmed.starts_with("https://") { return Err("QRX Browser WWW route permits HTTPS URLs only.".into()); }
+    if trimmed.chars().any(|c| c.is_control()) { return Err("Invalid control character in URL.".into()); }
+    let parsed = trimmed.parse().map_err(|e| format!("Invalid HTTPS URL: {e}"))?;
+    if let Some(w) = app.get_window("qrx-www-content") { let _ = w.close(); }
+    tauri::WindowBuilder::new(&app, "qrx-www-content", tauri::WindowUrl::External(parsed))
+        .title(format!("QRX Browser · {}", trimmed))
+        .inner_size(1200.0, 820.0).min_inner_size(720.0, 520.0).resizable(true).center()
+        .build().map_err(|e| format!("Could not open WWW webview: {e}"))?;
+    Ok(trimmed.to_string())
+}
+
+#[tauri::command]
+fn open_qrx_upscaler_window(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>) -> Result<String, String> {
+    if let Some(window) = app.get_window("qrx-upscaler") {
         window.show().map_err(|e| e.to_string())?;
         window.set_focus().map_err(|e| e.to_string())?;
-        return Ok("QRX Browser focused.".to_string());
+        return Ok("QRX Upscaler focused.".to_string());
     }
     tauri::WindowBuilder::new(
         &app,
-        "qrx-browser",
-        tauri::WindowUrl::App(format!("browser/index.html?network={}&wallet={}", network.unwrap_or_else(|| "alpha".into()), sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?).into()),
+        "qrx-upscaler",
+        tauri::WindowUrl::App(format!("upscaler/index.html?network={}&wallet={}", network.unwrap_or_else(|| "alpha".into()), sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?).into()),
     )
-    .title("QRX Browser")
-    .inner_size(1440.0, 900.0)
-    .min_inner_size(960.0, 640.0)
+    .title("QRX Upscaler")
+    .inner_size(1280.0, 820.0)
+    .min_inner_size(900.0, 620.0)
     .resizable(true)
     .center()
     .build()
-    .map_err(|e| format!("Could not create QRX Browser window: {e}"))?;
-    Ok("QRX Browser opened in its own window.".to_string())
+    .map_err(|e| format!("Could not create QRX Upscaler window: {e}"))?;
+    Ok("QRX Upscaler opened in its own window.".to_string())
 }
 
+
+#[tauri::command]
+fn upscaler_run_local(app: tauri::AppHandle, input: String, output: String, scale: u8, filter: String) -> Result<Value, String> {
+    if !(1..=8).contains(&scale) { return Err("Upscaler scale must be between 1 and 8.".into()); }
+    let filter = filter.trim().to_ascii_lowercase();
+    if !matches!(filter.as_str(), "nearest" | "bilinear" | "bicubic" | "lanczos3") { return Err("Unsupported Upscaler filter.".into()); }
+    let input_path = PathBuf::from(&input);
+    if !input_path.is_file() { return Err("Selected media file does not exist.".into()); }
+    let output_path = PathBuf::from(&output);
+    if input_path == output_path { return Err("Output must not overwrite the input file.".into()); }
+    let ext = input_path.extension().and_then(|x| x.to_str()).unwrap_or("").to_ascii_lowercase();
+    let mode = if matches!(ext.as_str(), "mp4" | "mov" | "mkv" | "webm") { "video" } else { "image" };
+    let binary = resolve_binary(Some(&app), "qrx-upscaler").map_err(String::from)?;
+    let run = Command::new(binary).arg(mode).arg(&input_path).arg(&output_path)
+        .arg("--scale").arg(scale.to_string()).arg("--filter").arg(&filter)
+        .output().map_err(|e| format!("Could not run QRX Upscaler: {e}"))?;
+    if !run.status.success() { return Err(String::from_utf8_lossy(&run.stderr).trim().to_string()); }
+    Ok(serde_json::json!({"ok":true,"mode":mode,"input":input,"output":output,"scale":scale,"filter":filter,
+        "stderr":String::from_utf8_lossy(&run.stderr).trim()}))
+}
 
 #[tauri::command]
 fn upscaler_capabilities(app: tauri::AppHandle) -> Result<Value, String> {
@@ -3896,6 +3973,7 @@ fn drive_decrypt_file(app: tauri::AppHandle, network: String, wallet: String, en
     run_cli(Some(&app), &network, &wallet, &["decryptdrivefile", encrypted_container.as_str(), destination.as_str()], None).map(|r| r.result).map_err(String::from)
 }
 
+#[tauri::command]
 fn drive_start_download(app: tauri::AppHandle, network: String, wallet: String, contract_id: String, destination: String) -> Result<Value, String> {
     run_cli(Some(&app), &network, &wallet, &["startdrivedownload", contract_id.as_str(), destination.as_str()], None).map(|r| r.result).map_err(String::from)
 }
@@ -3939,11 +4017,15 @@ fn main() {
             generals_prepare_offline_reveal,
             generals_snapshot,
             generals_submit_action,
+            open_aura_window,
             open_generals_window,
             qrx_family_policy_set,
             qrx_family_policy_get,
             qrx_family_policy_status,
             open_qrx_browser_window,
+            open_browser_www_window,
+            open_qrx_upscaler_window,
+            upscaler_run_local,
             upscaler_capabilities,
             qrx_apps::qrx_app_inspect_package,
             qrx_apps::qrx_app_install,

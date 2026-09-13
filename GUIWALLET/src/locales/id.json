@@ -609,7 +609,7 @@
   "wallet.auto.755bdef3d0c6": "Backup keamanan",
   "wallet.auto.7664177df4f4": "~/.qrx/backups/",
   "wallet.auto.738cb501446c": "Direktori data",
-  "wallet.auto.541343a73972": "Socket kontrol",
+  "wallet.auto.541343a73972": "RPC endpoint",
   "wallet.auto.24f617029060": "Pemeriksaan dompet",
   "wallet.auto.fd8e754f76a8": "Tekan Periksa dompet untuk memeriksa format, alamat, kunci hybrid, dan perlindungan frasa sandi. Ini hanya-baca.",
   "wallet.auto.47765d59fc64": "Dompet Core tersedia",
