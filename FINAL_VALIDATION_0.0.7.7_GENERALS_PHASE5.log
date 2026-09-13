@@ -1,0 +1,6 @@
+QRX Generals 0.0.7.7 Phase 5 validation
+Fri Sep  4 16:53:42 UTC 2026
+CMake build: PASS
+PASS: Generals Phase 5 deterministic strategic features, capture ownership, per-turn economy production and scoring primitives
+PASS: Generals Phase 4.9 fleets, carrier operations, naval-yard deployment, blockades and deterministic naval combat primitives
+Known compiler warnings remain; build is not warning-free.

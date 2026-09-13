@@ -1,0 +1,6 @@
+QRX Generals 0.0.7.7 Phase 5.1 validation
+CMake configure/build: PASS
+Phase 5.1 structural consensus test: PASS
+Phase 5 regression test: PASS (invoked with explicit Phase 5.1 qrx binary because the legacy script's default relative build path is context-dependent)
+Known existing compiler warnings remain; build is not warning-free.
+Native Tauri installers not built in this environment.

@@ -1,0 +1,1 @@
+PASS: Generals Phase 5 deterministic strategic features, capture ownership, per-turn economy production and scoring primitives

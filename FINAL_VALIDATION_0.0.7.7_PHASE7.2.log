@@ -1,0 +1,43 @@
+QRX 0.0.7.7 PHASE 7.2 - GENESIS GOVERNANCE & KYC PROVIDER REGISTRY
+FINAL VALIDATION
+
+Release gate status: PASS for Phase 7.2 implementation.
+Mainnet remains intentionally INTERLOCKED until final public Genesis inputs are supplied.
+
+PASS  Fresh default-PQC CMake build completed to 100% (OpenSSL/ML-DSA requirement enabled).
+PASS  CTest: 7/7 (VELOCITY Phase 4 through 4F + Bitcoin SPV Phase 7.1 hardening).
+PASS  Phase 7.2 KYC provider registry E2E:
+      developer-threshold governance -> provider add -> #KYC_PROVIDER authority ->
+      regulated-asset eligibility -> provider disable -> existing provider tags cease to qualify.
+PASS  Phase 7.1 privacy governance regression:
+      3-of-5 -> PRIVACY_GOVERNANCE -> QRXDB -> V2 credential;
+      replay/duplicate/tamper/cross-genesis rejected.
+PASS  Phase 7.1 privacy transaction regression:
+      PRIVACY_SHIELD -> PRIVACY_TRANSFER -> PRIVACY_UNSHIELD using authoritative QRXDB;
+      credential/nullifier/cross-genesis enforcement.
+PASS  Mainnet incomplete-input interlock:
+      init-chain qrx-mainnet exits nonzero while the 50 validator addresses / 5 governance public keys remain placeholders.
+PASS  Genesis finalizer check-only:
+      exactly 50 canonical qrx1 + 120-hex addresses, five unique governance public keys,
+      threshold=3, deterministic public-input commitment.
+PASS  Synthetic latest Mainnet Genesis with canonical address validation:
+      bootstrap_validator_count=50; validator-set entries=50; governance_root_count=5;
+      governance_threshold=3; generated genesis.cfg binds the public inputs.
+PASS  Bootstrap allocation semantics:
+      1000 QUB per bootstrap validator initialized as self-stake and counted once in supply;
+      bootstrap stake is protected by the 180-day height lock while remaining staking-eligible.
+PASS  Mainnet governance roots are Genesis-bound; local governance-genesis-init override is rejected on Mainnet.
+PASS  No KYC provider is hard-coded in Genesis. Providers are add/disable/rotate/update by 3-of-5 developer governance.
+PASS  #KYC_<PROVIDER> qualifier issuance/tagging requires the ACTIVE registered provider authority.
+PASS  Generic transfer of KYC authority qualifiers is prohibited.
+PASS  Disabled provider tags no longer satisfy restricted-asset verifier expressions.
+
+FINAL INPUTS STILL REQUIRED BEFORE MAINNET GENESIS:
+- 50 real QRX bootstrap validator PUBLIC addresses.
+- 5 real developer-governance PUBLIC keys (DEV_GOV_1..DEV_GOV_5).
+- Operational DNS/routing for seed1.qrxchain.org, seed2.qrxchain.org, seed3.qrxchain.org.
+
+SECURITY / OPERATIONS NOTES:
+- Never put governance private keys, validator seeds, wallet private keys, recovery phrases, or KYC PII into the source repository or genesis file.
+- Shielded Privacy still warrants an independent cryptographic audit before enabling it for real-funds Mainnet use (or keep it protocol-disabled at launch).
+- Native Tauri platform installers still require final macOS/Windows/Linux smoke tests on the actual target toolchains.

@@ -1,0 +1,23 @@
+QRX 0.0.7.7 Phase 7.2.17.1 — GUI Mainnet Health & Peer Viewer Integration
+
+Validation
+==========
+- GUI inline JavaScript: node --check PASS
+- Phase 7.2.17.1 static GUI/Tauri assertions: PASS
+- Phase 7.2.17 Observatory regression assertions: PASS
+- Fresh Core configure/build with QRX_REQUIRE_PQC=OFF and QRX_BUILD_TESTS=ON: PASS
+- CTest: 7/7 PASS
+- Core consensus code intentionally unchanged in this phase.
+- Tauri Rust cargo check: NOT RUN (cargo unavailable in validation environment).
+- Existing compiler warnings remain; no new Core warning remediation attempted in this GUI-only phase.
+
+Implemented
+===========
+- Dashboard Mainnet Health card backed by authenticated local getmainnethealth.
+- GREEN/YELLOW/RED/CRITICAL badge and RED/CRITICAL GUI warning banner.
+- Height, blocks-behind, connections, supply invariant, best block hash, state-root and protocol display.
+- Mainnet-only semantics; non-Mainnet networks display N/A instead of misleading health data.
+- Local-only Peer Viewer with host/domain/IP, port, basic type classification and raw peer status.
+- getpeerinfo primary path with listpeers fallback.
+- No external GeoIP/DNS/ASN service or peer-list upload.
+- Peer table uses DOM textContent for untrusted daemon strings.

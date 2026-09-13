@@ -1,0 +1,5 @@
+CMake configure/build: PASS
+Phase 4.7 structure: PASS
+Phase 4.6 regression: PASS
+Phase 4.5 regression: PASS
+Known compiler warnings remain; build is not warning-free.

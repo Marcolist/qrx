@@ -1,0 +1,21 @@
+QRX 0.0.7.6 Native Assets / Regulated Tokenization validation
+
+Validated on native Linux host before packaging:
+- Core build: PASS
+- native_assets_regulated_0076.sh: PASS
+- native_assets_mainnet_consensus_0076.sh: PASS
+- signed consensus asset transaction family: PASS
+- reissuable=true remint path: PASS
+- one-way reissuable=false lock: PASS
+- MAIN/SUB/UNIQUE/OWNER/CHANNEL: PASS
+- QUALIFIER/SUBQUALIFIER/TAG/UNTAG: PASS
+- RESTRICTED verifier / address freeze / global freeze: PASS
+- opt-in REVOKE / FORCED_TRANSFER extensions: PASS
+- asset operation burn accounting: PASS
+- qrx1 address compatibility: PASS
+- old direct v1 mutation commands remain dev/regtest-gated on Mainnet
+- asset_activation_height consensus gate present
+
+Native macOS/Windows/Linux ARM Tauri/installers were not built in this environment.
+Independent pre-Genesis consensus/security audit remains recommended.
+Shielded-QUB retains its separate external cryptography audit gate.

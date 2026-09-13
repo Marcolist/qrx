@@ -1,0 +1,43 @@
+QRX 0.0.7.7 Phase 7.2.12 final validation
+
+PASS fresh normal C/C++ build: qrxcore, qrx, qrxd, qrx-cli
+PASS static Phase 7.2.12 security assertions
+PASS randomized staking accounting adversarial model: 10,000 cases
+PASS real signed staking/delegation E2E
+  - STAKE_BOND
+  - malformed transaction rejection
+  - replay rejection
+  - DELEGATE_BOND
+  - validator power update
+  - STAKE_UNBOND
+  - STAKE_CLAIM exactly once / double claim rejected
+  - DELEGATE_UNBOND
+  - DELEGATE_CLAIM exactly once / double claim rejected
+  - supply-invariant=1
+  - legacy direct mutation paths rejected
+PASS staking QRXDB/WAL injected crash recovery
+  - crash after WAL commit
+  - recovered state root equals normal state root
+  - bonded stake survives recovery
+  - replay rejected after recovery
+PASS ASAN+UBSAN build and staking/delegation E2E
+PASS ASAN+UBSAN CTest 7/7
+  velocity_phase4_engine
+  velocity_phase4b_mvcc
+  velocity_phase4c_stateful_mvcc
+  velocity_phase4d_dynamic_mvcc
+  velocity_phase4e_speculative_mvcc
+  velocity_phase4f_block_scheduler
+  bitcoin_spv_phase71_hardening
+PASS multi-target build-plan regression 6/6
+PASS live Localhost RPC security smoke
+  no token => HTTP 401
+  valid token + hostile Origin => HTTP 403
+  valid token + application/json => HTTP 200
+  valid token + text/plain => HTTP 403
+PASS rpc.token is created as a 64-hex-character/256-bit random token and mode 0600 on POSIX
+
+Audit-build notes:
+- Sanitizer logic builds used QRX_REQUIRE_PQC=OFF in this environment; production build scripts retain QRX_REQUIRE_PQC=ON.
+- The existing codebase still emits some legacy compiler warnings (including defensive path-size/truncation warnings); this phase does not claim a zero-warning tree.
+- Native Tauri Cargo validation was not available in this audit container. The macOS ARM64 release build remains a required native smoke test before release.

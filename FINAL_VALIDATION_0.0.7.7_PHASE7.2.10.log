@@ -1,0 +1,10 @@
+Phase 7.2.10 validation
+PASS fresh CMake configure/build with QRX_REQUIRE_PQC=OFF
+PASS qrxcore/qrx/qrxd/qrx-cli build
+PASS signed VELOCITY staking/delegation tx types registered
+PASS staking/delegation QRXDB atomic staging present
+PASS nonce/applied-tx/tx-index share atomic batch
+PASS bootstrap principal floor retained
+PASS Validator Fleet UX distinguishes enable vs collateral vs node runtime
+PASS Phase 7.2.9 fleet runtime retained
+NOTE: production PQC build remains performed by platform build scripts with QRX_REQUIRE_PQC=ON.

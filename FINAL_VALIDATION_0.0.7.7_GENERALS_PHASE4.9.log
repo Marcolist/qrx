@@ -1,0 +1,4 @@
+CMake configure/build: PASS (existing compiler warnings remain)
+Phase 4.9 naval test: PASS
+Phase 4.8 regression: PASS
+Features: naval-yard deployment, fleets, carrier air-wing binding, blockade state, staged simultaneous naval damage and later resolution

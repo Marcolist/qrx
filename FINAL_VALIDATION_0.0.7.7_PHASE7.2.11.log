@@ -1,0 +1,14 @@
+Phase 7.2.11 validation
+PASS fresh Core CMake configure/build with QRX_REQUIRE_PQC=OFF
+PASS qrxcore
+PASS qrx
+PASS qrxd
+PASS qrx-cli
+PASS qrxdb_verify/salvage/compact/snapshot
+PASS qrx-cli setvalidatorfleet command compiled
+PASS qrxd runtime setvalidatorfleet RPC handler compiled
+PASS GUI JavaScript syntax (node --check)
+PASS Complete Ledger Python syntax (py_compile)
+PASS synthetic VALIDATOR_REWARD tax classification
+PASS multi-target build plan regression tests 6/6
+NOTE Rust/Tauri cargo check was not run in this execution environment because cargo is not installed. Existing platform build scripts remain the authoritative native Tauri build path.

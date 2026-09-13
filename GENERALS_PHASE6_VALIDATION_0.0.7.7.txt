@@ -1,0 +1,22 @@
+QRX Generals 0.0.7.7 Phase 6 — validation summary
+
+Core CMake build: PASS
+Generals test suite: PASS (all generals*.sh currently present, with modernized Phase-4 visibility regression)
+Phase 6 behavioral test: PASS
+  - two real test wallets
+  - GAME_JOIN
+  - GAME_SEASON_JOIN
+  - deterministic participant ranking
+  - bounded region API
+  - season height rollover
+  - GAME_SEASON_FINALIZE
+  - 2 QUB reserved prize pool
+  - GAME_REWARD_CLAIM
+  - authoritative winner QUB credit
+  - reserved treasury release
+  - replay/double-claim rejection
+GUI JavaScript syntax: PASS (Node syntax check)
+Governance nonce format bug from audit: FIXED
+Native Tauri/Rust compile: NOT RUN (cargo unavailable in validation environment)
+Known broad Core compiler warnings: REMAIN
+Mainnet/security certification: NOT CLAIMED

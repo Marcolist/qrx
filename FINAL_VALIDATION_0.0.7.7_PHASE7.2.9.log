@@ -1,0 +1,21 @@
+QRX 0.0.7.7 Phase 7.2.9 validation
+==================================
+PASS fresh CMake configure with QRX_REQUIRE_PQC=OFF in validation container
+PASS qrxcore build
+PASS qrx build
+PASS qrxd build
+PASS qrx-cli build
+PASS qrxdb tools build
+PASS qrx --help exposes propose-block-as
+PASS qrxd --help exposes repeated --validator-wallet
+PASS qrx-cli exposes undelegate
+PASS qrx-cli exposes claim-undelegated
+PASS GUI inline JavaScript syntax (node --check)
+PASS one qrxd / one QRXDB fleet architecture
+PASS proposal signer fallback prevents locked/under-staked signer from stalling fleet
+PASS per-validator double-sign lock for fleet vote signing
+PASS existing single-validator fallback retained
+PASS no auto-stake introduced
+PASS Phase 7.2.8 bootstrap lock/slashing source retained
+NOTE Rust/Tauri full native bundle compilation requires target OS toolchains and is performed by build-all-targets scripts.
+NOTE Existing delegation consensus state remains legacy/direct-command based; signed QRXDB-atomic delegation transactions remain a separate pre-Mainnet hardening item.

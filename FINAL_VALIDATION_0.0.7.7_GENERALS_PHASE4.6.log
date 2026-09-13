@@ -1,0 +1,6 @@
+QRX Generals 0.0.7.7 Phase 4.6 validation
+CMake configure/build: PASS
+Phase 4.6 air superiority structural/core test: PASS
+Phase 4.5 air/radar/SAM/missile regression: PASS
+Known existing compiler warnings remain; build is not claimed warning-free.
+Native Tauri platform installers were not produced in this environment.

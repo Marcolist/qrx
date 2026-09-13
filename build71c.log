@@ -1,0 +1,1187 @@
+[  3%] Building C object CMakeFiles/qrxcore.dir/src/qrx.c.o
+[  3%] Built target qrx-wallet-cli
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'usage':
+/mnt/data/qrx71/qrx-core/src/qrx.c:329:10: warning: string length '4410' is greater than the length '4095' ISO C99 compilers are required to support [-Woverlength-strings]
+  329 |          "  decay-bans <node-dir> [points]\n  state-check <chain-dir>\n  snapshot-state <chain-dir> [label]\n  reindex-state <chain-dir>\n  stake <chain-dir> <wallet-dir> <amount>\n  unstake <chain-dir> <wallet-dir> <amount> [unbonding-secs]\n  claim-unbonded <chain-dir> <wallet-dir>\n  delegate <chain-dir> <delegator-wallet-dir> <validator-address> <amount>\n  undelegate <chain-dir> <delegator-wallet-dir> <validator-address> <amount> [unbonding-secs]\n  claim-undelegated <chain-dir> <delegator-wallet-dir> <validator-address>\n  staking-status <chain-dir> [address]\n  validator-set <chain-dir>\n  reward-epoch <chain-dir> <reward-amount> [validator-commission-bps]\n  slash <chain-dir> <validator-address> <amount> <reason>\n");
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'hex_to_bytes':
+/mnt/data/qrx71/qrx-core/src/qrx.c:388:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  388 |     if (out_len) *out_len = m; return 0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:388:32: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  388 |     if (out_len) *out_len = m; return 0;
+      |                                ^~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'strip_address_recovery_extension':
+/mnt/data/qrx71/qrx-core/src/qrx.c:723:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  723 |         if(!e) break; p=e+1;
+      |         ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:723:23: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  723 |         if(!e) break; p=e+1;
+      |                       ^
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'restore_recovery_address_extension':
+/mnt/data/qrx71/qrx-core/src/qrx.c:804:9: warning: this 'for' clause does not guard... [-Wmisleading-indentation]
+  804 |         for(int j=0;j<4;j++)free(vals[j]);free(addr);
+      |         ^~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:804:43: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'for'
+  804 |         for(int j=0;j<4;j++)free(vals[j]);free(addr);
+      |                                           ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'mempool_prune_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:1688:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 1688 |     if(max_txs<1)max_txs=MEMPOOL_MAX_TXS; QrxVelocityMempool pool; QrxVelocityPlan plan; int removed=0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:1688:43: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 1688 |     if(max_txs<1)max_txs=MEMPOOL_MAX_TXS; QrxVelocityMempool pool; QrxVelocityPlan plan; int removed=0;
+      |                                           ^~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'agent_apply_tx':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2157:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2157 |         if (ed) free(ed); if (ml) free(ml); free(perm); free(max_trade); free(daily); free(markets); free(exp);
+      |         ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2157:27: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2157 |         if (ed) free(ed); if (ml) free(ml); free(perm); free(max_trade); free(daily); free(markets); free(exp);
+      |                           ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'asset_id_valid':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2372:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2372 |     if (!asset) return 0; size_t n = strlen(asset); if (n < 2 || n > 24) return 0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2372:27: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2372 |     if (!asset) return 0; size_t n = strlen(asset); if (n < 2 || n > 24) return 0;
+      |                           ^~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'asset_register_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2398:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2398 |     if(!strcmp(a,"QUB")) die("QUB is built in"); validate_simple_payload_value(name,"asset name");
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2398:50: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2398 |     if(!strcmp(a,"QUB")) die("QUB is built in"); validate_simple_payload_value(name,"asset name");
+      |                                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'asset_balance_set':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2423:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2423 |     if(value<0) return -1; char a[32]; asset_id_normalize(asset,a,sizeof(a));
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2423:28: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2423 |     if(value<0) return -1; char a[32]; asset_id_normalize(asset,a,sizeof(a));
+      |                            ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'asset_credit_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2440:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2440 |     if(asset_balance_adjust(chain_dir,a,address,amount))die("asset credit failed"); printf("%lld\n",asset_balance_get(chain_dir,a,address)); return 0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2440:85: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2440 |     if(asset_balance_adjust(chain_dir,a,address,amount))die("asset credit failed"); printf("%lld\n",asset_balance_get(chain_dir,a,address)); return 0;
+      |                                                                                     ^~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'asset_balance_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2444:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2444 |     if(!asset_exists(chain_dir,asset))die("asset is not registered"); printf("%lld\n",asset_balance_get(chain_dir,asset,address)); return 0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2444:71: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2444 |     if(!asset_exists(chain_dir,asset))die("asset is not registered"); printf("%lld\n",asset_balance_get(chain_dir,asset,address)); return 0;
+      |                                                                       ^~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'parse_native_market':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2459:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2459 |     if(!market||!*market)return -1;const char *slash=strchr(market,'/');if(!slash||strchr(slash+1,'/'))return -1;size_t bl=(size_t)(slash-market),ql=strlen(slash+1);if(!bl||!ql||bl>=bsz||ql>=qsz)return -1;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2459:36: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2459 |     if(!market||!*market)return -1;const char *slash=strchr(market,'/');if(!slash||strchr(slash+1,'/'))return -1;size_t bl=(size_t)(slash-market),ql=strlen(slash+1);if(!bl||!ql||bl>=bsz||ql>=qsz)return -1;
+      |                                    ^~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2461:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2461 |     if(!asset_id_valid(base)||!asset_id_valid(quote)||!strcmp(base,quote))return -1;if(!asset_exists(chain_dir,base)||!asset_exists(chain_dir,quote))return -2;return 0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2461:85: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2461 |     if(!asset_id_valid(base)||!asset_id_valid(quote)||!strcmp(base,quote))return -1;if(!asset_exists(chain_dir,base)||!asset_exists(chain_dir,quote))return -2;return 0;
+      |                                                                                     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'mul_div_floor_nonneg':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2466:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2466 |     if(a<0||b<0||d<=0||!out)return -1; unsigned long long q=0,rem=0,ub=(unsigned long long)b,ud=(unsigned long long)d,base_q=ub/ud,base_r=ub%ud,ua=(unsigned long long)a;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2466:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2466 |     if(a<0||b<0||d<=0||!out)return -1; unsigned long long q=0,rem=0,ub=(unsigned long long)b,ud=(unsigned long long)d,base_q=ub/ud,base_r=ub%ud,ua=(unsigned long long)a;
+      |                                        ^~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2468:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2468 |         if(q>(unsigned long long)LLONG_MAX/2ULL)return -1;q*=2ULL;rem*=2ULL;if(rem>=ud){rem-=ud;if(q>=(unsigned long long)LLONG_MAX)return -1;q++;}
+      |         ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2468:59: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2468 |         if(q>(unsigned long long)LLONG_MAX/2ULL)return -1;q*=2ULL;rem*=2ULL;if(rem>=ud){rem-=ud;if(q>=(unsigned long long)LLONG_MAX)return -1;q++;}
+      |                                                           ^
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'agent_usage_current':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2490:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2490 |     if (bucket_out) *bucket_out = bucket; if (epoch_blocks_out) *epoch_blocks_out = epoch_blocks; return kv_get_ll_bin(path, key);
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2490:43: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2490 |     if (bucket_out) *bucket_out = bucket; if (epoch_blocks_out) *epoch_blocks_out = epoch_blocks; return kv_get_ll_bin(path, key);
+      |                                           ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'agent_usage_add':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2494:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2494 |     if (quantity_atoms <= 0) return 0; long long bucket = 0; long long cur = agent_usage_current(chain_dir, agent, &bucket, NULL), next = 0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2494:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2494 |     if (quantity_atoms <= 0) return 0; long long bucket = 0; long long cur = agent_usage_current(chain_dir, agent, &bucket, NULL), next = 0;
+      |                                        ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'agent_assert_trade_authorized':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2513:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2513 |     if (!stored_owner || !*stored_owner) die("trading agent is not registered"); if (!owner || strcmp(owner, stored_owner) != 0) die("trading agent owner mismatch");
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2513:82: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2513 |     if (!stored_owner || !*stored_owner) die("trading agent is not registered"); if (!owner || strcmp(owner, stored_owner) != 0) die("trading agent owner mismatch");
+      |                                                                                  ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2514:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2514 |     if (!status || strcmp(status, "active") != 0) die("trading agent is not active"); long long expires = parse_positive_ll_strict(expires_s, "agent expires_height"); if (current_height_from_chain(chain_dir) >= expires) die("trading agent authorization expired");
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2514:87: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2514 |     if (!status || strcmp(status, "active") != 0) die("trading agent is not active"); long long expires = parse_positive_ll_strict(expires_s, "agent expires_height"); if (current_height_from_chain(chain_dir) >= expires) die("trading agent authorization expired");
+      |                                                                                       ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2518:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2518 |     if (!stored_ed || !tx_ed_pub_hex || strcmp(stored_ed, tx_ed_pub_hex) != 0) die("agent ed25519 key differs from owner-authorized key"); if (!stored_ml || !tx_ml_pub_b64 || strcmp(stored_ml, tx_ml_pub_b64) != 0) die("agent ML-DSA key differs from owner-authorized key");
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2518:140: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2518 |     if (!stored_ed || !tx_ed_pub_hex || strcmp(stored_ed, tx_ed_pub_hex) != 0) die("agent ed25519 key differs from owner-authorized key"); if (!stored_ml || !tx_ml_pub_b64 || strcmp(stored_ml, tx_ml_pub_b64) != 0) die("agent ML-DSA key differs from owner-authorized key");
+      |                                                                                                                                            ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'validate_trade_fields_common':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2534:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2534 |         if(!market||!side||!otype||!qty_s||!price_s||!order_exp_s)die("trading payload missing order fields");validate_simple_payload_value(market,"market");validate_simple_payload_value(side,"side");validate_simple_payload_value(otype,"order_type");if(strcasecmp(side,"BUY")&&strcasecmp(side,"SELL"))die("side must be BUY or SELL");if(strcasecmp(otype,"LIMIT")&&strcasecmp(otype,"MARKET"))die("order_type must be LIMIT or MARKET");
+      |         ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2534:111: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2534 |         if(!market||!side||!otype||!qty_s||!price_s||!order_exp_s)die("trading payload missing order fields");validate_simple_payload_value(market,"market");validate_simple_payload_value(side,"side");validate_simple_payload_value(otype,"order_type");if(strcasecmp(side,"BUY")&&strcasecmp(side,"SELL"))die("side must be BUY or SELL");if(strcasecmp(otype,"LIMIT")&&strcasecmp(otype,"MARKET"))die("order_type must be LIMIT or MARKET");
+      |                                                                                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'order_write_from_payload':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2551:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2551 |     if(order_db_set_field(chain_dir,order_id,"owner",owner)||order_db_set_field(chain_dir,order_id,"agent",agent)||order_db_set_field(chain_dir,order_id,"kind",kind)||order_db_set_field(chain_dir,order_id,"status",status)||order_db_set_field(chain_dir,order_id,"created_height",hbuf)||order_db_set_field(chain_dir,order_id,"updated_height",hbuf)||order_db_set_field(chain_dir,order_id,"last_tx",body_hash?body_hash:order_id))return -1;if(replaces&&*replaces&&order_db_set_field(chain_dir,order_id,"replaces",replaces))return -1;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2551:436: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2551 |     if(order_db_set_field(chain_dir,order_id,"owner",owner)||order_db_set_field(chain_dir,order_id,"agent",agent)||order_db_set_field(chain_dir,order_id,"kind",kind)||order_db_set_field(chain_dir,order_id,"status",status)||order_db_set_field(chain_dir,order_id,"created_height",hbuf)||order_db_set_field(chain_dir,order_id,"updated_height",hbuf)||order_db_set_field(chain_dir,order_id,"last_tx",body_hash?body_hash:order_id))return -1;if(replaces&&*replaces&&order_db_set_field(chain_dir,order_id,"replaces",replaces))return -1;
+      |                                                                                                                                                                                                                                                                                                                                                                                                                                                    ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'collect_match_candidates':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2745:21: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2745 |                     if(kind)free(kind);if(status)free(status);if(omarket)free(omarket);if(side)free(side);if(sv)free(sv);
+      |                     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2745:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2745 |                     if(kind)free(kind);if(status)free(status);if(omarket)free(omarket);if(side)free(side);if(sv)free(sv);
+      |                                        ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'trade_apply_tx':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2764:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2764 |     if(!body_hash||!*body_hash)return -1;long long h=current_height_from_chain(chain_dir);
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2764:42: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2764 |     if(!body_hash||!*body_hash)return -1;long long h=current_height_from_chain(chain_dir);
+      |                                          ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'order_status_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2772:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2772 |     if(!order_id||!*order_id)die("missing order id");const char *fields[]={"owner","agent","kind","venue","market","side","order_type","quantity_atoms","filled_atoms","remaining_atoms","limit_price_atoms","status","created_height","updated_height","order_expires_height","client_order_id","time_in_force","arbitrage_id","source_order_id","replaces","replacement_order_id","settlement_version","locked_asset","locked_atoms","external_filled_atoms","external_avg_price_atoms","external_venue_fee_atoms","venue_order_id","execution_gateway","execution_report_sequence","last_execution_report","last_trade_id","crosschain_session_id","hashlock_hex","btc_redeem_pubkey_hex","btc_refund_pubkey_hex","btc_refund_csv_blocks","qrx_refund_height","last_tx",NULL};int found=0;printf("order_id=%s\n",order_id);for(int i=0;fields[i];++i){char *v=order_db_get_field(chain_dir,order_id,fields[i]);if(v){printf("%s=%s\n",fields[i],v);found=1;free(v);}}if(!found)die("order not found");return 0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2772:54: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2772 |     if(!order_id||!*order_id)die("missing order id");const char *fields[]={"owner","agent","kind","venue","market","side","order_type","quantity_atoms","filled_atoms","remaining_atoms","limit_price_atoms","status","created_height","updated_height","order_expires_height","client_order_id","time_in_force","arbitrage_id","source_order_id","replaces","replacement_order_id","settlement_version","locked_asset","locked_atoms","external_filled_atoms","external_avg_price_atoms","external_venue_fee_atoms","venue_order_id","execution_gateway","execution_report_sequence","last_execution_report","last_trade_id","crosschain_session_id","hashlock_hex","btc_redeem_pubkey_hex","btc_refund_pubkey_hex","btc_refund_csv_blocks","qrx_refund_height","last_tx",NULL};int found=0;printf("order_id=%s\n",order_id);for(int i=0;fields[i];++i){char *v=order_db_get_field(chain_dir,order_id,fields[i]);if(v){printf("%s=%s\n",fields[i],v);found=1;free(v);}}if(!found)die("order not found");return 0;
+      |                                                      ^~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'list_trades_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2797:25: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2797 |                         if(q)free(q);if(p)free(p);if(qa)free(qa);if(sq)free(sq);if(maker)free(maker);if(taker)free(taker);if(buyer)free(buyer);if(seller)free(seller);shown++;
+      |                         ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2797:38: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2797 |                         if(q)free(q);if(p)free(p);if(qa)free(qa);if(sq)free(sq);if(maker)free(maker);if(taker)free(taker);if(buyer)free(buyer);if(seller)free(seller);shown++;
+      |                                      ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'gateway_db_set_field':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2826:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2826 |     if(velocity_qrxdb_put(chain_dir,qkey,value?value:""))return -1;gateway_registry_path(chain_dir,path,sizeof(path));if(gateway_make_key(key,sizeof(key),gateway,field))return -1;return text_db_set(path,key,value?value:"");
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2826:68: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2826 |     if(velocity_qrxdb_put(chain_dir,qkey,value?value:""))return -1;gateway_registry_path(chain_dir,path,sizeof(path));if(gateway_make_key(key,sizeof(key),gateway,field))return -1;return text_db_set(path,key,value?value:"");
+      |                                                                    ^~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'gateway_apply_tx':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2857:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2857 |     if(qrxdb_init(&db,chain_dir)!=0)return -1;if(qrxdb_batch_begin(&db,&b)!=0){qrxdb_close(&db);return -1;}
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2857:47: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2857 |     if(qrxdb_init(&db,chain_dir)!=0)return -1;if(qrxdb_batch_begin(&db,&b)!=0){qrxdb_close(&db);return -1;}
+      |                                               ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'validate_execution_report_tx':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2893:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2893 |     if(!kind||strcmp(kind,"external"))die("execution report target is not an external order");if(!order_owner||strcmp(order_owner,owner))die("execution report owner mismatch");if(!order_venue||!gw_venue||strcasecmp(order_venue,gw_venue))die("gateway venue does not match external order venue");
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2893:95: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2893 |     if(!kind||strcmp(kind,"external"))die("execution report target is not an external order");if(!order_owner||strcmp(order_owner,owner))die("execution report owner mismatch");if(!order_venue||!gw_venue||strcasecmp(order_venue,gw_venue))die("gateway venue does not match external order venue");
+      |                                                                                               ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2897:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2897 |     if(seq!=prev_seq+1)die("execution report sequence mismatch");if(filled<prev_filled||filled>qty)die("invalid cumulative external fill quantity");if(filled>0&&price<=0)die("filled execution report requires avg_price_atoms > 0");
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2897:66: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2897 |     if(seq!=prev_seq+1)die("execution report sequence mismatch");if(filled<prev_filled||filled>qty)die("invalid cumulative external fill quantity");if(filled>0&&price<=0)die("filled execution report requires avg_price_atoms > 0");
+      |                                                                  ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2898:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2898 |     if(!strcasecmp(status,"PARTIALLY_FILLED")&&(filled<=0||filled>=qty))die("PARTIALLY_FILLED requires 0 < filled < quantity");if(!strcasecmp(status,"FILLED")&&filled!=qty)die("FILLED requires filled_quantity_atoms == order quantity");
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2898:128: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2898 |     if(!strcasecmp(status,"PARTIALLY_FILLED")&&(filled<=0||filled>=qty))die("PARTIALLY_FILLED requires 0 < filled < quantity");if(!strcasecmp(status,"FILLED")&&filled!=qty)die("FILLED requires filled_quantity_atoms == order quantity");
+      |                                                                                                                                ^~
+In file included from /mnt/data/qrx71/qrx-core/src/qrx.c:2928:
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc: In function 'crosschain_hex_exact':
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:24:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   24 |     if(!s) return 0; size_t n=strlen(s); if(n<min_len||n>max_len) return 0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:24:22: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   24 |     if(!s) return 0; size_t n=strlen(s); if(n<min_len||n>max_len) return 0;
+      |                      ^~~~~~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc: In function 'crosschain_btc_htlc_script':
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:84:5: warning: this 'for' clause does not guard... [-Wmisleading-indentation]
+   84 |     for(size_t i=0;i<off;i++) sprintf(script_hex+i*2,"%02x",script[i]); script_hex[off*2]=0;
+      |     ^~~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:84:73: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'for'
+   84 |     for(size_t i=0;i<off;i++) sprintf(script_hex+i*2,"%02x",script[i]); script_hex[off*2]=0;
+      |                                                                         ^~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc: In function 'crosschain_p2wsh_address':
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:103:5: warning: this 'for' clause does not guard... [-Wmisleading-indentation]
+  103 |     for(const char *p=hrp;*p;p++) vals[vn++]=(unsigned char)(*p>>5); vals[vn++]=0; for(const char *p=hrp;*p;p++) vals[vn++]=(unsigned char)(*p&31); for(size_t i=0;i<dlen;i++) vals[vn++]=data[i]; for(int i=0;i<6;i++)vals[vn++]=0;
+      |     ^~~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:103:70: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'for'
+  103 |     for(const char *p=hrp;*p;p++) vals[vn++]=(unsigned char)(*p>>5); vals[vn++]=0; for(const char *p=hrp;*p;p++) vals[vn++]=(unsigned char)(*p&31); for(size_t i=0;i<dlen;i++) vals[vn++]=data[i]; for(int i=0;i<6;i++)vals[vn++]=0;
+      |                                                                      ^~~~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc: In function 'crosschain_funding_safety_qrx_blocks':
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:128:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  128 |     if(bt<=0)bt=10; if(confirmations<=0)confirmations=QRX_CROSSCHAIN_DEFAULT_BTC_CONFIRMATIONS;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:128:21: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  128 |     if(bt<=0)bt=10; if(confirmations<=0)confirmations=QRX_CROSSCHAIN_DEFAULT_BTC_CONFIRMATIONS;
+      |                     ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc: In function 'validate_crosschain_order_fields':
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:140:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  140 |     if(!crosschain_market_valid(market))die("Phase 3D supports canonical BTC/QUB cross-chain market only");if(strcasecmp(otype,"LIMIT"))die("cross-chain Phase 3D supports LIMIT orders only");if(strcasecmp(side,"BUY")&&strcasecmp(side,"SELL"))die("cross-chain side must be BUY or SELL");
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:140:108: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  140 |     if(!crosschain_market_valid(market))die("Phase 3D supports canonical BTC/QUB cross-chain market only");if(strcasecmp(otype,"LIMIT"))die("cross-chain Phase 3D supports LIMIT orders only");if(strcasecmp(side,"BUY")&&strcasecmp(side,"SELL"))die("cross-chain side must be BUY or SELL");
+      |                                                                                                            ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:142:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  142 |     if(oe<=h||oe>te)die("invalid cross-chain order expiry");agent_assert_trade_authorized(chain_dir,agent,owner,QRX_CROSSCHAIN_MARKET,"TRADE_CROSSCHAIN",qty,1,ed,ml);
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:142:61: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  142 |     if(oe<=h||oe>te)die("invalid cross-chain order expiry");agent_assert_trade_authorized(chain_dir,agent,owner,QRX_CROSSCHAIN_MARKET,"TRADE_CROSSCHAIN",qty,1,ed,ml);
+      |                                                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:144:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  144 |         if(!crosschain_hashlock_valid(hash))die("BTC/QUB BUY requires a 32-byte SHA-256 hashlock");if(!crosschain_compressed_pubkey_valid(redeem))die("BTC/QUB BUY requires compressed btc_redeem_pubkey_hex");if(strcmp(refund,"-")||strcmp(csvs,"0"))die("BUY must use btc_refund_pubkey_hex=- and btc_refund_csv_blocks=0");long long qrh=parse_positive_ll_strict(qrhs,"qrx_refund_height");if(qrh<=oe)die("qrx_refund_height must be later than order expiry");long long lock=quote_for_quantity(qty,price);if(qrx_balance_get_authoritative(chain_dir,owner)<lock)die("insufficient owner QUB for cross-chain reserve");
+      |         ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:144:100: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  144 |         if(!crosschain_hashlock_valid(hash))die("BTC/QUB BUY requires a 32-byte SHA-256 hashlock");if(!crosschain_compressed_pubkey_valid(redeem))die("BTC/QUB BUY requires compressed btc_redeem_pubkey_hex");if(strcmp(refund,"-")||strcmp(csvs,"0"))die("BUY must use btc_refund_pubkey_hex=- and btc_refund_csv_blocks=0");long long qrh=parse_positive_ll_strict(qrhs,"qrx_refund_height");if(qrh<=oe)die("qrx_refund_height must be later than order expiry");long long lock=quote_for_quantity(qty,price);if(qrx_balance_get_authoritative(chain_dir,owner)<lock)die("insufficient owner QUB for cross-chain reserve");
+      |                                                                                                    ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:146:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  146 |         if(strcmp(hash,"-")||strcmp(redeem,"-")||strcmp(qrhs,"0"))die("SELL must use hashlock=- btc_redeem_pubkey_hex=- qrx_refund_height=0");if(!crosschain_compressed_pubkey_valid(refund))die("BTC/QUB SELL requires compressed btc_refund_pubkey_hex");long long csv=parse_positive_ll_strict(csvs,"btc_refund_csv_blocks");if(csv>QRX_CROSSCHAIN_MAX_CSV_BLOCKS)die("btc_refund_csv_blocks too large");
+      |         ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:146:143: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  146 |         if(strcmp(hash,"-")||strcmp(redeem,"-")||strcmp(qrhs,"0"))die("SELL must use hashlock=- btc_redeem_pubkey_hex=- qrx_refund_height=0");if(!crosschain_compressed_pubkey_valid(refund))die("BTC/QUB SELL requires compressed btc_refund_pubkey_hex");long long csv=parse_positive_ll_strict(csvs,"btc_refund_csv_blocks");if(csv>QRX_CROSSCHAIN_MAX_CSV_BLOCKS)die("btc_refund_csv_blocks too large");
+      |                                                                                                                                               ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc: In function 'validate_crosschain_action':
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:155:5: warning: this 'else' clause does not guard... [-Wmisleading-indentation]
+  155 |     else die("unsupported cross-chain action");free(status);free(buyer);free(seller);free(sid);
+      |     ^~~~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:155:48: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'else'
+  155 |     else die("unsupported cross-chain action");free(status);free(buyer);free(seller);free(sid);
+      |                                                ^~~~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc: In function 'crosschain_stage_order':
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:159:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  159 |     if(atomic_stage_order_payload(b,body_hash,agent,owner,"crosschain","open",payload,body_hash,NULL,h))return -1;char *qs=payload_get_field(payload,"quantity_atoms"),*side=payload_get_field(payload,"side"),*ps=payload_get_field(payload,"limit_price_atoms");long long qty=parse_positive_ll_strict(qs,"quantity_atoms"),price=parse_positive_ll_strict(ps,"limit_price_atoms");int rc=atomic_stage_agent_usage(b,chain_dir,agent,qty);rc|=velocity_batch_put_order(b,body_hash,"settlement_version",QRX_CROSSCHAIN_SETTLEMENT_VERSION);
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_crosschain.inc:159:115: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  159 |     if(atomic_stage_order_payload(b,body_hash,agent,owner,"crosschain","open",payload,body_hash,NULL,h))return -1;char *qs=payload_get_field(payload,"quantity_atoms"),*side=payload_get_field(payload,"side"),*ps=payload_get_field(payload,"limit_price_atoms");long long qty=parse_positive_ll_strict(qs,"quantity_atoms"),price=parse_positive_ll_strict(ps,"limit_price_atoms");int rc=atomic_stage_agent_usage(b,chain_dir,agent,qty);rc|=velocity_batch_put_order(b,body_hash,"settlement_version",QRX_CROSSCHAIN_SETTLEMENT_VERSION);
+      |                                                                                                                   ^~~~
+In file included from /mnt/data/qrx71/qrx-core/src/qrx.c:2929:
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_btc_spv.inc: In function 'btc_spv_session_required_confirmations':
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_btc_spv.inc:22:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   22 |     if(n<1)n=QRX_BTC_SPV_DEFAULT_CONFIRMATIONS;if(n>QRX_BTC_SPV_MAX_CONFIRMATIONS_POLICY)n=QRX_BTC_SPV_MAX_CONFIRMATIONS_POLICY;return n;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_btc_spv.inc:22:48: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   22 |     if(n<1)n=QRX_BTC_SPV_DEFAULT_CONFIRMATIONS;if(n>QRX_BTC_SPV_MAX_CONFIRMATIONS_POLICY)n=QRX_BTC_SPV_MAX_CONFIRMATIONS_POLICY;return n;
+      |                                                ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_btc_spv.inc: In function 'btc_spv_funding_security_current':
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_btc_spv.inc:28:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   28 |     if(conf_out)*conf_out=0;if(active_out)*active_out=0;if(safe_out)*safe_out=0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/velocity/qrx_btc_spv.inc:28:29: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   28 |     if(conf_out)*conf_out=0;if(active_out)*active_out=0;if(safe_out)*safe_out=0;
+      |                             ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'sign_cmd_from':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3009:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 3009 |         if(!child_addr) die("source address is not controlled by this wallet"); child_addr[strcspn(child_addr,"\r\n")]=0;
+      |         ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3009:81: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 3009 |         if(!child_addr) die("source address is not controlled by this wallet"); child_addr[strcspn(child_addr,"\r\n")]=0;
+      |                                                                                 ^~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'verify_tx_text':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3243:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 3243 |     if (current == LLONG_MAX) die("nonce overflow"); if (n != current + 1) die("invalid nonce: expected lane nonce + 1");
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3243:54: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 3243 |     if (current == LLONG_MAX) die("nonce overflow"); if (n != current + 1) die("invalid nonce: expected lane nonce + 1");
+      |                                                      ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3257:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 3257 |     if(tx_version) free(tx_version); free(network_id); free(genesis_hash); free(protocol_version); free(from); free(to); free(amount); free(fee); free(nonce); free(timestamp); if(memo) free(memo); if(tx_type) free(tx_type); if(lane_id) free(lane_id); if(expiry_height) free(expiry_height); if(payload) free(payload); free(ed_pub_hex); free(ml_pub_b64); if(body_hash_algo) free(body_hash_algo); if(body_hash_sha3) free(body_hash_sha3); if(body_hash_sha256_legacy) free(body_hash_sha256_legacy); if(body_hash_legacy) free(body_hash_legacy); free(sig1_hex); free(sig2_hex); free(exp_net); free(exp_gen); free(exp_ver); free(body); free(mlpem); free(mlpemstr); free(sig1); free(sig2); EVP_PKEY_free(ed_pub); EVP_PKEY_free(ml_pub);
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3257:38: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 3257 |     if(tx_version) free(tx_version); free(network_id); free(genesis_hash); free(protocol_version); free(from); free(to); free(amount); free(fee); free(nonce); free(timestamp); if(memo) free(memo); if(tx_type) free(tx_type); if(lane_id) free(lane_id); if(expiry_height) free(expiry_height); if(payload) free(payload); free(ed_pub_hex); free(ml_pub_b64); if(body_hash_algo) free(body_hash_algo); if(body_hash_sha3) free(body_hash_sha3); if(body_hash_sha256_legacy) free(body_hash_sha256_legacy); if(body_hash_legacy) free(body_hash_legacy); free(sig1_hex); free(sig2_hex); free(exp_net); free(exp_gen); free(exp_ver); free(body); free(mlpem); free(mlpemstr); free(sig1); free(sig2); EVP_PKEY_free(ed_pub); EVP_PKEY_free(ml_pub);
+      |                                      ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'velocity_stateless_verify_cb':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3278:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 3278 |     if(tx_version)free(tx_version);if(network_id)free(network_id);if(genesis_hash)free(genesis_hash);if(protocol_version)free(protocol_version);if(from)free(from);if(to)free(to);if(amount)free(amount);if(fee)free(fee);if(nonce)free(nonce);if(timestamp)free(timestamp);if(memo)free(memo);if(tx_type)free(tx_type);if(lane_id)free(lane_id);if(expiry_height)free(expiry_height);if(payload)free(payload);if(ed_pub_hex)free(ed_pub_hex);if(ml_pub_b64)free(ml_pub_b64);if(body_hash_algo)free(body_hash_algo);if(body_hash_sha3)free(body_hash_sha3);if(body_hash_legacy)free(body_hash_legacy);if(sig1_hex)free(sig1_hex);if(sig2_hex)free(sig2_hex);if(exp_net)free(exp_net);if(exp_gen)free(exp_gen);if(exp_ver)free(exp_ver);if(body)free(body);if(mlpem)free(mlpem);if(mlpemstr)free(mlpemstr);if(sig1)free(sig1);if(sig2)free(sig2);EVP_PKEY_free(ed_pub);EVP_PKEY_free(ml_pub);return rc;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3278:36: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 3278 |     if(tx_version)free(tx_version);if(network_id)free(network_id);if(genesis_hash)free(genesis_hash);if(protocol_version)free(protocol_version);if(from)free(from);if(to)free(to);if(amount)free(amount);if(fee)free(fee);if(nonce)free(nonce);if(timestamp)free(timestamp);if(memo)free(memo);if(tx_type)free(tx_type);if(lane_id)free(lane_id);if(expiry_height)free(expiry_height);if(payload)free(payload);if(ed_pub_hex)free(ed_pub_hex);if(ml_pub_b64)free(ml_pub_b64);if(body_hash_algo)free(body_hash_algo);if(body_hash_sha3)free(body_hash_sha3);if(body_hash_legacy)free(body_hash_legacy);if(sig1_hex)free(sig1_hex);if(sig2_hex)free(sig2_hex);if(exp_net)free(exp_net);if(exp_gen)free(exp_gen);if(exp_ver)free(exp_ver);if(body)free(body);if(mlpem)free(mlpem);if(mlpemstr)free(mlpemstr);if(sig1)free(sig1);if(sig2)free(sig2);EVP_PKEY_free(ed_pub);EVP_PKEY_free(ml_pub);return rc;
+      |                                    ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'velocity_mempool_plan_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3284:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 3284 |     if(qrx_velocity_parallel_verify(&plan,workers>0?(uint32_t)workers:1,velocity_stateless_verify_cb,chain_dir,&mask,&vs)!=0)die("parallel signature verification failed");qrx_velocity_mempool_stats(&pool,&ms);
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3284:172: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 3284 |     if(qrx_velocity_parallel_verify(&plan,workers>0?(uint32_t)workers:1,velocity_stateless_verify_cb,chain_dir,&mask,&vs)!=0)die("parallel signature verification failed");qrx_velocity_mempool_stats(&pool,&ms);
+      |                                                                                                                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'velocity_mvcc_execute_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3304:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 3304 |     if(max_txs<=0)max_txs=100;if(workers<=0)workers=4;if(workers>64)workers=64;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3304:31: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 3304 |     if(max_txs<=0)max_txs=100;if(workers<=0)workers=4;if(workers>64)workers=64;
+      |                               ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3318:9: warning: this 'for' clause does not guard... [-Wmisleading-indentation]
+ 3318 |         for(size_t i=0;i<plan.count;i++)if(!valid||valid[i])qrx_velocity_mempool_remove(&pool,plan.txids[i]);qrx_velocity_mempool_checkpoint(&pool);
+      |         ^~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3318:110: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'for'
+ 3318 |         for(size_t i=0;i<plan.count;i++)if(!valid||valid[i])qrx_velocity_mempool_remove(&pool,plan.txids[i]);qrx_velocity_mempool_checkpoint(&pool);
+      |                                                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'atomic_stage_agent':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3350:96: warning: the address of 'hb' will always evaluate as 'true' [-Waddress]
+ 3350 | #define PUT_AGENT(F,V) do{velocity_agent_key(k,sizeof(k),agent,(F));rc|=qrxdb_batch_put(b,k,(V)?(V):"");}while(0)
+      |                                                                                                ^
+/mnt/data/qrx71/qrx-core/src/qrx.c:3353:315: note: in expansion of macro 'PUT_AGENT'
+ 3353 |         PUT_AGENT("owner",owner);PUT_AGENT("status","active");if(ed)PUT_AGENT("ed25519_pub_hex",ed);if(ml)PUT_AGENT("mldsa65_pub_b64",ml);PUT_AGENT("permissions",perm);PUT_AGENT("max_trade_atoms",max_trade);PUT_AGENT("daily_limit_atoms",daily);PUT_AGENT("market_allowlist",markets);PUT_AGENT("expires_height",exp);PUT_AGENT("updated_height",hb);PUT_AGENT("last_tx",body_hash);
+      |                                                                                                                                                                                                                                                                                                                           ^~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'atomic_stage_agent_usage':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3368:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 3368 |     if(qty<=0)return 0;long long bucket=0,cur=agent_usage_current(chain_dir,agent,&bucket,NULL),next=0;checked_add_ll(cur,qty,"agent usage",&next);char k[768];snprintf(k,sizeof(k),"velocity:agent_usage:%s:%lld",agent,bucket);return velocity_batch_put_ll(b,k,next);
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3368:24: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 3368 |     if(qty<=0)return 0;long long bucket=0,cur=agent_usage_current(chain_dir,agent,&bucket,NULL),next=0;checked_add_ll(cur,qty,"agent usage",&next);char k[768];snprintf(k,sizeof(k),"velocity:agent_usage:%s:%lld",agent,bucket);return velocity_batch_put_ll(b,k,next);
+      |                        ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'a76_stage_issue':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3442:2: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 3442 |  if(!a||!kind||!qs||!us||!rs||!a76_name_valid(a,kind)||a76_asset_active(c,a))goto done;long long q=parse_positive_ll_strict(qs,"qty"),units=parse_nonnegative_ll_strict(us,"units"),re=parse_nonnegative_ll_strict(rs,"reissuable"),maxs=mx&&*mx?parse_nonnegative_ll_strict(mx,"max_supply"):0;if(units>8||re>1)goto done;
+      |  ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3442:88: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 3442 |  if(!a||!kind||!qs||!us||!rs||!a76_name_valid(a,kind)||a76_asset_active(c,a))goto done;long long q=parse_positive_ll_strict(qs,"qty"),units=parse_nonnegative_ll_strict(us,"units"),re=parse_nonnegative_ll_strict(rs,"reissuable"),maxs=mx&&*mx?parse_nonnegative_ll_strict(mx,"max_supply"):0;if(units>8||re>1)goto done;
+      |                                                                                        ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'generals_stage_clan_invite':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3496:411: warning: unused variable 'leader' [-Wunused-variable]
+ 3496 | static int generals_stage_clan_invite(QrxDBBatch*b,const char*c,const char*from,const char*p,const char*txid,long long h,long long cost){if(!generals_player_exists(c,from)||cost<0)return -1;char *invitee=payload_get_field(p,"invitee"),*exp=payload_get_field(p,"expiry_height");if(!invitee||!*invitee||!generals_player_exists(c,invitee)){free(invitee);free(exp);return -1;}char pk[1024],clan[256],leaderk[1024],leader[256],v[256];generals_player_key(pk,sizeof(pk),from,"clan_id");if(generals_db_get(c,pk,clan,sizeof(clan))!=0||!*clan){free(invitee);free(exp);return -1;}snprintf(leaderk,sizeof(leaderk),"generals:clan:%s:leader",clan);if(!generals_clan_can_command(c,clan,from)){free(invitee);free(exp);return -1;}generals_player_key(pk,sizeof(pk),invitee,"clan_id");if(generals_db_get(c,pk,v,sizeof(v))==0&&*v){free(invitee);free(exp);return -1;}long long maxlife=qrx_chain_get_ll_at_height_or_default(c,h,"generals_clan_invite_max_blocks",604800),expiry=exp&&*exp?parse_positive_ll_strict(exp,"expiry_height"):h+60480;if(expiry<=h||expiry-h>maxlife){free(invitee);free(exp);return -1;}char iid[40],k[1024],hb[64];snprintf(iid,sizeof(iid),"CINV-%.24s",txid);int rc=0;
+      |                                                                                                                                                                                                                                                                                                                                                                                                                           ^~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'generals_stage_clan_invite_revoke':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3505:270: warning: unused variable 'leader' [-Wunused-variable]
+ 3505 | static int generals_stage_clan_invite_revoke(QrxDBBatch*b,const char*c,const char*from,const char*p,const char*txid,long long h){char*iid=payload_get_field(p,"invite_id");if(!iid||!generals_safe_token(iid,8,39,0)){free(iid);return -1;}char k[1024],status[64],clan[256],leader[256];snprintf(k,sizeof(k),"generals:clan_invite:%s:status",iid);if(generals_db_get(c,k,status,sizeof(status))!=0||strcmp(status,"pending")){free(iid);return -1;}snprintf(k,sizeof(k),"generals:clan_invite:%s:clan_id",iid);if(generals_db_get(c,k,clan,sizeof(clan))!=0){free(iid);return -1;}snprintf(k,sizeof(k),"generals:clan:%s:leader",clan);if(!generals_clan_can_command(c,clan,from)){free(iid);return -1;}int rc=0;snprintf(k,sizeof(k),"generals:clan_invite:%s:status",iid);rc|=qrxdb_batch_put(b,k,"revoked");snprintf(k,sizeof(k),"generals:clan_invite:%s:resolved_tx",iid);rc|=qrxdb_batch_put(b,k,txid);snprintf(k,sizeof(k),"generals:clan_invite:%s:resolved_height",iid);rc|=velocity_batch_put_ll(b,k,h);free(iid);return rc?-1:0;}
+      |                                                                                                                                                                                                                                                                              ^~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'generals_stage_sam_intercept':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3635:122: warning: unused parameter 'h' [-Wunused-parameter]
+ 3635 | static int generals_stage_sam_intercept(QrxDBBatch*b,const char*c,const char*from,const char*p,const char*txid,long long h){char*mid=payload_get_field(p,"mission_id"),*uid=payload_get_field(p,"unit_id");if(!mid||!uid)goto fail;char st[64],mo[256],uo[256],ut[64],k[512];generals_mission_key(k,sizeof(k),mid,"status");if(generals_db_get(c,k,st,sizeof(st))||strcmp(st,"in_flight"))goto fail;generals_mission_key(k,sizeof(k),mid,"owner");if(generals_db_get(c,k,mo,sizeof(mo))||!strcmp(mo,from)||generals_unit_field(c,uid,"owner",uo,sizeof(uo))||strcmp(uo,from)||generals_unit_field(c,uid,"type",ut,sizeof(ut))||strcmp(ut,"SAM"))goto fail;long long ammo=generals_unit_ll(c,uid,"ammo",100);if(ammo<3)goto fail;generals_mission_key(k,sizeof(k),mid,"status");int rc=qrxdb_batch_put(b,k,"intercepted");generals_mission_key(k,sizeof(k),mid,"intercept_tx");rc|=qrxdb_batch_put(b,k,txid);snprintf(k,sizeof(k),"generals:unit:%s:ammo",uid);rc|=velocity_batch_put_ll(b,k,ammo-3);free(mid);free(uid);return rc?-1:0;fail:free(mid);free(uid);return -1;}
+      |                                                                                                                ~~~~~~~~~~^
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'generals_stage_escort_mission':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3643:123: warning: unused parameter 'h' [-Wunused-parameter]
+ 3643 | static int generals_stage_escort_mission(QrxDBBatch*b,const char*c,const char*from,const char*p,const char*txid,long long h){char*uid=payload_get_field(p,"unit_id"),*mid=payload_get_field(p,"mission_id");if(!uid||!mid)goto fail;char o[256],typ[64],mo[256],st[64],k[512];if(generals_unit_field(c,uid,"owner",o,sizeof(o))||strcmp(o,from)||generals_unit_field(c,uid,"type",typ,sizeof(typ))||strcmp(typ,"FIGHTER"))goto fail;generals_mission_key(k,sizeof(k),mid,"owner");if(generals_db_get(c,k,mo,sizeof(mo))||strcmp(mo,from))goto fail;generals_mission_key(k,sizeof(k),mid,"status");if(generals_db_get(c,k,st,sizeof(st))||strcmp(st,"in_flight"))goto fail;generals_mission_key(k,sizeof(k),mid,"escort_unit_id");int rc=qrxdb_batch_put(b,k,uid);generals_mission_key(k,sizeof(k),mid,"escort_tx");rc|=qrxdb_batch_put(b,k,txid);free(uid);free(mid);return rc?-1:0;fail:free(uid);free(mid);return -1;}
+      |                                                                                                                 ~~~~~~~~~~^
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'generals_stage_air_intercept':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3644:122: warning: unused parameter 'h' [-Wunused-parameter]
+ 3644 | static int generals_stage_air_intercept(QrxDBBatch*b,const char*c,const char*from,const char*p,const char*txid,long long h){char*uid=payload_get_field(p,"unit_id"),*mid=payload_get_field(p,"mission_id");if(!uid||!mid)goto fail;char o[256],typ[64],mo[256],st[64],k[512];if(generals_unit_field(c,uid,"owner",o,sizeof(o))||strcmp(o,from)||generals_unit_field(c,uid,"type",typ,sizeof(typ))||strcmp(typ,"FIGHTER"))goto fail;generals_mission_key(k,sizeof(k),mid,"owner");if(generals_db_get(c,k,mo,sizeof(mo))||!strcmp(mo,from))goto fail;generals_mission_key(k,sizeof(k),mid,"status");if(generals_db_get(c,k,st,sizeof(st))||strcmp(st,"in_flight"))goto fail;long long fuel=generals_unit_ll(c,uid,"fuel",100),ammo=generals_unit_ll(c,uid,"ammo",100);if(fuel<4||ammo<2)goto fail;generals_mission_key(k,sizeof(k),mid,"interceptor_unit_id");int rc=qrxdb_batch_put(b,k,uid);generals_mission_key(k,sizeof(k),mid,"intercept_status");rc|=qrxdb_batch_put(b,k,"engaged");generals_mission_key(k,sizeof(k),mid,"intercept_tx");rc|=qrxdb_batch_put(b,k,txid);snprintf(k,sizeof(k),"generals:unit:%s:fuel",uid);rc|=velocity_batch_put_ll(b,k,fuel-4);snprintf(k,sizeof(k),"generals:unit:%s:ammo",uid);rc|=velocity_batch_put_ll(b,k,ammo-2);free(uid);free(mid);return rc?-1:0;fail:free(uid);free(mid);return -1;}
+      |                                                                                                                ~~~~~~~~~~^
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'generals_stage_air_combat_resolve':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3645:127: warning: unused parameter 'h' [-Wunused-parameter]
+ 3645 | static int generals_stage_air_combat_resolve(QrxDBBatch*b,const char*c,const char*from,const char*p,const char*txid,long long h){(void)from;char*mid=payload_get_field(p,"mission_id");if(!mid)return -1;char st[64],iid[128],aid[128],eid[128],k[512];generals_mission_key(k,sizeof(k),mid,"status");if(generals_db_get(c,k,st,sizeof(st))||strcmp(st,"in_flight"))goto fail;generals_mission_key(k,sizeof(k),mid,"interceptor_unit_id");if(generals_db_get(c,k,iid,sizeof(iid)))goto fail;generals_mission_key(k,sizeof(k),mid,"unit_id");if(generals_db_get(c,k,aid,sizeof(aid)))goto fail;generals_mission_key(k,sizeof(k),mid,"escort_unit_id");int has_escort=!generals_db_get(c,k,eid,sizeof(eid));long long atk=generals_air_strength(c,aid)+(has_escort?generals_air_strength(c,eid):0),def=generals_air_strength(c,iid);/* deterministic: no block-order RNG */int rc=0;generals_mission_key(k,sizeof(k),mid,"air_combat_tx");rc|=qrxdb_batch_put(b,k,txid);generals_mission_key(k,sizeof(k),mid,"air_combat_attack_strength");rc|=velocity_batch_put_ll(b,k,atk);generals_mission_key(k,sizeof(k),mid,"air_combat_defense_strength");rc|=velocity_batch_put_ll(b,k,def);if(def>=atk){generals_mission_key(k,sizeof(k),mid,"status");rc|=qrxdb_batch_put(b,k,"intercepted");generals_mission_key(k,sizeof(k),mid,"air_combat_result");rc|=qrxdb_batch_put(b,k,"defender_wins");}else{generals_mission_key(k,sizeof(k),mid,"intercept_status");rc|=qrxdb_batch_put(b,k,"repelled");generals_mission_key(k,sizeof(k),mid,"air_combat_result");rc|=qrxdb_batch_put(b,k,"attacker_breakthrough");}free(mid);return rc?-1:0;fail:free(mid);return -1;}
+      |                                                                                                                     ~~~~~~~~~~^
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'generals_stage_research_accelerate':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3755:2: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 3755 |  if(qub_atoms<=0)return -1;char*sid_s=payload_get_field(p,"season_id"),*rid=payload_get_field(p,"research_id");if(!sid_s||!rid)goto fail;long long sid=atoll(sid_s),csid=0,ss=0,se=0,tr=0,ts=0,te=0;if(generals_season_at(c,h,&csid,&ss,&se,&tr,&ts,&te)||sid!=csid||!generals_player_active_in_season(c,from,sid))goto fail;char k[1024],v[256];generals_research_key(k,sizeof(k),sid,from,"status");if(generals_db_get(c,k,v,sizeof(v))||strcmp(v,"active"))goto fail;generals_research_key(k,sizeof(k),sid,from,"research_id");if(generals_db_get(c,k,v,sizeof(v))||strcmp(v,rid))goto fail;generals_research_key(k,sizeof(k),sid,from,"completion_height");long long end=generals_db_ll(c,k,0);if(end<=h)goto fail;generals_research_key(k,sizeof(k),sid,from,"base_duration_blocks");long long base=generals_db_ll(c,k,0);generals_research_key(k,sizeof(k),sid,from,"accelerated_blocks");long long used=generals_db_ll(c,k,0),cap=base/2;if(used>=cap)goto fail;long long perqub=qrx_chain_get_ll_at_height_or_default(c,h,"generals_research_accel_blocks_per_qub",360);__int128 prod=(__int128)qub_atoms*perqub;long long requested=(long long)(prod/100000000LL);if(requested<1)goto fail;long long room=cap-used;if(requested>room||requested>end-h-1)goto fail;long long actual=requested;if(actual<1)goto fail;long long nend=end-actual;int rc=0;generals_research_key(k,sizeof(k),sid,from,"completion_height");rc|=velocity_batch_put_ll(b,k,nend);generals_research_key(k,sizeof(k),sid,from,"accelerated_blocks");rc|=velocity_batch_put_ll(b,k,used+actual);generals_research_key(k,sizeof(k),sid,from,"qub_spent_atoms");long long spent=generals_db_ll(c,k,0),nspent=0;checked_add_ll(spent,qub_atoms,"Generals research QUB spent",&nspent);rc|=velocity_batch_put_ll(b,k,nspent);generals_research_key(k,sizeof(k),sid,from,"last_accel_tx");rc|=qrxdb_batch_put(b,k,txid);rc|=generals_stage_treasury_credit(b,c,qub_atoms,h,txid,"GAME_RESEARCH_ACCELERATE");snprintf(k,sizeof(k),"generals:season:%lld:treasury_total_atoms",sid);long long st=generals_db_ll(c,k,0),nst=0;checked_add_ll(st,qub_atoms,"Season treasury",&nst);rc|=velocity_batch_put_ll(b,k,nst);snprintf(k,sizeof(k),"generals:season:%lld:research_atoms",sid);long long ra=generals_db_ll(c,k,0),nra=0;checked_add_ll(ra,qub_atoms,"Season research treasury",&nra);rc|=velocity_batch_put_ll(b,k,nra);free(sid_s);free(rid);return rc?-1:0;fail:free(sid_s);free(rid);return -1;}
+      |  ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3755:28: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 3755 |  if(qub_atoms<=0)return -1;char*sid_s=payload_get_field(p,"season_id"),*rid=payload_get_field(p,"research_id");if(!sid_s||!rid)goto fail;long long sid=atoll(sid_s),csid=0,ss=0,se=0,tr=0,ts=0,te=0;if(generals_season_at(c,h,&csid,&ss,&se,&tr,&ts,&te)||sid!=csid||!generals_player_active_in_season(c,from,sid))goto fail;char k[1024],v[256];generals_research_key(k,sizeof(k),sid,from,"status");if(generals_db_get(c,k,v,sizeof(v))||strcmp(v,"active"))goto fail;generals_research_key(k,sizeof(k),sid,from,"research_id");if(generals_db_get(c,k,v,sizeof(v))||strcmp(v,rid))goto fail;generals_research_key(k,sizeof(k),sid,from,"completion_height");long long end=generals_db_ll(c,k,0);if(end<=h)goto fail;generals_research_key(k,sizeof(k),sid,from,"base_duration_blocks");long long base=generals_db_ll(c,k,0);generals_research_key(k,sizeof(k),sid,from,"accelerated_blocks");long long used=generals_db_ll(c,k,0),cap=base/2;if(used>=cap)goto fail;long long perqub=qrx_chain_get_ll_at_height_or_default(c,h,"generals_research_accel_blocks_per_qub",360);__int128 prod=(__int128)qub_atoms*perqub;long long requested=(long long)(prod/100000000LL);if(requested<1)goto fail;long long room=cap-used;if(requested>room||requested>end-h-1)goto fail;long long actual=requested;if(actual<1)goto fail;long long nend=end-actual;int rc=0;generals_research_key(k,sizeof(k),sid,from,"completion_height");rc|=velocity_batch_put_ll(b,k,nend);generals_research_key(k,sizeof(k),sid,from,"accelerated_blocks");rc|=velocity_batch_put_ll(b,k,used+actual);generals_research_key(k,sizeof(k),sid,from,"qub_spent_atoms");long long spent=generals_db_ll(c,k,0),nspent=0;checked_add_ll(spent,qub_atoms,"Generals research QUB spent",&nspent);rc|=velocity_batch_put_ll(b,k,nspent);generals_research_key(k,sizeof(k),sid,from,"last_accel_tx");rc|=qrxdb_batch_put(b,k,txid);rc|=generals_stage_treasury_credit(b,c,qub_atoms,h,txid,"GAME_RESEARCH_ACCELERATE");snprintf(k,sizeof(k),"generals:season:%lld:treasury_total_atoms",sid);long long st=generals_db_ll(c,k,0),nst=0;checked_add_ll(st,qub_atoms,"Season treasury",&nst);rc|=velocity_batch_put_ll(b,k,nst);snprintf(k,sizeof(k),"generals:season:%lld:research_atoms",sid);long long ra=generals_db_ll(c,k,0),nra=0;checked_add_ll(ra,qub_atoms,"Season research treasury",&nra);rc|=velocity_batch_put_ll(b,k,nra);free(sid_s);free(rid);return rc?-1:0;fail:free(sid_s);free(rid);return -1;}
+      |                            ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3755:1041: warning: ISO C does not support '__int128' types [-Wpedantic]
+ 3755 |  if(qub_atoms<=0)return -1;char*sid_s=payload_get_field(p,"season_id"),*rid=payload_get_field(p,"research_id");if(!sid_s||!rid)goto fail;long long sid=atoll(sid_s),csid=0,ss=0,se=0,tr=0,ts=0,te=0;if(generals_season_at(c,h,&csid,&ss,&se,&tr,&ts,&te)||sid!=csid||!generals_player_active_in_season(c,from,sid))goto fail;char k[1024],v[256];generals_research_key(k,sizeof(k),sid,from,"status");if(generals_db_get(c,k,v,sizeof(v))||strcmp(v,"active"))goto fail;generals_research_key(k,sizeof(k),sid,from,"research_id");if(generals_db_get(c,k,v,sizeof(v))||strcmp(v,rid))goto fail;generals_research_key(k,sizeof(k),sid,from,"completion_height");long long end=generals_db_ll(c,k,0);if(end<=h)goto fail;generals_research_key(k,sizeof(k),sid,from,"base_duration_blocks");long long base=generals_db_ll(c,k,0);generals_research_key(k,sizeof(k),sid,from,"accelerated_blocks");long long used=generals_db_ll(c,k,0),cap=base/2;if(used>=cap)goto fail;long long perqub=qrx_chain_get_ll_at_height_or_default(c,h,"generals_research_accel_blocks_per_qub",360);__int128 prod=(__int128)qub_atoms*perqub;long long requested=(long long)(prod/100000000LL);if(requested<1)goto fail;long long room=cap-used;if(requested>room||requested>end-h-1)goto fail;long long actual=requested;if(actual<1)goto fail;long long nend=end-actual;int rc=0;generals_research_key(k,sizeof(k),sid,from,"completion_height");rc|=velocity_batch_put_ll(b,k,nend);generals_research_key(k,sizeof(k),sid,from,"accelerated_blocks");rc|=velocity_batch_put_ll(b,k,used+actual);generals_research_key(k,sizeof(k),sid,from,"qub_spent_atoms");long long spent=generals_db_ll(c,k,0),nspent=0;checked_add_ll(spent,qub_atoms,"Generals research QUB spent",&nspent);rc|=velocity_batch_put_ll(b,k,nspent);generals_research_key(k,sizeof(k),sid,from,"last_accel_tx");rc|=qrxdb_batch_put(b,k,txid);rc|=generals_stage_treasury_credit(b,c,qub_atoms,h,txid,"GAME_RESEARCH_ACCELERATE");snprintf(k,sizeof(k),"generals:season:%lld:treasury_total_atoms",sid);long long st=generals_db_ll(c,k,0),nst=0;checked_add_ll(st,qub_atoms,"Season treasury",&nst);rc|=velocity_batch_put_ll(b,k,nst);snprintf(k,sizeof(k),"generals:season:%lld:research_atoms",sid);long long ra=generals_db_ll(c,k,0),nra=0;checked_add_ll(ra,qub_atoms,"Season research treasury",&nra);rc|=velocity_batch_put_ll(b,k,nra);free(sid_s);free(rid);return rc?-1:0;fail:free(sid_s);free(rid);return -1;}
+      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ^~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3755:1056: warning: ISO C does not support '__int128' types [-Wpedantic]
+ 3755 |  if(qub_atoms<=0)return -1;char*sid_s=payload_get_field(p,"season_id"),*rid=payload_get_field(p,"research_id");if(!sid_s||!rid)goto fail;long long sid=atoll(sid_s),csid=0,ss=0,se=0,tr=0,ts=0,te=0;if(generals_season_at(c,h,&csid,&ss,&se,&tr,&ts,&te)||sid!=csid||!generals_player_active_in_season(c,from,sid))goto fail;char k[1024],v[256];generals_research_key(k,sizeof(k),sid,from,"status");if(generals_db_get(c,k,v,sizeof(v))||strcmp(v,"active"))goto fail;generals_research_key(k,sizeof(k),sid,from,"research_id");if(generals_db_get(c,k,v,sizeof(v))||strcmp(v,rid))goto fail;generals_research_key(k,sizeof(k),sid,from,"completion_height");long long end=generals_db_ll(c,k,0);if(end<=h)goto fail;generals_research_key(k,sizeof(k),sid,from,"base_duration_blocks");long long base=generals_db_ll(c,k,0);generals_research_key(k,sizeof(k),sid,from,"accelerated_blocks");long long used=generals_db_ll(c,k,0),cap=base/2;if(used>=cap)goto fail;long long perqub=qrx_chain_get_ll_at_height_or_default(c,h,"generals_research_accel_blocks_per_qub",360);__int128 prod=(__int128)qub_atoms*perqub;long long requested=(long long)(prod/100000000LL);if(requested<1)goto fail;long long room=cap-used;if(requested>room||requested>end-h-1)goto fail;long long actual=requested;if(actual<1)goto fail;long long nend=end-actual;int rc=0;generals_research_key(k,sizeof(k),sid,from,"completion_height");rc|=velocity_batch_put_ll(b,k,nend);generals_research_key(k,sizeof(k),sid,from,"accelerated_blocks");rc|=velocity_batch_put_ll(b,k,used+actual);generals_research_key(k,sizeof(k),sid,from,"qub_spent_atoms");long long spent=generals_db_ll(c,k,0),nspent=0;checked_add_ll(spent,qub_atoms,"Generals research QUB spent",&nspent);rc|=velocity_batch_put_ll(b,k,nspent);generals_research_key(k,sizeof(k),sid,from,"last_accel_tx");rc|=qrxdb_batch_put(b,k,txid);rc|=generals_stage_treasury_credit(b,c,qub_atoms,h,txid,"GAME_RESEARCH_ACCELERATE");snprintf(k,sizeof(k),"generals:season:%lld:treasury_total_atoms",sid);long long st=generals_db_ll(c,k,0),nst=0;checked_add_ll(st,qub_atoms,"Season treasury",&nst);rc|=velocity_batch_put_ll(b,k,nst);snprintf(k,sizeof(k),"generals:season:%lld:research_atoms",sid);long long ra=generals_db_ll(c,k,0),nra=0;checked_add_ll(ra,qub_atoms,"Season research treasury",&nra);rc|=velocity_batch_put_ll(b,k,nra);free(sid_s);free(rid);return rc?-1:0;fail:free(sid_s);free(rid);return -1;}
+      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ^~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'generals_season_bounds':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3803:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 3803 |     if(sid<1||len<=0)return -1; *start=first+(sid-1)*len; *end=*start+len-1; return 0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3803:33: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 3803 |     if(sid<1||len<=0)return -1; *start=first+(sid-1)*len; *end=*start+len-1; return 0;
+      |                                 ^
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'generals_stage_season_finalize':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3832:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 3832 |         if(rank[i].score>0 && clans[ci].score<=LLONG_MAX-rank[i].score)clans[ci].score+=rank[i].score;clans[ci].members++;
+      |         ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3832:103: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 3832 |         if(rank[i].score>0 && clans[ci].score<=LLONG_MAX-rank[i].score)clans[ci].score+=rank[i].score;clans[ci].members++;
+      |                                                                                                       ^~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'atomic_stage_generals':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3885: note: '-Wmisleading-indentation' is disabled from this point onwards, since column-tracking was disabled due to the size of the code/headers
+ 3885 | static int atomic_stage_generals(QrxDBBatch*b,const char*c,const char*from,const char*t,const char*p,const char*txid,long long h,long long cost){long long act=qrx_chain_get_ll_at_height_or_default(c,h+1,"generals_activation_height",0);if(h+1<act)return -1;if(!strcmp(t,"GAME_JOIN"))return generals_stage_join(b,c,from,p,txid,h,cost);if(!strcmp(t,"GAME_CLAN_CREATE"))return generals_stage_clan_create(b,c,from,p,txid,h,cost);if(!strcmp(t,"GAME_CLAN_INVITE"))return generals_stage_clan_invite(b,c,from,p,txid,h,cost);if(!strcmp(t,"GAME_CLAN_INVITE_REVOKE")){int r=generals_stage_clan_invite_revoke(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_CLAN_INVITE_REVOKE");return r;}if(!strcmp(t,"GAME_CLAN_JOIN")){int r=generals_stage_clan_join(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_CLAN_JOIN");return r;}if(!strcmp(t,"GAME_CLAN_LEAVE")){int r=generals_stage_clan_leave(b,c,from,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_CLAN_LEAVE");return r;}if(!strcmp(t,"GAME_CLAN_OFFICER_SET")){int r=generals_stage_clan_officer_set(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_CLAN_OFFICER_SET");return r;}if(!strcmp(t,"GAME_CLAN_DIRECTIVE")){int r=generals_stage_clan_directive(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_CLAN_DIRECTIVE");return r;}if(!strcmp(t,"GAME_CLAN_LEADER_TRANSFER")){int r=generals_stage_clan_leader_transfer(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_CLAN_LEADER_TRANSFER");return r;}if(!strcmp(t,"GAME_SEASON_JOIN"))return generals_stage_season_join(b,c,from,p,txid,h,cost);if(!strcmp(t,"GAME_ENERGY_SPEND")){int r=generals_stage_energy_spend(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_ENERGY_SPEND");return r;}if(!strcmp(t,"GAME_ORDER_COMMIT")){int r=generals_stage_order_commit(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_ORDER_COMMIT");return r;}if(!strcmp(t,"GAME_ORDER_REVEAL")){int r=generals_stage_order_reveal(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_ORDER_REVEAL");return r;}if(!strcmp(t,"GAME_MARCH_ADVANCE")){int r=generals_stage_march_advance(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_MARCH_ADVANCE");return r;}if(!strcmp(t,"GAME_TURN_RESOLVE")){int r=generals_stage_turn_resolve(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_TURN_RESOLVE");return r;}if(!strcmp(t,"GAME_INFRA_BUILD")){int r=generals_stage_infra_build(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_INFRA_BUILD");return r;}if(!strcmp(t,"GAME_PRODUCE_UNIT")){int r=generals_stage_produce_unit(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_PRODUCE_UNIT");return r;}if(!strcmp(t,"GAME_SUPPLY_TRANSFER")){int r=generals_stage_supply_transfer(b,c,from,p,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_SUPPLY_TRANSFER");return r;}if(!strcmp(t,"GAME_REPAIR_UNIT")){int r=generals_stage_service_unit(b,c,from,p,h,1);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_REPAIR_UNIT");return r;}if(!strcmp(t,"GAME_REARM_UNIT")){int r=generals_stage_service_unit(b,c,from,p,h,0);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_REARM_UNIT");return r;}if(!strcmp(t,"GAME_INFRA_ATTACK")){int r=generals_stage_infra_attack(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_INFRA_ATTACK");return r;}if(!strcmp(t,"GAME_ROAD_REPAIR")){int r=generals_stage_road_repair(b,c,from,p,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_ROAD_REPAIR");return r;}if(!strcmp(t,"GAME_UNIT_RESUPPLY")){int r=generals_stage_unit_resupply(b,c,from,p,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_UNIT_RESUPPLY");return r;}if(!strcmp(t,"GAME_RECON_SCAN")){int r=generals_stage_recon_scan(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_RECON_SCAN");return r;}if(!strcmp(t,"GAME_EW_JAM")){int r=generals_stage_ew_jam(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_EW_JAM");return r;}if(!strcmp(t,"GAME_AIR_MISSION")){int r=generals_stage_air_mission(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_AIR_MISSION");return r;}if(!strcmp(t,"GAME_RADAR_SCAN")){int r=generals_stage_radar_scan(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_RADAR_SCAN");return r;}if(!strcmp(t,"GAME_SAM_INTERCEPT")){int r=generals_stage_sam_intercept(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_SAM_INTERCEPT");return r;}if(!strcmp(t,"GAME_MISSILE_LAUNCH")){int r=generals_stage_missile_launch(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_MISSILE_LAUNCH");return r;}if(!strcmp(t,"GAME_STRIKE_RESOLVE")){int r=generals_stage_strike_resolve(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_STRIKE_RESOLVE");return r;}if(!strcmp(t,"GAME_CAP_MISSION")){int r=generals_stage_cap_mission(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_CAP_MISSION");return r;}if(!strcmp(t,"GAME_ESCORT_MISSION")){int r=generals_stage_escort_mission(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_ESCORT_MISSION");return r;}if(!strcmp(t,"GAME_AIR_INTERCEPT")){int r=generals_stage_air_intercept(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_AIR_INTERCEPT");return r;}if(!strcmp(t,"GAME_AIR_COMBAT_RESOLVE")){int r=generals_stage_air_combat_resolve(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_AIR_COMBAT_RESOLVE");return r;}if(!strcmp(t,"GAME_AIR_FORMATION")){int r=generals_stage_air_formation(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_AIR_FORMATION");return r;}if(!strcmp(t,"GAME_CAP_AUTO_INTERCEPT")){int r=generals_stage_cap_auto_intercept(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_CAP_AUTO_INTERCEPT");return r;}if(!strcmp(t,"GAME_AIR_RTB")){int r=generals_stage_air_rtb(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_AIR_RTB");return r;}if(!strcmp(t,"GAME_SEAD_MISSION")){int r=generals_stage_sead(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_SEAD_MISSION");return r;}if(!strcmp(t,"GAME_NAVAL_DEPLOY")){int r=generals_stage_naval_deploy(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_NAVAL_DEPLOY");return r;}if(!strcmp(t,"GAME_FLEET_CREATE")){int r=generals_stage_fleet_create(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_FLEET_CREATE");return r;}if(!strcmp(t,"GAME_NAVAL_ATTACK")){int r=generals_stage_naval_attack(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_NAVAL_ATTACK");return r;}if(!strcmp(t,"GAME_NAVAL_COMBAT_RESOLVE")){int r=generals_stage_naval_resolve(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_NAVAL_COMBAT_RESOLVE");return r;}if(!strcmp(t,"GAME_CARRIER_AIR_WING")){int r=generals_stage_carrier_wing(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_CARRIER_AIR_WING");return r;}if(!strcmp(t,"GAME_NAVAL_BLOCKADE")){int r=generals_stage_naval_blockade(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_NAVAL_BLOCKADE");return r;}if(!strcmp(t,"GAME_NAVAL_MOVE")){int r=generals_stage_naval_move(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_NAVAL_MOVE");return r;}if(!strcmp(t,"GAME_AMPHIBIOUS_LOAD")){int r=generals_stage_amphibious_load(b,c,from,p,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_AMPHIBIOUS_LOAD");return r;}if(!strcmp(t,"GAME_AMPHIBIOUS_LAND")){int r=generals_stage_amphibious_land(b,c,from,p,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_AMPHIBIOUS_LAND");return r;}if(!strcmp(t,"GAME_SEA_SUPPLY")){int r=generals_stage_sea_supply(b,c,from,p,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_SEA_SUPPLY");return r;}if(!strcmp(t,"GAME_STRATEGIC_CLAIM")){int r=generals_stage_strategic_claim(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_STRATEGIC_CLAIM");return r;}if(!strcmp(t,"GAME_ECONOMY_COLLECT")){int r=generals_stage_economy_collect(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_ECONOMY_COLLECT");return r;}if(!strcmp(t,"GAME_CITY_DEVELOP")){int r=generals_stage_city_develop(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_CITY_DEVELOP");return r;}if(!strcmp(t,"GAME_INDUSTRY_INVEST")){int r=generals_stage_industry_invest(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_INDUSTRY_INVEST");return r;}if(!strcmp(t,"GAME_RESEARCH_START")){int r=generals_stage_research_start(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_RESEARCH_START");return r;}if(!strcmp(t,"GAME_RESEARCH_ACCELERATE"))return generals_stage_research_accelerate(b,c,from,p,txid,h,cost);if(!strcmp(t,"GAME_RESEARCH_COMPLETE")){int r=generals_stage_research_complete(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_RESEARCH_COMPLETE");return r;}if(!strcmp(t,"GAME_DOCTRINE_SELECT")){int r=generals_stage_doctrine_select(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_DOCTRINE_SELECT");return r;}if(!strcmp(t,"GAME_TECH_RECON")){int r=generals_stage_tech_recon(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_TECH_RECON");return r;}if(!strcmp(t,"GAME_RESEARCH_DISRUPT")){int r=generals_stage_research_disrupt(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_RESEARCH_DISRUPT");return r;}if(!strcmp(t,"GAME_COUNTERINTEL_ACTIVATE")){int r=generals_stage_counterintel(b,c,from,p,txid,h);if(!r&&cost>0)r=generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_COUNTERINTEL_ACTIVATE");return r;}if(!strcmp(t,"GAME_SEASON_FINALIZE"))return generals_stage_season_finalize(b,c,from,p,txid,h);if(!strcmp(t,"GAME_REWARD_CLAIM"))return generals_stage_reward_claim(b,c,from,p,txid,h);if(!strcmp(t,"GAME_TREASURY_FUND"))return generals_stage_treasury_credit(b,c,cost,h,txid,"GAME_TREASURY_FUND");return -1;}
+/mnt/data/qrx71/qrx-core/src/qrx.c:3885: note: adding '-flarge-source-files' will allow for more column-tracking support, at the expense of compilation time and memory
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'generals_region_info_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:3907:2: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 3907 |  if(w<1||h<1||w*h>1024)die("region too large"); long long ww=0,hh=0;generals_world_dims(c,sid,1,&ww,&hh);printf("format=qrx-generals-region-v1\nseason_id=%lld\n",sid);
+      |  ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3907:49: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 3907 |  if(w<1||h<1||w*h>1024)die("region too large"); long long ww=0,hh=0;generals_world_dims(c,sid,1,&ww,&hh);printf("format=qrx-generals-region-v1\nseason_id=%lld\n",sid);
+      |                                                 ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3908:2: warning: this 'for' clause does not guard... [-Wmisleading-indentation]
+ 3908 |  for(long long y=y0;y<y0+h;y++)for(long long x=x0;x<x0+w;x++){if(x<0||y<0||x>=ww||y>=hh)continue;char occ[256]={0},own[256]={0};generals_tile_occupied(c,sid,x,y,occ,sizeof(occ));generals_territory_owner(c,sid,x,y,own,sizeof(own));GeneralsStrategicFeature f=generals_strategic_feature(sid,x,y);printf("tile=%lld,%lld,%s,%s,%s,%s\n",x,y,generals_terrain(sid,x,y),occ,own,f.type); } return 0;
+      |  ^~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:3908:381: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'for'
+ 3908 |  for(long long y=y0;y<y0+h;y++)for(long long x=x0;x<x0+w;x++){if(x<0||y<0||x>=ww||y>=hh)continue;char occ[256]={0},own[256]={0};generals_tile_occupied(c,sid,x,y,occ,sizeof(occ));generals_territory_owner(c,sid,x,y,own,sizeof(own));GeneralsStrategicFeature f=generals_strategic_feature(sid,x,y);printf("tile=%lld,%lld,%s,%s,%s,%s\n",x,y,generals_terrain(sid,x,y),occ,own,f.type); } return 0;
+      |                                                                                                                                                                                                                                                                                                                                                                                             ^~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'peer_top_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:4224:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 4224 |     if (limit < 1) limit = 10; if (limit > 100) limit = 100;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:4224:32: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 4224 |     if (limit < 1) limit = 10; if (limit > 100) limit = 100;
+      |                                ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'generals_offline_process_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:4326:9: warning: this 'else' clause does not guard... [-Wmisleading-indentation]
+ 4326 |         else pending++; free(txt);
+      |         ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:4326:25: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'else'
+ 4326 |         else pending++; free(txt);
+      |                         ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'node_handle_client':
+/mnt/data/qrx71/qrx-core/src/qrx.c:4424:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 4424 |     if (ann_host) free(ann_host); if (ann_port) free(ann_port); free(msg); free(node_cfg);
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:4424:35: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 4424 |     if (ann_host) free(ann_host); if (ann_port) free(ann_port); free(msg); free(node_cfg);
+      |                                   ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'verify_vote_file_internal':
+/mnt/data/qrx71/qrx-core/src/qrx.c:4548:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 4548 |     if (network_id) free(network_id); if (genesis_hash) free(genesis_hash); if (protocol_version) free(protocol_version); if (block_hash) free(block_hash); if (height_s) free(height_s); if (round_s) free(round_s); if (validator) free(validator); if (validator_power_s) free(validator_power_s); if (timestamp) free(timestamp); if (pub_hex) free(pub_hex); if (sig_hex) free(sig_hex); free(txt);
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:4548:39: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 4548 |     if (network_id) free(network_id); if (genesis_hash) free(genesis_hash); if (protocol_version) free(protocol_version); if (block_hash) free(block_hash); if (height_s) free(height_s); if (round_s) free(round_s); if (validator) free(validator); if (validator_power_s) free(validator_power_s); if (timestamp) free(timestamp); if (pub_hex) free(pub_hex); if (sig_hex) free(sig_hex); free(txt);
+      |                                       ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'vote_block_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:4565:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 4565 |         if (lh) free(lh); if (lr) free(lr); if (lbh) free(lbh); free(locktxt);
+      |         ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:4565:27: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 4565 |         if (lh) free(lh); if (lr) free(lr); if (lbh) free(lbh); free(locktxt);
+      |                           ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'node_process_inbox_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:4705:17: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 4705 |                 if (height_s) free(height_s); if (validator) free(validator); free(txt);
+      |                 ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:4705:47: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 4705 |                 if (height_s) free(height_s); if (validator) free(validator); free(txt);
+      |                                               ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:4718:46: warning: unused variable 'cap' [-Wunused-variable]
+ 4718 |                     char outbuf[8192]; FILE *cap = NULL;
+      |                                              ^~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:4718:26: warning: unused variable 'outbuf' [-Wunused-variable]
+ 4718 |                     char outbuf[8192]; FILE *cap = NULL;
+      |                          ^~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'htlc_create_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5096:54: warning: zero-length gnu_printf format string [-Wformat-zero-length]
+ 5096 |     snprintf(r->secret_hash, sizeof(r->secret_hash), "");
+      |                                                      ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'gov_read_passphrase':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5289:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 5289 |     if(strlen(a)<12)die("governance/attester passphrase must be at least 12 characters");snprintf(out,sz,"%s",a);OPENSSL_cleanse(a,sizeof(a));OPENSSL_cleanse(b,sizeof(b));return 0;}
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5289:90: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 5289 |     if(strlen(a)<12)die("governance/attester passphrase must be at least 12 characters");snprintf(out,sz,"%s",a);OPENSSL_cleanse(a,sizeof(a));OPENSSL_cleanse(b,sizeof(b));return 0;}
+      |                                                                                          ^~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'stealth_wallet_spend_scalar':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5455:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 5455 |     if(BN_mod(d,d,n,ctx)!=1)goto done; if(BN_is_zero(d))BN_one(d);
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5455:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 5455 |     if(BN_mod(d,d,n,ctx)!=1)goto done; if(BN_is_zero(d))BN_one(d);
+      |                                        ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5458:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 5458 |     if(elen!=33)goto done; bytes_to_hex_local(enc,33,pub_hex); *priv_out=d; d=NULL; rc=0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5458:28: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 5458 |     if(elen!=33)goto done; bytes_to_hex_local(enc,33,pub_hex); *priv_out=d; d=NULL; rc=0;
+      |                            ^~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'stealth_shared_tweak':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5470:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 5470 |     if(stealth_secp_group_order(&g,&n)!=0)goto done; ctx=BN_CTX_new(); t=BN_bin2bn(digest,64,NULL); if(!ctx||!t)goto done;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5470:54: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 5470 |     if(stealth_secp_group_order(&g,&n)!=0)goto done; ctx=BN_CTX_new(); t=BN_bin2bn(digest,64,NULL); if(!ctx||!t)goto done;
+      |                                                      ^~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5471:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 5471 |     if(BN_mod(t,t,n,ctx)!=1)goto done; if(BN_is_zero(t))BN_one(t); *tweak_out=t; t=NULL; rc=0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5471:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 5471 |     if(BN_mod(t,t,n,ctx)!=1)goto done; if(BN_is_zero(t))BN_one(t); *tweak_out=t; t=NULL; rc=0;
+      |                                        ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'stealth_split_address':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5506:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 5506 |     if(!saddr||strncmp(saddr,"squb2",5)!=0)return -1; const char *p=saddr+5; if(strlen(p)!=130)return -1;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5506:55: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 5506 |     if(!saddr||strncmp(saddr,"squb2",5)!=0)return -1; const char *p=saddr+5; if(strlen(p)!=130)return -1;
+      |                                                       ^~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5509:5: warning: this 'for' clause does not guard... [-Wmisleading-indentation]
+ 5509 |     for(size_t i=0;i<66;i++)if(!isxdigit((unsigned char)spend[i]))return -1; return 0;
+      |     ^~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5509:78: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'for'
+ 5509 |     for(size_t i=0;i<66;i++)if(!isxdigit((unsigned char)spend[i]))return -1; return 0;
+      |                                                                              ^~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'stealth_parse_line':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5513:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 5513 |     if(!line||!r)return -1;char buf[4096];snprintf(buf,sizeof(buf),"%s",line);buf[strcspn(buf,"\r\n")]=0;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5513:28: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 5513 |     if(!line||!r)return -1;char buf[4096];snprintf(buf,sizeof(buf),"%s",line);buf[strcspn(buf,"\r\n")]=0;
+      |                            ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'stealth_ecdsa_sign':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5543:1: warning: 'EC_KEY_new_by_curve_name' is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+ 5543 | static int stealth_ecdsa_sign(const BIGNUM *priv,const char *msg,char **sig_hex_out){int rc=-1;EC_KEY *key=EC_KEY_new_by_curve_name(NID_secp256k1);if(!key)return -1;const EC_GROUP *g=EC_KEY_get0_group(key);EC_POINT *P=EC_POINT_new(g);BN_CTX *ctx=BN_CTX_new();if(!P||!ctx||EC_KEY_set_private_key(key,priv)!=1||EC_POINT_mul(g,P,priv,NULL,NULL,ctx)!=1||EC_KEY_set_public_key(key,P)!=1)goto done;unsigned char h[32];SHA256((const unsigned char*)msg,strlen(msg),h);ECDSA_SIG *sig=ECDSA_do_sign(h,32,key);if(!sig)goto done;int len=i2d_ECDSA_SIG(sig,NULL);unsigned char *der=malloc(len),*q=der;if(!der){ECDSA_SIG_free(sig);goto done;}i2d_ECDSA_SIG(sig,&q);char *hex=malloc((size_t)len*2+1);if(!hex){free(der);ECDSA_SIG_free(sig);goto done;}bytes_to_hex_local(der,(size_t)len,hex);*sig_hex_out=hex;free(der);ECDSA_SIG_free(sig);rc=0;done:if(P)EC_POINT_free(P);if(ctx)BN_CTX_free(ctx);EC_KEY_free(key);return rc;}
+      | ^~~~~~
+In file included from /mnt/data/qrx71/qrx-core/src/qrx.c:104:
+/usr/include/openssl/ec.h:1009:31: note: declared here
+ 1009 | OSSL_DEPRECATEDIN_3_0 EC_KEY *EC_KEY_new_by_curve_name(int nid);
+      |                               ^~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5543:1: warning: 'EC_KEY_get0_group' is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+ 5543 | static int stealth_ecdsa_sign(const BIGNUM *priv,const char *msg,char **sig_hex_out){int rc=-1;EC_KEY *key=EC_KEY_new_by_curve_name(NID_secp256k1);if(!key)return -1;const EC_GROUP *g=EC_KEY_get0_group(key);EC_POINT *P=EC_POINT_new(g);BN_CTX *ctx=BN_CTX_new();if(!P||!ctx||EC_KEY_set_private_key(key,priv)!=1||EC_POINT_mul(g,P,priv,NULL,NULL,ctx)!=1||EC_KEY_set_public_key(key,P)!=1)goto done;unsigned char h[32];SHA256((const unsigned char*)msg,strlen(msg),h);ECDSA_SIG *sig=ECDSA_do_sign(h,32,key);if(!sig)goto done;int len=i2d_ECDSA_SIG(sig,NULL);unsigned char *der=malloc(len),*q=der;if(!der){ECDSA_SIG_free(sig);goto done;}i2d_ECDSA_SIG(sig,&q);char *hex=malloc((size_t)len*2+1);if(!hex){free(der);ECDSA_SIG_free(sig);goto done;}bytes_to_hex_local(der,(size_t)len,hex);*sig_hex_out=hex;free(der);ECDSA_SIG_free(sig);rc=0;done:if(P)EC_POINT_free(P);if(ctx)BN_CTX_free(ctx);EC_KEY_free(key);return rc;}
+      | ^~~~~~
+/usr/include/openssl/ec.h:1045:39: note: declared here
+ 1045 | OSSL_DEPRECATEDIN_3_0 const EC_GROUP *EC_KEY_get0_group(const EC_KEY *key);
+      |                                       ^~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5543:1: warning: 'EC_KEY_set_private_key' is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+ 5543 | static int stealth_ecdsa_sign(const BIGNUM *priv,const char *msg,char **sig_hex_out){int rc=-1;EC_KEY *key=EC_KEY_new_by_curve_name(NID_secp256k1);if(!key)return -1;const EC_GROUP *g=EC_KEY_get0_group(key);EC_POINT *P=EC_POINT_new(g);BN_CTX *ctx=BN_CTX_new();if(!P||!ctx||EC_KEY_set_private_key(key,priv)!=1||EC_POINT_mul(g,P,priv,NULL,NULL,ctx)!=1||EC_KEY_set_public_key(key,P)!=1)goto done;unsigned char h[32];SHA256((const unsigned char*)msg,strlen(msg),h);ECDSA_SIG *sig=ECDSA_do_sign(h,32,key);if(!sig)goto done;int len=i2d_ECDSA_SIG(sig,NULL);unsigned char *der=malloc(len),*q=der;if(!der){ECDSA_SIG_free(sig);goto done;}i2d_ECDSA_SIG(sig,&q);char *hex=malloc((size_t)len*2+1);if(!hex){free(der);ECDSA_SIG_free(sig);goto done;}bytes_to_hex_local(der,(size_t)len,hex);*sig_hex_out=hex;free(der);ECDSA_SIG_free(sig);rc=0;done:if(P)EC_POINT_free(P);if(ctx)BN_CTX_free(ctx);EC_KEY_free(key);return rc;}
+      | ^~~~~~
+/usr/include/openssl/ec.h:1067:27: note: declared here
+ 1067 | OSSL_DEPRECATEDIN_3_0 int EC_KEY_set_private_key(EC_KEY *key, const BIGNUM *prv);
+      |                           ^~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5543:1: warning: 'EC_KEY_set_public_key' is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+ 5543 | static int stealth_ecdsa_sign(const BIGNUM *priv,const char *msg,char **sig_hex_out){int rc=-1;EC_KEY *key=EC_KEY_new_by_curve_name(NID_secp256k1);if(!key)return -1;const EC_GROUP *g=EC_KEY_get0_group(key);EC_POINT *P=EC_POINT_new(g);BN_CTX *ctx=BN_CTX_new();if(!P||!ctx||EC_KEY_set_private_key(key,priv)!=1||EC_POINT_mul(g,P,priv,NULL,NULL,ctx)!=1||EC_KEY_set_public_key(key,P)!=1)goto done;unsigned char h[32];SHA256((const unsigned char*)msg,strlen(msg),h);ECDSA_SIG *sig=ECDSA_do_sign(h,32,key);if(!sig)goto done;int len=i2d_ECDSA_SIG(sig,NULL);unsigned char *der=malloc(len),*q=der;if(!der){ECDSA_SIG_free(sig);goto done;}i2d_ECDSA_SIG(sig,&q);char *hex=malloc((size_t)len*2+1);if(!hex){free(der);ECDSA_SIG_free(sig);goto done;}bytes_to_hex_local(der,(size_t)len,hex);*sig_hex_out=hex;free(der);ECDSA_SIG_free(sig);rc=0;done:if(P)EC_POINT_free(P);if(ctx)BN_CTX_free(ctx);EC_KEY_free(key);return rc;}
+      | ^~~~~~
+/usr/include/openssl/ec.h:1081:27: note: declared here
+ 1081 | OSSL_DEPRECATEDIN_3_0 int EC_KEY_set_public_key(EC_KEY *key, const EC_POINT *pub);
+      |                           ^~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5543:1: warning: 'ECDSA_do_sign' is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+ 5543 | static int stealth_ecdsa_sign(const BIGNUM *priv,const char *msg,char **sig_hex_out){int rc=-1;EC_KEY *key=EC_KEY_new_by_curve_name(NID_secp256k1);if(!key)return -1;const EC_GROUP *g=EC_KEY_get0_group(key);EC_POINT *P=EC_POINT_new(g);BN_CTX *ctx=BN_CTX_new();if(!P||!ctx||EC_KEY_set_private_key(key,priv)!=1||EC_POINT_mul(g,P,priv,NULL,NULL,ctx)!=1||EC_KEY_set_public_key(key,P)!=1)goto done;unsigned char h[32];SHA256((const unsigned char*)msg,strlen(msg),h);ECDSA_SIG *sig=ECDSA_do_sign(h,32,key);if(!sig)goto done;int len=i2d_ECDSA_SIG(sig,NULL);unsigned char *der=malloc(len),*q=der;if(!der){ECDSA_SIG_free(sig);goto done;}i2d_ECDSA_SIG(sig,&q);char *hex=malloc((size_t)len*2+1);if(!hex){free(der);ECDSA_SIG_free(sig);goto done;}bytes_to_hex_local(der,(size_t)len,hex);*sig_hex_out=hex;free(der);ECDSA_SIG_free(sig);rc=0;done:if(P)EC_POINT_free(P);if(ctx)BN_CTX_free(ctx);EC_KEY_free(key);return rc;}
+      | ^~~~~~
+/usr/include/openssl/ec.h:1376:34: note: declared here
+ 1376 | OSSL_DEPRECATEDIN_3_0 ECDSA_SIG *ECDSA_do_sign(const unsigned char *dgst,
+      |                                  ^~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5543:1: warning: 'EC_KEY_free' is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+ 5543 | static int stealth_ecdsa_sign(const BIGNUM *priv,const char *msg,char **sig_hex_out){int rc=-1;EC_KEY *key=EC_KEY_new_by_curve_name(NID_secp256k1);if(!key)return -1;const EC_GROUP *g=EC_KEY_get0_group(key);EC_POINT *P=EC_POINT_new(g);BN_CTX *ctx=BN_CTX_new();if(!P||!ctx||EC_KEY_set_private_key(key,priv)!=1||EC_POINT_mul(g,P,priv,NULL,NULL,ctx)!=1||EC_KEY_set_public_key(key,P)!=1)goto done;unsigned char h[32];SHA256((const unsigned char*)msg,strlen(msg),h);ECDSA_SIG *sig=ECDSA_do_sign(h,32,key);if(!sig)goto done;int len=i2d_ECDSA_SIG(sig,NULL);unsigned char *der=malloc(len),*q=der;if(!der){ECDSA_SIG_free(sig);goto done;}i2d_ECDSA_SIG(sig,&q);char *hex=malloc((size_t)len*2+1);if(!hex){free(der);ECDSA_SIG_free(sig);goto done;}bytes_to_hex_local(der,(size_t)len,hex);*sig_hex_out=hex;free(der);ECDSA_SIG_free(sig);rc=0;done:if(P)EC_POINT_free(P);if(ctx)BN_CTX_free(ctx);EC_KEY_free(key);return rc;}
+      | ^~~~~~
+/usr/include/openssl/ec.h:1014:28: note: declared here
+ 1014 | OSSL_DEPRECATEDIN_3_0 void EC_KEY_free(EC_KEY *key);
+      |                            ^~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'stealth_ecdsa_verify':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5545:1: warning: 'EC_KEY_new_by_curve_name' is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+ 5545 | static int stealth_ecdsa_verify(const char *pub_hex,const char *msg,const char *sig_hex){unsigned char pub[33];if(strlen(pub_hex)!=66||hex_to_bytes_local(pub_hex,pub,33)!=0)return -1;size_t slen=strlen(sig_hex)/2;if(strlen(sig_hex)%2||slen<8||slen>256)return -1;unsigned char *der=malloc(slen);if(!der)return -1;if(hex_to_bytes_local(sig_hex,der,slen)!=0){free(der);return -1;}const unsigned char *q=der;ECDSA_SIG *sig=d2i_ECDSA_SIG(NULL,&q,(long)slen);if(!sig){free(der);return -1;}EC_KEY *key=EC_KEY_new_by_curve_name(NID_secp256k1);const EC_GROUP *g=key?EC_KEY_get0_group(key):NULL;EC_POINT *P=g?EC_POINT_new(g):NULL;BN_CTX *ctx=BN_CTX_new();int rc=-1;if(key&&P&&ctx&&EC_POINT_oct2point(g,P,pub,33,ctx)==1&&EC_KEY_set_public_key(key,P)==1){unsigned char h[32];SHA256((const unsigned char*)msg,strlen(msg),h);rc=ECDSA_do_verify(h,32,sig,key)==1?0:-1;}if(P)EC_POINT_free(P);if(ctx)BN_CTX_free(ctx);if(key)EC_KEY_free(key);ECDSA_SIG_free(sig);free(der);return rc;}
+      | ^~~~~~
+/usr/include/openssl/ec.h:1009:31: note: declared here
+ 1009 | OSSL_DEPRECATEDIN_3_0 EC_KEY *EC_KEY_new_by_curve_name(int nid);
+      |                               ^~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5545:1: warning: 'EC_KEY_get0_group' is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+ 5545 | static int stealth_ecdsa_verify(const char *pub_hex,const char *msg,const char *sig_hex){unsigned char pub[33];if(strlen(pub_hex)!=66||hex_to_bytes_local(pub_hex,pub,33)!=0)return -1;size_t slen=strlen(sig_hex)/2;if(strlen(sig_hex)%2||slen<8||slen>256)return -1;unsigned char *der=malloc(slen);if(!der)return -1;if(hex_to_bytes_local(sig_hex,der,slen)!=0){free(der);return -1;}const unsigned char *q=der;ECDSA_SIG *sig=d2i_ECDSA_SIG(NULL,&q,(long)slen);if(!sig){free(der);return -1;}EC_KEY *key=EC_KEY_new_by_curve_name(NID_secp256k1);const EC_GROUP *g=key?EC_KEY_get0_group(key):NULL;EC_POINT *P=g?EC_POINT_new(g):NULL;BN_CTX *ctx=BN_CTX_new();int rc=-1;if(key&&P&&ctx&&EC_POINT_oct2point(g,P,pub,33,ctx)==1&&EC_KEY_set_public_key(key,P)==1){unsigned char h[32];SHA256((const unsigned char*)msg,strlen(msg),h);rc=ECDSA_do_verify(h,32,sig,key)==1?0:-1;}if(P)EC_POINT_free(P);if(ctx)BN_CTX_free(ctx);if(key)EC_KEY_free(key);ECDSA_SIG_free(sig);free(der);return rc;}
+      | ^~~~~~
+/usr/include/openssl/ec.h:1045:39: note: declared here
+ 1045 | OSSL_DEPRECATEDIN_3_0 const EC_GROUP *EC_KEY_get0_group(const EC_KEY *key);
+      |                                       ^~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5545:1: warning: 'EC_KEY_set_public_key' is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+ 5545 | static int stealth_ecdsa_verify(const char *pub_hex,const char *msg,const char *sig_hex){unsigned char pub[33];if(strlen(pub_hex)!=66||hex_to_bytes_local(pub_hex,pub,33)!=0)return -1;size_t slen=strlen(sig_hex)/2;if(strlen(sig_hex)%2||slen<8||slen>256)return -1;unsigned char *der=malloc(slen);if(!der)return -1;if(hex_to_bytes_local(sig_hex,der,slen)!=0){free(der);return -1;}const unsigned char *q=der;ECDSA_SIG *sig=d2i_ECDSA_SIG(NULL,&q,(long)slen);if(!sig){free(der);return -1;}EC_KEY *key=EC_KEY_new_by_curve_name(NID_secp256k1);const EC_GROUP *g=key?EC_KEY_get0_group(key):NULL;EC_POINT *P=g?EC_POINT_new(g):NULL;BN_CTX *ctx=BN_CTX_new();int rc=-1;if(key&&P&&ctx&&EC_POINT_oct2point(g,P,pub,33,ctx)==1&&EC_KEY_set_public_key(key,P)==1){unsigned char h[32];SHA256((const unsigned char*)msg,strlen(msg),h);rc=ECDSA_do_verify(h,32,sig,key)==1?0:-1;}if(P)EC_POINT_free(P);if(ctx)BN_CTX_free(ctx);if(key)EC_KEY_free(key);ECDSA_SIG_free(sig);free(der);return rc;}
+      | ^~~~~~
+/usr/include/openssl/ec.h:1081:27: note: declared here
+ 1081 | OSSL_DEPRECATEDIN_3_0 int EC_KEY_set_public_key(EC_KEY *key, const EC_POINT *pub);
+      |                           ^~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5545:1: warning: 'ECDSA_do_verify' is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+ 5545 | static int stealth_ecdsa_verify(const char *pub_hex,const char *msg,const char *sig_hex){unsigned char pub[33];if(strlen(pub_hex)!=66||hex_to_bytes_local(pub_hex,pub,33)!=0)return -1;size_t slen=strlen(sig_hex)/2;if(strlen(sig_hex)%2||slen<8||slen>256)return -1;unsigned char *der=malloc(slen);if(!der)return -1;if(hex_to_bytes_local(sig_hex,der,slen)!=0){free(der);return -1;}const unsigned char *q=der;ECDSA_SIG *sig=d2i_ECDSA_SIG(NULL,&q,(long)slen);if(!sig){free(der);return -1;}EC_KEY *key=EC_KEY_new_by_curve_name(NID_secp256k1);const EC_GROUP *g=key?EC_KEY_get0_group(key):NULL;EC_POINT *P=g?EC_POINT_new(g):NULL;BN_CTX *ctx=BN_CTX_new();int rc=-1;if(key&&P&&ctx&&EC_POINT_oct2point(g,P,pub,33,ctx)==1&&EC_KEY_set_public_key(key,P)==1){unsigned char h[32];SHA256((const unsigned char*)msg,strlen(msg),h);rc=ECDSA_do_verify(h,32,sig,key)==1?0:-1;}if(P)EC_POINT_free(P);if(ctx)BN_CTX_free(ctx);if(key)EC_KEY_free(key);ECDSA_SIG_free(sig);free(der);return rc;}
+      | ^~~~~~
+/usr/include/openssl/ec.h:1402:27: note: declared here
+ 1402 | OSSL_DEPRECATEDIN_3_0 int ECDSA_do_verify(const unsigned char *dgst, int dgst_len,
+      |                           ^~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5545:1: warning: 'EC_KEY_free' is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+ 5545 | static int stealth_ecdsa_verify(const char *pub_hex,const char *msg,const char *sig_hex){unsigned char pub[33];if(strlen(pub_hex)!=66||hex_to_bytes_local(pub_hex,pub,33)!=0)return -1;size_t slen=strlen(sig_hex)/2;if(strlen(sig_hex)%2||slen<8||slen>256)return -1;unsigned char *der=malloc(slen);if(!der)return -1;if(hex_to_bytes_local(sig_hex,der,slen)!=0){free(der);return -1;}const unsigned char *q=der;ECDSA_SIG *sig=d2i_ECDSA_SIG(NULL,&q,(long)slen);if(!sig){free(der);return -1;}EC_KEY *key=EC_KEY_new_by_curve_name(NID_secp256k1);const EC_GROUP *g=key?EC_KEY_get0_group(key):NULL;EC_POINT *P=g?EC_POINT_new(g):NULL;BN_CTX *ctx=BN_CTX_new();int rc=-1;if(key&&P&&ctx&&EC_POINT_oct2point(g,P,pub,33,ctx)==1&&EC_KEY_set_public_key(key,P)==1){unsigned char h[32];SHA256((const unsigned char*)msg,strlen(msg),h);rc=ECDSA_do_verify(h,32,sig,key)==1?0:-1;}if(P)EC_POINT_free(P);if(ctx)BN_CTX_free(ctx);if(key)EC_KEY_free(key);ECDSA_SIG_free(sig);free(der);return rc;}
+      | ^~~~~~
+/usr/include/openssl/ec.h:1014:28: note: declared here
+ 1014 | OSSL_DEPRECATEDIN_3_0 void EC_KEY_free(EC_KEY *key);
+      |                            ^~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'shielded_select_ring':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5684:58: warning: unused parameter 'arr' [-Wunused-parameter]
+ 5684 | static int shielded_select_ring(const ShieldedNoteRecord*arr,size_t n,size_t real,size_t**ring_out,size_t*ringn_out,size_t*realpos_out){if(real>=n||n==0)return -1;size_t target=n<8?n:8;if(target>16)target=16;size_t*ring=calloc(target,sizeof(size_t));if(!ring)return -1;size_t c=0;ring[c++]=real;unsigned char rb[8];size_t guard=0;while(c<target&&guard++<10000){if(RAND_bytes(rb,sizeof(rb))!=1){free(ring);return -1;}unsigned long long x=0;for(int k=0;k<8;k++)x=(x<<8)|rb[k];size_t j=(size_t)(x%n);int dup=0;for(size_t k=0;k<c;k++)if(ring[k]==j){dup=1;break;}if(!dup)ring[c++]=j;}if(c!=target){free(ring);return -1;}/* Shuffle so the real member is not pinned to a fixed position. */for(size_t i=target-1;i>0;i--){if(RAND_bytes(rb,sizeof(rb))!=1){free(ring);return -1;}unsigned long long x=0;for(int k=0;k<8;k++)x=(x<<8)|rb[k];size_t j=(size_t)(x%(i+1));size_t t=ring[i];ring[i]=ring[j];ring[j]=t;}size_t rp=0;for(size_t i=0;i<c;i++)if(ring[i]==real){rp=i;break;}*ring_out=ring;*ringn_out=c;*realpos_out=rp;return 0;}
+      |                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^~~
+In file included from /mnt/data/qrx71/qrx-core/src/qrx.c:5728:
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc: In function 'privacy_b64_decode_text':
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:39:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   39 |     if(!b64||!*b64)return NULL;size_t n=0;unsigned char *raw=base64_decode(b64,&n);if(!raw)return NULL;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:39:32: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   39 |     if(!b64||!*b64)return NULL;size_t n=0;unsigned char *raw=base64_decode(b64,&n);if(!raw)return NULL;
+      |                                ^~~~~~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc: In function 'privacy_write_b64_temp':
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:48:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   48 |     if(!b64||strlen(b64)>200000)return -1;size_t n=0;unsigned char *raw=base64_decode(b64,&n);if(!raw)return -1;
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:48:43: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   48 |     if(!b64||strlen(b64)>200000)return -1;size_t n=0;unsigned char *raw=base64_decode(b64,&n);if(!raw)return -1;
+      |                                           ^~~~~~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc: In function 'privacy_attester_lookup_authoritative':
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:108:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  108 |     if(!vp_valid_token(issuer))return -1;char k[512],v[256];snprintf(k,sizeof(k),"privacy:attester:%s:pubkey",issuer);
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:108:42: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  108 |     if(!vp_valid_token(issuer))return -1;char k[512],v[256];snprintf(k,sizeof(k),"privacy:attester:%s:pubkey",issuer);
+      |                                          ^~~~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:112:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  112 |     if(privacy_is_mainnet(chain_dir))return -1;return vp_attester_lookup(chain_dir,issuer,pubhex,active);
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:112:48: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  112 |     if(privacy_is_mainnet(chain_dir))return -1;return vp_attester_lookup(chain_dir,issuer,pubhex,active);
+      |                                                ^~~~~~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc: In function 'validate_privacy_consensus_tx':
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:257:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  257 |     if(!tx_type||!from||!to||!amount_s||!payload||strlen(payload)>QRX_PRIVACY_TX_MAX_BYTES)return -1;long long amount=parse_nonnegative_ll_strict(amount_s,"privacy amount");char *v=payload_get_field(payload,"privacy_version");if(!v||atoi(v)!=QRX_PRIVACY_CONSENSUS_VERSION){free(v);return -1;}free(v);
+      |     ^~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:257:102: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  257 |     if(!tx_type||!from||!to||!amount_s||!payload||strlen(payload)>QRX_PRIVACY_TX_MAX_BYTES)return -1;long long amount=parse_nonnegative_ll_strict(amount_s,"privacy amount");char *v=payload_get_field(payload,"privacy_version");if(!v||atoi(v)!=QRX_PRIVACY_CONSENSUS_VERSION){free(v);return -1;}free(v);
+      |                                                                                                      ^~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'propose_block_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:4740:82: warning: ignoring return value of 'fscanf' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 4740 |     FILE *hfp = popen_qrx(height_cmd, "r"); long long cur_blocks = 0; if (hfp) { fscanf(hfp, "%lld", &cur_blocks); pclose_qrx(hfp); }
+      |                                                                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'mempool_status_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:1684:94: warning: ignoring return value of 'fscanf' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 1684 |     FILE *fp = popen_qrx(cmd, "r"); if (!fp) die("mempool status failed"); long long count=0;fscanf(fp,"%lld",&count);pclose_qrx(fp);
+      |                                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc: At top level:
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:72:18: warning: 'privacy_leaf_count' defined but not used [-Wunused-function]
+   72 | static long long privacy_leaf_count(const char *chain_dir){
+      |                  ^~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5711:12: warning: 'shielded_verify_conservation' defined but not used [-Wunused-function]
+ 5711 | static int shielded_verify_conservation(const char*context,const ShieldedNoteRecord*arr,const size_t*idx,size_t inc,const ShieldedNoteRecord*outnotes,size_t outc,const char*A,const char*c,const char*s){EC_GROUP*g=EC_GROUP_new_by_curve_name(NID_secp256k1);BN_CTX*ctx=BN_CTX_new();EC_POINT*D=g?EC_POINT_new(g):NULL,*P=NULL,*neg=NULL;int rc=-1;if(!g||!ctx||!D)goto done;EC_POINT_set_to_infinity(g,D);for(size_t i=0;i<inc;i++){P=shielded_point_from_hex(g,arr[idx[i]].value_commitment,ctx);if(!P)goto done;EC_POINT_add(g,D,D,P,ctx);EC_POINT_free(P);P=NULL;}for(size_t i=0;i<outc;i++){P=shielded_point_from_hex(g,outnotes[i].value_commitment,ctx);if(!P)goto done;neg=EC_POINT_dup(P,g);EC_POINT_invert(g,neg,ctx);EC_POINT_add(g,D,D,neg,ctx);EC_POINT_free(neg);neg=NULL;EC_POINT_free(P);P=NULL;}rc=shielded_schnorr_verify_H(D,context,A,c,s);done:if(neg)EC_POINT_free(neg);if(P)EC_POINT_free(P);if(D)EC_POINT_free(D);if(ctx)BN_CTX_free(ctx);if(g)EC_GROUP_free(g);return rc;}
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5709:12: warning: 'shielded_conservation_proof' defined but not used [-Wunused-function]
+ 5709 | static int shielded_conservation_proof(const char*context,const ShieldedNoteRecord*arr,const size_t*idx,const ShieldedOwnedNote*w,size_t inc,const ShieldedNoteRecord*outnotes,const ShieldedOwnedNote*outw,size_t outc,char A[67],char c[65],char s[65]){EC_GROUP*g=EC_GROUP_new_by_curve_name(NID_secp256k1);BN_CTX*ctx=BN_CTX_new();BIGNUM*n=BN_new(),*rdiff=BN_new(),*tmp=BN_new();EC_POINT*D=g?EC_POINT_new(g):NULL,*P=NULL,*neg=NULL;int rc=-1;if(!g||!ctx||!n||!rdiff||!tmp||!D||EC_GROUP_get_order(g,n,ctx)!=1)goto done;EC_POINT_set_to_infinity(g,D);BN_zero(rdiff);for(size_t i=0;i<inc;i++){P=shielded_point_from_hex(g,arr[idx[i]].value_commitment,ctx);BIGNUM*r=shielded_bn_from_hex(w[i].blind_hex);if(!P||!r)goto done;EC_POINT_add(g,D,D,P,ctx);BN_mod_add(rdiff,rdiff,r,n,ctx);EC_POINT_free(P);P=NULL;BN_clear_free(r);}for(size_t i=0;i<outc;i++){P=shielded_point_from_hex(g,outnotes[i].value_commitment,ctx);BIGNUM*r=shielded_bn_from_hex(outw[i].blind_hex);if(!P||!r)goto done;neg=EC_POINT_dup(P,g);EC_POINT_invert(g,neg,ctx);EC_POINT_add(g,D,D,neg,ctx);BN_mod_sub(rdiff,rdiff,r,n,ctx);EC_POINT_free(neg);neg=NULL;EC_POINT_free(P);P=NULL;BN_clear_free(r);}rc=shielded_schnorr_prove_H(D,rdiff,context,A,c,s);done:if(neg)EC_POINT_free(neg);if(P)EC_POINT_free(P);if(D)EC_POINT_free(D);if(tmp)BN_free(tmp);if(rdiff)BN_clear_free(rdiff);if(n)BN_free(n);if(ctx)BN_CTX_free(ctx);if(g)EC_GROUP_free(g);return rc;}
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5671:13: warning: 'shielded_make_nullifier_v3' defined but not used [-Wunused-function]
+ 5671 | static void shielded_make_nullifier_v3(const ShieldedNoteRecord*r,const ShieldedOwnedNote*w,char out[129]){char privh[65];shielded_bn_hex64(w->one_time_priv,privh);char buf[1024];snprintf(buf,sizeof(buf),"QUB-SHIELDED-NULLIFIER-v3|%s|%s|%s",r->leaf_commitment,w->rho,privh);sha3_512_hex_local(buf,out);OPENSSL_cleanse(privh,65);}
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:5363:13: warning: 'stealth_seed_hash' defined but not used [-Wunused-function]
+ 5363 | static void stealth_seed_hash(const char *label, const char *input, char out[129]) {
+      |             ^~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:4870:12: warning: 'validator_is_active' defined but not used [-Wunused-function]
+ 4870 | static int validator_is_active(const char *chain_dir, const char *validator) {
+      |            ^~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:4486:18: warning: 'total_validator_power_all' defined but not used [-Wunused-function]
+ 4486 | static long long total_validator_power_all(const char *chain_dir) {
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2901:12: warning: 'execution_report_apply_tx' defined but not used [-Wunused-function]
+ 2901 | static int execution_report_apply_tx(const char *chain_dir,const char *gateway,const char *owner,const char *payload,const char *body_hash){
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2855:12: warning: 'gateway_apply_tx' defined but not used [-Wunused-function]
+ 2855 | static int gateway_apply_tx(const char *chain_dir,const char *authority,const char *gateway,const char *tx_type,const char *payload,const char *body_hash){
+      |            ^~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2828:12: warning: 'gateway_db_set_ll' defined but not used [-Wunused-function]
+ 2828 | static int gateway_db_set_ll(const char *chain_dir,const char *gateway,const char *field,long long value){char v[64];snprintf(v,sizeof(v),"%lld",value);return gateway_db_set_field(chain_dir,gateway,field,v);}
+      |            ^~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2763:12: warning: 'trade_apply_tx' defined but not used [-Wunused-function]
+ 2763 | static int trade_apply_tx(const char *chain_dir, const char *agent, const char *owner, const char *tx_type, const char *payload, const char *body_hash) {
+      |            ^~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2605:12: warning: 'update_order_after_fill' defined but not used [-Wunused-function]
+ 2605 | static int update_order_after_fill(const char *chain_dir,const char *order_id,long long fill_qty,long long new_locked){long long rem=order_db_get_ll(chain_dir,order_id,"remaining_atoms",0),filled=order_db_get_ll(chain_dir,order_id,"filled_atoms",0);if(fill_qty<=0||fill_qty>rem)return -1;long long nf=0;checked_add_ll(filled,fill_qty,"filled quantity",&nf);long long nr=rem-fill_qty;long long h=current_height_from_chain(chain_dir);if(order_db_set_ll(chain_dir,order_id,"filled_atoms",nf)||order_db_set_ll(chain_dir,order_id,"remaining_atoms",nr)||order_db_set_ll(chain_dir,order_id,"locked_atoms",new_locked)||order_db_set_ll(chain_dir,order_id,"updated_height",h)||order_db_set_field(chain_dir,order_id,"status",nr==0?"filled":"partially_filled"))return -1;return 0;}
+      |            ^~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2601:12: warning: 'record_trade' defined but not used [-Wunused-function]
+ 2601 | static int record_trade(const char *chain_dir,const char *market,const char *maker,const char *taker,const char *buyer,const char *seller,long long qty,long long price,long long quote,long long seq,char *trade_id,size_t trade_id_sz){
+      |            ^~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2569:18: warning: 'next_trade_sequence' defined but not used [-Wunused-function]
+ 2569 | static long long next_trade_sequence(const char *chain_dir){
+      |                  ^~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:2135:12: warning: 'agent_apply_tx' defined but not used [-Wunused-function]
+ 2135 | static int agent_apply_tx(const char *chain_dir, const char *owner, const char *agent, const char *tx_type, const char *payload, const char *body_hash) {
+      |            ^~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:1826:12: warning: 'velocity_set_lane_nonce' defined but not used [-Wunused-function]
+ 1826 | static int velocity_set_lane_nonce(const char *chain_dir, const char *address, long long lane, long long nonce) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:1757:12: warning: 'fee_pool_add' defined but not used [-Wunused-function]
+ 1757 | static int fee_pool_add(const char *chain_dir, long long fee) {
+      |            ^~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:1639:12: warning: 'db_set_str' defined but not used [-Wunused-function]
+ 1639 | static int db_set_str(const char *path, const char *key, const char *val) { return db_set_ll(path, key, atoll(val)); }
+      |            ^~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:1636:12: warning: 'db_has_key' defined but not used [-Wunused-function]
+ 1636 | static int db_has_key(const char *path, const char *key) {
+      |            ^~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'htlc_load_all':
+/mnt/data/qrx71/qrx-core/src/qrx.c:4985:33: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 2048 [-Wformat-truncation=]
+ 4985 |     snprintf(buf, sizeof(buf), "%s", line);
+      |                                 ^~
+......
+ 5036 |         if (htlc_parse_line(line, &r) != 0) continue;
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/stdio.h:970,
+                 from /usr/include/openssl/bio.h:28,
+                 from /mnt/data/qrx71/qrx-core/src/qrx.c:98:
+In function 'snprintf',
+    inlined from 'htlc_parse_line' at /mnt/data/qrx71/qrx-core/src/qrx.c:4985:5,
+    inlined from 'htlc_load_all' at /mnt/data/qrx71/qrx-core/src/qrx.c:5036:13:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin_snprintf' output between 1 and 4096 bytes into a destination of size 2048
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'htlc_load_all':
+/mnt/data/qrx71/qrx-core/src/qrx.c:4998:37: warning: '%s' directive output may be truncated writing up to 2047 bytes into a region of size 129 [-Wformat-truncation=]
+ 4989 |     char *cursor = buf;
+      |                    ~~~               
+......
+ 4998 |     snprintf(r->id, sizeof(r->id), "%s", fields[0] ? fields[0] : "");
+      |                                     ^~
+In function 'snprintf',
+    inlined from 'htlc_parse_line' at /mnt/data/qrx71/qrx-core/src/qrx.c:4998:5,
+    inlined from 'htlc_load_all' at /mnt/data/qrx71/qrx-core/src/qrx.c:5036:13:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin_snprintf' output between 1 and 2048 bytes into a destination of size 129
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'htlc_load_all':
+/mnt/data/qrx71/qrx-core/src/qrx.c:4998:37: warning: '%s' directive output may be truncated writing up to 2047 bytes into a region of size 129 [-Wformat-truncation=]
+ 4989 |     char *cursor = buf;
+      |                    ~~~               
+......
+ 4998 |     snprintf(r->id, sizeof(r->id), "%s", fields[0] ? fields[0] : "");
+      |                                     ^~
+In function 'snprintf',
+    inlined from 'htlc_parse_line' at /mnt/data/qrx71/qrx-core/src/qrx.c:4998:5,
+    inlined from 'htlc_load_all' at /mnt/data/qrx71/qrx-core/src/qrx.c:5036:13:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin_snprintf' output between 1 and 2048 bytes into a destination of size 129
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'shielded_parse_line':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5654:363: warning: '%s' directive output may be truncated writing up to 8191 bytes into a region of size 129 [-Wformat-truncation=]
+ 5654 | static int shielded_parse_line(const char*line,ShieldedNoteRecord*r){if(!line||!r)return -1;char buf[8192];snprintf(buf,sizeof(buf),"%s",line);buf[strcspn(buf,"\r\n")]=0;char*fields[10]={0};int n=0;char*cur=buf;while(n<10){fields[n++]=cur;char*sep=strchr(cur,'|');if(!sep)break;*sep=0;cur=sep+1;}if(n<10)return -1;memset(r,0,sizeof(*r));snprintf(r->note_id,129,"%s",fields[0]);snprintf(r->value_commitment,67,"%s",fields[1]);snprintf(r->leaf_commitment,129,"%s",fields[2]);snprintf(r->one_time_pub,67,"%s",fields[3]);snprintf(r->ephemeral_pub,65,"%s",fields[4]);snprintf(r->nonce_hex,25,"%s",fields[5]);snprintf(r->ciphertext_b64,3072,"%s",fields[6]);snprintf(r->tag_hex,33,"%s",fields[7]);snprintf(r->proof_hash,129,"%s",fields[8]);r->created_at=atoll(fields[9]);return 0;}
+      |                                                                                                                                                                                                                ~~~                                                                                                                                                        ^~
+In function 'snprintf',
+    inlined from 'shielded_parse_line' at /mnt/data/qrx71/qrx-core/src/qrx.c:5654:338:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin_snprintf' output between 1 and 8192 bytes into a destination of size 129
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'stealth_load_all':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5519:60: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 129 [-Wformat-truncation=]
+ 5514 |     char *fields[10]={0};int n=0;char *cursor=buf;while(n<10){fields[n++]=cursor;char *sep=strchr(cursor,'|');if(!sep)break;*sep=0;cursor=sep+1;}
+      |                                               ~~~           
+......
+ 5519 |     if(n>=10){ /* legacy leaky v1 */snprintf(r->tx_id,129,"%s",fields[0]);snprintf(r->sender,385,"%s",fields[1]);snprintf(r->one_time_address,385,"%s",fields[3]);r->amount=atoll(fields[4]);snprintf(r->ephemeral_pub,129,"%s",fields[5]);r->created_at=atoll(fields[7]);snprintf(r->status,32,"%s",fields[8]);snprintf(r->memo,256,"%s",fields[9]);return 0;}
+      |                                                            ^~
+In function 'snprintf',
+    inlined from 'stealth_parse_line' at /mnt/data/qrx71/qrx-core/src/qrx.c:5519:37,
+    inlined from 'stealth_load_all' at /mnt/data/qrx71/qrx-core/src/qrx.c:5527:98:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin_snprintf' output between 1 and 4096 bytes into a destination of size 129
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'stealth_load_all':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5517:45: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 129 [-Wformat-truncation=]
+ 5514 |     char *fields[10]={0};int n=0;char *cursor=buf;while(n<10){fields[n++]=cursor;char *sep=strchr(cursor,'|');if(!sep)break;*sep=0;cursor=sep+1;}
+      |                                               ~~~
+......
+ 5517 |         snprintf(r->tx_id,sizeof(r->tx_id),"%s",fields[0]);snprintf(r->sender,sizeof(r->sender),"%s",fields[1]);snprintf(r->one_time_address,sizeof(r->one_time_address),"%s",fields[2]);r->amount=atoll(fields[3]);snprintf(r->ephemeral_pub,sizeof(r->ephemeral_pub),"%s",fields[4]);snprintf(r->one_time_pub,sizeof(r->one_time_pub),"%s",fields[5]);r->created_at=atoll(fields[6]);snprintf(r->status,sizeof(r->status),"%s",fields[7]);snprintf(r->memo,sizeof(r->memo),"%s",fields[8]);return 0;
+      |                                             ^~
+In function 'snprintf',
+    inlined from 'stealth_parse_line' at /mnt/data/qrx71/qrx-core/src/qrx.c:5517:9,
+    inlined from 'stealth_load_all' at /mnt/data/qrx71/qrx-core/src/qrx.c:5527:98:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin_snprintf' output between 1 and 4096 bytes into a destination of size 129
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'stealth_load_all':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5520:50: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 129 [-Wformat-truncation=]
+ 5514 |     char *fields[10]={0};int n=0;char *cursor=buf;while(n<10){fields[n++]=cursor;char *sep=strchr(cursor,'|');if(!sep)break;*sep=0;cursor=sep+1;}
+      |                                               ~~~ 
+......
+ 5520 |     if(n>=8){ /* phase2 */snprintf(r->tx_id,129,"%s",fields[0]);snprintf(r->sender,385,"%s",fields[1]);snprintf(r->one_time_address,385,"%s",fields[2]);r->amount=atoll(fields[3]);snprintf(r->ephemeral_pub,129,"%s",fields[4]);r->created_at=atoll(fields[5]);snprintf(r->status,32,"%s",fields[6]);snprintf(r->memo,256,"%s",fields[7]);return 0;}
+      |                                                  ^~
+In function 'snprintf',
+    inlined from 'stealth_parse_line' at /mnt/data/qrx71/qrx-core/src/qrx.c:5520:27,
+    inlined from 'stealth_load_all' at /mnt/data/qrx71/qrx-core/src/qrx.c:5527:98:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin_snprintf' output between 1 and 4096 bytes into a destination of size 129
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'mirror_order_from_authoritative.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:2262:41: warning: '%s' directive argument is null [-Wformat-truncation=]
+ 2262 |     snprintf(out,out_sz,"velocity:order:%s:%s",order_id,field);
+      |                                         ^~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'gov_protocol_active':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5272:37: warning: '/protocol_upgrades.db' directive output may be truncated writing 21 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5272 |     if(upg&&usz)snprintf(upg,usz,"%s/protocol_upgrades.db",d);
+      |                                     ^~~~~~~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'gov_paths' at /mnt/data/qrx71/qrx-core/src/qrx.c:5272:17,
+    inlined from 'gov_protocol_active' at /mnt/data/qrx71/qrx-core/src/qrx.c:5304:161:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 22 and 1045 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'gov_root_lookup':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5270:41: warning: '/governance_roots.db' directive output may be truncated writing 20 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5270 |     if(roots&&rsz)snprintf(roots,rsz,"%s/governance_roots.db",d);
+      |                                         ^~~~~~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'gov_paths' at /mnt/data/qrx71/qrx-core/src/qrx.c:5270:19,
+    inlined from 'gov_root_lookup' at /mnt/data/qrx71/qrx-core/src/qrx.c:5295:103:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 21 and 1044 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'gov_genesis_init_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5269:39: warning: '/governance.conf' directive output may be truncated writing 16 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5269 |     if(conf&&csz)snprintf(conf,csz,"%s/governance.conf",d);
+      |                                       ^~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'gov_paths' at /mnt/data/qrx71/qrx-core/src/qrx.c:5269:18,
+    inlined from 'gov_genesis_init_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:5294:274:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 17 and 1040 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'gov_genesis_init_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5270:41: warning: '/governance_roots.db' directive output may be truncated writing 20 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5270 |     if(roots&&rsz)snprintf(roots,rsz,"%s/governance_roots.db",d);
+      |                                         ^~~~~~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'gov_paths' at /mnt/data/qrx71/qrx-core/src/qrx.c:5270:19,
+    inlined from 'gov_genesis_init_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:5294:274:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 21 and 1044 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'snapshot_state_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:1520:55: warning: '%s' directive output may be truncated writing up to 127 bytes into a region of size between 0 and 1023 [-Wformat-truncation=]
+ 1520 |     char dest[1024]; snprintf(dest, sizeof(dest), "%s/%s", snaps, label); mkdir_p(dest);
+      |                                                       ^~          ~~~~~
+In function 'snprintf',
+    inlined from 'snapshot_state_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:1520:22:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 2 and 1152 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'snapshot_state_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:1524:68: warning: '/balances.bin' directive output may be truncated writing 13 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 1524 |     if ((buf=read_file(bal,&len))) { snprintf(out, sizeof(out), "%s/balances.bin", dest); write_file(out, buf, len); free(buf); }
+      |                                                                    ^~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'snapshot_state_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:1524:38:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 14 and 1037 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'snapshot_state_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:1525:70: warning: '/nonces.bin' directive output may be truncated writing 11 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 1525 |     if ((buf=read_file(nonce,&len))) { snprintf(out, sizeof(out), "%s/nonces.bin", dest); write_file(out, buf, len); free(buf); }
+      |                                                                      ^~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'snapshot_state_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:1525:40:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 12 and 1035 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'snapshot_state_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:1526:69: warning: '/applied.bin' directive output may be truncated writing 12 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 1526 |     if ((buf=read_file(appl,&len))) { snprintf(out, sizeof(out), "%s/applied.bin", dest); write_file(out, buf, len); free(buf); }
+      |                                                                     ^~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'snapshot_state_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:1526:39:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 13 and 1036 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'snapshot_state_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:1527:72: warning: '/journal.log' directive output may be truncated writing 12 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 1527 |     if ((buf=read_file(journal,&len))) { snprintf(out, sizeof(out), "%s/journal.log", dest); write_file(out, buf, len); free(buf); }
+      |                                                                        ^~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'snapshot_state_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:1527:42:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 13 and 1036 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'vp_issue_cmd':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5239:159: warning: '/verified_privacy.cred' directive output may be truncated writing 22 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5239 | static void vp_cred_path(const char *wallet_dir,char *out,size_t sz){char d[1024];snprintf(d,sizeof(d),"%s/privacy",wallet_dir);mkdir_p(d);snprintf(out,sz,"%s/verified_privacy.cred",d);}
+      |                                                                                                                                                               ^~~~~~~~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'vp_cred_path' at /mnt/data/qrx71/qrx-core/src/qrx.c:5239:140,
+    inlined from 'vp_issue_cmd' at /mnt/data/qrx71/qrx-core/src/qrx.c:5247:2059:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 23 and 1046 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'privacy_credential_issue_v2_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5239:159: warning: '/verified_privacy.cred' directive output may be truncated writing 22 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5239 | static void vp_cred_path(const char *wallet_dir,char *out,size_t sz){char d[1024];snprintf(d,sizeof(d),"%s/privacy",wallet_dir);mkdir_p(d);snprintf(out,sz,"%s/verified_privacy.cred",d);}
+      |                                                                                                                                                               ^~~~~~~~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'vp_cred_path' at /mnt/data/qrx71/qrx-core/src/qrx.c:5239:140,
+    inlined from 'privacy_credential_issue_v2_cmd.isra' at /mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:295:1931:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 23 and 1046 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'vote_block_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:4590:63: warning: '-' directive output may be truncated writing 1 byte into a region of size between 0 and 1023 [-Wformat-truncation=]
+ 4590 |     char localp[1024]; snprintf(localp, sizeof(localp), "%s/%s-%s-%s.vote", votesdir, height_s, round_s, address); write_text(localp, vote);
+      |                                                               ^
+In function 'snprintf',
+    inlined from 'vote_block_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:4590:24:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output 9 or more bytes (assuming 1032) into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'propose_block_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:1257:55: warning: '%lld' directive output may be truncated writing between 1 and 20 bytes into a region of size between 0 and 1023 [-Wformat-truncation=]
+ 1257 |     char path[1024]; snprintf(path, sizeof(path), "%s/%lld-%lld.validators", dir, height, round);
+      |                                                       ^~~~
+In function 'validator_snapshot_write',
+    inlined from 'propose_block_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:4745:9:
+/mnt/data/qrx71/qrx-core/src/qrx.c:1257:51: note: directive argument in the range [-9223372036854775807, 9223372036854775807]
+ 1257 |     char path[1024]; snprintf(path, sizeof(path), "%s/%lld-%lld.validators", dir, height, round);
+      |                                                   ^~~~~~~~~~~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'validator_snapshot_write' at /mnt/data/qrx71/qrx-core/src/qrx.c:1257:22,
+    inlined from 'propose_block_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:4745:9:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 16 and 1058 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'privacy_prepare_shield_payload.constprop':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5239:159: warning: '/verified_privacy.cred' directive output may be truncated writing 22 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5239 | static void vp_cred_path(const char *wallet_dir,char *out,size_t sz){char d[1024];snprintf(d,sizeof(d),"%s/privacy",wallet_dir);mkdir_p(d);snprintf(out,sz,"%s/verified_privacy.cred",d);}
+      |                                                                                                                                                               ^~~~~~~~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'vp_cred_path' at /mnt/data/qrx71/qrx-core/src/qrx.c:5239:140,
+    inlined from 'privacy_wallet_credential_b64' at /mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:166:81,
+    inlined from 'privacy_prepare_shield_payload.constprop' at /mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:175:112:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 23 and 1046 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'gov_apply_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5269:39: warning: '/governance.conf' directive output may be truncated writing 16 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5269 |     if(conf&&csz)snprintf(conf,csz,"%s/governance.conf",d);
+      |                                       ^~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'gov_paths' at /mnt/data/qrx71/qrx-core/src/qrx.c:5269:18,
+    inlined from 'gov_threshold' at /mnt/data/qrx71/qrx-core/src/qrx.c:5296:66,
+    inlined from 'gov_apply_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:5303:110:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 17 and 1040 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'gov_apply_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5271:37: warning: '/governance_applied.db' directive output may be truncated writing 22 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5271 |     if(log&&lsz)snprintf(log,lsz,"%s/governance_applied.db",d);
+      |                                     ^~~~~~~~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'gov_paths' at /mnt/data/qrx71/qrx-core/src/qrx.c:5271:17,
+    inlined from 'gov_already_applied' at /mnt/data/qrx71/qrx-core/src/qrx.c:5302:89,
+    inlined from 'gov_apply_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:5303:355:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 23 and 1046 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'gov_apply_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5272:37: warning: '/protocol_upgrades.db' directive output may be truncated writing 21 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5272 |     if(upg&&usz)snprintf(upg,usz,"%s/protocol_upgrades.db",d);
+      |                                     ^~~~~~~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'gov_paths' at /mnt/data/qrx71/qrx-core/src/qrx.c:5272:17,
+    inlined from 'gov_apply_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:5303:2428:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 22 and 1045 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'gov_apply_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5271:37: warning: '/governance_applied.db' directive output may be truncated writing 22 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5271 |     if(log&&lsz)snprintf(log,lsz,"%s/governance_applied.db",d);
+      |                                     ^~~~~~~~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'gov_paths' at /mnt/data/qrx71/qrx-core/src/qrx.c:5271:17,
+    inlined from 'gov_apply_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:5303:2720:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 23 and 1046 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'evidence_double_sign_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:6314:54: warning: '-h' directive output may be truncated writing 2 bytes into a region of size between 0 and 1023 [-Wformat-truncation=]
+ 6314 |     char out[1024]; snprintf(out, sizeof(out), "%s/%s-h%s-r%s.ev", eviddir, v1, ha, ra);
+      |                                                      ^~
+In function 'snprintf',
+    inlined from 'evidence_double_sign_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:6314:21:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output 9 or more bytes (assuming 1032) into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'validate_privacy_consensus_tx':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5269:39: warning: '/governance.conf' directive output may be truncated writing 16 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5269 |     if(conf&&csz)snprintf(conf,csz,"%s/governance.conf",d);
+      |                                       ^~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'gov_paths' at /mnt/data/qrx71/qrx-core/src/qrx.c:5269:18,
+    inlined from 'gov_threshold' at /mnt/data/qrx71/qrx-core/src/qrx.c:5296:66,
+    inlined from 'validate_privacy_governance_tx' at /mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:249:216,
+    inlined from 'validate_privacy_consensus_tx' at /mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:258:63:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 17 and 1040 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'privacy_build_spend_payload.constprop':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5239:159: warning: '/verified_privacy.cred' directive output may be truncated writing 22 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5239 | static void vp_cred_path(const char *wallet_dir,char *out,size_t sz){char d[1024];snprintf(d,sizeof(d),"%s/privacy",wallet_dir);mkdir_p(d);snprintf(out,sz,"%s/verified_privacy.cred",d);}
+      |                                                                                                                                                               ^~~~~~~~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'vp_cred_path' at /mnt/data/qrx71/qrx-core/src/qrx.c:5239:140,
+    inlined from 'privacy_wallet_credential_b64' at /mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:166:81,
+    inlined from 'privacy_build_spend_payload.constprop' at /mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:190:17:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 23 and 1046 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc: In function 'privacy_build_spend_payload.constprop':
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:193:124: warning: 'ranges' may be used uninitialized [-Wmaybe-uninitialized]
+  193 | fail:for(size_t i=0;i<cnt;i++)if(w&&w[i].one_time_priv)BN_clear_free(w[i].one_time_priv);for(size_t i=0;i<2;i++)free(ranges[i]);free(w);free(idx);free(arr);return -1;
+      |                                                                                                                      ~~~~~~^~~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:181:243: note: 'ranges' declared here
+  181 |     char selfz[512];if(shielded_make_address_from_wallet(wallet_dir,selfz)!=0)goto fail;size_t outc=unshield?(sum>amount?1:0):(sum>amount?2:1);if(outc>QRX_PRIVACY_MAX_OUTPUTS)goto fail;ShieldedNoteRecord outs[2];ShieldedOwnedNote ow[2];char *ranges[2]={0};memset(ow,0,sizeof(ow));
+      |                                                                                                                                                                                                                                                   ^~~~~~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:193:124: warning: 'ranges' may be used uninitialized [-Wmaybe-uninitialized]
+  193 | fail:for(size_t i=0;i<cnt;i++)if(w&&w[i].one_time_priv)BN_clear_free(w[i].one_time_priv);for(size_t i=0;i<2;i++)free(ranges[i]);free(w);free(idx);free(arr);return -1;
+      |                                                                                                                      ~~~~~~^~~
+/mnt/data/qrx71/qrx-core/src/privacy/qrx_privacy_consensus.inc:181:243: note: 'ranges' declared here
+  181 |     char selfz[512];if(shielded_make_address_from_wallet(wallet_dir,selfz)!=0)goto fail;size_t outc=unshield?(sum>amount?1:0):(sum>amount?2:1);if(outc>QRX_PRIVACY_MAX_OUTPUTS)goto fail;ShieldedNoteRecord outs[2];ShieldedOwnedNote ow[2];char *ranges[2]={0};memset(ow,0,sizeof(ow));
+      |                                                                                                                                                                                                                                                   ^~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'vp_verify.constprop':
+/mnt/data/qrx71/qrx-core/src/qrx.c:5239:159: warning: '/verified_privacy.cred' directive output may be truncated writing 22 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+ 5239 | static void vp_cred_path(const char *wallet_dir,char *out,size_t sz){char d[1024];snprintf(d,sizeof(d),"%s/privacy",wallet_dir);mkdir_p(d);snprintf(out,sz,"%s/verified_privacy.cred",d);}
+      |                                                                                                                                                               ^~~~~~~~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'vp_cred_path' at /mnt/data/qrx71/qrx-core/src/qrx.c:5239:140,
+    inlined from 'vp_verify.constprop' at /mnt/data/qrx71/qrx-core/src/qrx.c:5248:105:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output between 23 and 1046 bytes into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c: In function 'wallet_new_address_cmd.isra':
+/mnt/data/qrx71/qrx-core/src/qrx.c:997:41: warning: '/.new-' directive output may be truncated writing 6 bytes into a region of size between 1 and 1024 [-Wformat-truncation=]
+  997 |     snprintf(tmpdir, sizeof(tmpdir), "%s/.new-%lld-%s", addrs_dir, (long long)time(NULL), rndhex ? rndhex : "tmp");
+      |                                         ^~~~~~
+/mnt/data/qrx71/qrx-core/src/qrx.c:997:38: note: assuming directive output of 3 bytes
+  997 |     snprintf(tmpdir, sizeof(tmpdir), "%s/.new-%lld-%s", addrs_dir, (long long)time(NULL), rndhex ? rndhex : "tmp");
+      |                                      ^~~~~~~~~~~~~~~~~
+In function 'snprintf',
+    inlined from 'wallet_new_address_cmd.isra' at /mnt/data/qrx71/qrx-core/src/qrx.c:997:5:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: '__builtin___snprintf_chk' output 9 or more bytes (assuming 1035) into a destination of size 1024
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+[  7%] Linking C static library libqrxcore.a
+[ 50%] Built target qrxcore
+[ 53%] Linking C executable qrxd
+[ 57%] Linking C executable qrx
+[ 64%] Built target qrxd
+[ 64%] Built target qrx
+[ 67%] Linking C executable qrxdb_verify
+[ 71%] Linking C executable qrx-cli
+[ 75%] Built target qrxdb_verify
+[ 78%] Built target qrx-cli
+[ 82%] Linking C executable qrxdb_salvage
+[ 85%] Linking C executable qrxdb_compact
+[ 89%] Built target qrxdb_salvage
+[ 92%] Built target qrxdb_compact
+[ 96%] Linking C executable qrxdb_snapshot
+[100%] Built target qrxdb_snapshot

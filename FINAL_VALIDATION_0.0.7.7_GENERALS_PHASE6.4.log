@@ -1,0 +1,6 @@
+QRX 0.0.7.7 Generals Phase 6.4
+PASS: fresh CMake configure
+PASS: qrx core build
+PASS: qrxd build
+PASS: Phase 6.4 wiring regression
+NOTE: full historical Generals suite was not completed in this execution window; several legacy scripts are cwd/build-path dependent.

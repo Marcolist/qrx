@@ -1,0 +1,10 @@
+QRX Generals 0.0.7.7 Phase 4.3 validation
+Date: 2026-09-04
+CMake clean configure/build: PASS
+New consensus tx type GAME_UNIT_RESUPPLY: PRESENT
+Movement fuel debit: PRESENT
+Infrastructure attack ammunition debit: PRESENT
+Deterministic supply status: PRESENT
+Isolation blocks resupply: PRESENT
+Known compiler warnings remain; build is not warning-free.
+Existing shell regression harnesses were not reported as PASS in this environment because their terminal/working-directory wrapper exited without diagnostic output; no false PASS is claimed.

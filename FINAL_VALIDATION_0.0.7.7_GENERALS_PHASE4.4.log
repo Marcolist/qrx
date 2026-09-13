@@ -1,0 +1,8 @@
+QRX Generals 0.0.7.7 Phase 4.4 validation
+- clean incremental CMake core build: PASS
+- Phase 4.4 feature-surface test: PASS
+- Phase 4.1 regression: PASS
+- Phase 4 legacy combat regression: EXPECTED NONPASS because Phase 4.4 intentionally adds contact/visibility authorization to ATTACK reveal; the old test attacks a long-range target without establishing a contact first.
+- Known pre-existing compiler warnings remain; build is not warning-free.
+- Native Tauri platform bundles not built in this environment.
+- Security note: Fog of War is consensus/game-rule visibility, not cryptographic secrecy of replicated QRXDB coordinates.

@@ -1,0 +1,4 @@
+QRX Generals 0.0.7.7 Phase 4.8
+CMake configure/build: PASS
+Phase 4.8 structural/executable primitive test: PASS
+Known existing compiler warnings remain.

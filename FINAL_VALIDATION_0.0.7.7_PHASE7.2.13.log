@@ -1,0 +1,12 @@
+QRX 0.0.7.7 Phase 7.2.13 validation
+- Fresh Core configure/build with QRX_REQUIRE_PQC=OFF: PASS
+- Phase 7.2.13 home-validator safety assertions: PASS
+- Phase 7.2.12 static security assertions: PASS
+- Phase 7.2.12 adversarial staking model (10,000 cases): PASS
+- Multi-target build regression: 6/6 PASS
+- GUI inline JavaScript node --check: PASS
+- Catch-up runtime gates compiled into qrxd: peer minimum, max-behind threshold, 30s stabilization, automatic resume
+- Home liveness profile: 72h grace; first 0.05% after one further 24h; 0.05%/day thereafter; 1% continuous-outage cap; 1h jail after 7d
+- Bootstrap 180-day liveness grace preserved
+- Double-sign 50% + tombstone unchanged
+- ctest on default fresh build: no tests registered in that configuration (not counted as PASS)

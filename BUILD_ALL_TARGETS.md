@@ -1,5 +1,12 @@
 # QRX unified multi-target build
 
+## Self-contained OpenSSL release dependency
+
+Linux and macOS release builds do **not** use the system/Homebrew OpenSSL. The unified builder downloads the pinned OpenSSL 3.6.x source release, verifies the official SHA-256 sidecar, compiles a native static `libcrypto.a` into `build/deps/`, and then points CMake explicitly at that prefix.
+
+The default in Phase 7.2.3 is OpenSSL 3.6.4. Override only when reproducing an older build, for example `QRX_OPENSSL_VERSION=3.6.2 bash scripts/build-all-targets.sh --target macos-arm64`.
+
+
 `scripts/build-all-targets.sh` is the single release entry point. For each target it always builds in dependency order:
 
 1. QRX Core and QRXDB;
@@ -14,11 +21,13 @@ The Tauri step cannot run before the Core and BTC-service steps because `externa
 
 ## All operating systems concurrently
 
-Run the single entry point with `--all`, or start the GitHub Actions workflow **Build all QRX wallets** directly. Its five native jobs run concurrently:
+Use `--all --plan` to inspect all five release plans locally. Real cross-OS releases use the GitHub Actions workflow **Build all QRX wallets**, whose five native jobs run concurrently:
 
 ```bash
-bash scripts/build-all-targets.sh --all
+bash scripts/build-all-targets.sh --all --plan
 ```
+
+A real `--all` build on one machine is intentionally rejected because QRX Core and native Tauri installers must be produced on matching native runners.
 
 | Target | Native runner | Output |
 | --- | --- | --- |
