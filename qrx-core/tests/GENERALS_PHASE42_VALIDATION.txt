@@ -1,0 +1,10 @@
+QRX Generals 0.0.7.7 Phase 4.2 validation
+- clean CMake configure/build: PASS
+- Phase 1 regression: PASS
+- Phase 2 regression: PASS
+- Phase 3 regression: PASS
+- Phase 3.1 regression: PASS
+- Phase 4 regression: PASS
+- Phase 4.1 regression: PASS
+- new Phase 4.2 source surface: GAME_INFRA_ATTACK, GAME_ROAD_REPAIR, bounded road supply BFS, infrastructure destruction/status read surface
+- existing compiler warnings remain; build is not warning-free

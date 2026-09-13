@@ -1,0 +1,23 @@
+QRX 0.0.7.7 Generals Serverless Migration Phase 1
+Validation date: 2026-09-04
+
+PASS: clean native CMake configure/build
+PASS: 0.0.7.5 governance/attester/protocol regression test
+PASS: 0.0.7.6 native asset mainnet-consensus regression test
+PASS: 0.0.7.7 Generals Phase 1 serverless consensus test
+
+Phase-1 consensus invariants validated:
+- GAME_JOIN is a signed VELOCITY consensus transaction
+- deterministic wallet-bound player identity
+- one player per signing wallet
+- GENERAL# native UNIQUE asset is created atomically, supply/max_supply=1, reissuable=0
+- generic ASSET_TRANSFER rejects reserved GENERAL# assets until game-aware transfer exists
+- join QUB contribution is debited and credited to Generals treasury atomically
+- GAME_CLAN_CREATE stores clan/founder/leader/member/name/tag indices atomically
+- clan creation QUB contribution is credited to Generals treasury
+- GAME_TREASURY_FUND credits treasury without an operator/private treasury key
+- failed duplicate GAME_JOIN does not alter treasury
+- nonce/applied tx/index/game/QUB state share QRXDB WAL commit
+- pre-existing QRX wallet address remains unchanged
+
+Native installers were not built in this environment. The source Core build was validated here.

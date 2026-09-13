@@ -1,0 +1,3388 @@
+QRX ROADMAP 0.0.8 -> 0.0.9
+Storage, QRX-Net, Decentralized Internet Foundation, Proof of Useful Compute & Distributed AI
+===================================================================
+
+Stand: September 2026
+
+LEITBILD
+========
+
+QRX entwickelt sich in drei aufeinander aufbauenden Stufen:
+
+0.0.7
+Blockchain · Wallet · Staking · Privacy · Assets · Markets · VELOCITY · Cross-Chain
+
+↓
+
+0.0.8 – QRX DRIVE + QRX-NET
+Decentralized Storage · Proof of Storage · Resource Market · Quantum-Resistant Data-at-Rest · Decentralized Naming · Domain Hosting · WWW+QRX Browser
+
+↓
+
+0.0.9 – QRX COMPUTE
+Proof of Useful Compute · Distributed AI · Mixture of Experts · Kimi K3 · FastTrack
+
+Die Architektur muss von Anfang an so gestaltet werden, dass Storage und Compute dieselben grundlegenden Mechanismen für Provider, Contracts, Reputation, Escrow, Proofs, Settlement und Resource Discovery verwenden.
+
+
+============================================================
+QRX 0.0.8 – DRIVE + QRX-NET
+DECENTRALIZED STORAGE, RESOURCE NETWORK & INTERNET FOUNDATION
+============================================================
+
+0.0.8 RELEASE / ACTIVATION POLICY
+---------------------------------
+
+Genesis bleibt auf dem stabilen QRX-0.0.7.7-Konsens.
+Die 0.0.8-Storage-/QRX-Net-Regeln werden NICHT in die Genesis-Daten festgeschrieben.
+
+Geplanter Ablauf:
+- Genesis: 15.09.2026 mit QRX 0.0.7.7
+- 0.0.8.x wird nach Genesis entwickelt, getestet und als Mandatory Update verteilt
+- Ziel für die Aktivierung der 0.0.8-Funktionen: rund um den 30.11.2026
+- die konkrete Activation Height wird erst nach Genesis anhand realer Mainnet-Blockzeiten festgelegt
+- Consensus-Aktivierung erfolgt über den bestehenden threshold-signierten PROTOCOL_UPGRADE-Pfad
+- vorgesehene Upgrade-Generation: Protocol 9
+- vorgesehene Feature-Sets: DRIVE_V1 und QRX_NET_V1
+- Storage-/QRX-Net-TXs sind vor Activation Height ungültig bzw. fail-closed
+- alte Nodes müssen vor der Activation Height aktualisieren
+- veraltete Validatoren dürfen nach Aktivierung nicht als vollwertige Consensus-Teilnehmer weiterlaufen
+- keine Aktivierung allein per GUI-, RPC- oder Server-Schalter
+- keine Abhängigkeit von CURA-/Developer-Servern
+
+Grundsatz:
+Release früher, Aktivierung später.
+Validatoren und Nutzer erhalten vor der Activation Height eine deutliche Mandatory-Update-Warnung.
+
+
+0.0.8.0 – DECENTRALIZATION INVARIANTS
+-------------------------------------
+
+TODO:
+- Keine zentrale Storage-Steuerinstanz.
+- Kein globaler SeaweedFS Master.
+- Kein zentraler QRX Storage Coordinator.
+- Kein zentraler Repair Server.
+- Kein zentraler Scheduler für Storage Placement.
+- Kein zentraler Metadata Server.
+- CURA-/Developer-Server dürfen für den Betrieb nicht erforderlich sein.
+- Bootstrap Nodes dürfen ausschließlich Discovery erleichtern.
+- Storage muss weiter funktionieren, wenn sämtliche offiziellen QRX-/CURA-Nodes abgeschaltet werden.
+- Provider Discovery über QRX P2P/DHT/Gossip.
+- Blockchain als gemeinsame Trust-, Contract- und Settlement-Layer.
+- Große Daten niemals on-chain speichern.
+
+Mainnet-Invariant:
+CURA Server OFF
+Developer Nodes OFF
+Official Storage Nodes OFF
+Official Website/API OFF
+
+Erwartung:
+QRX Drive funktioniert weiter.
+
+
+0.0.8.1 – GENERIC QRX RESOURCE PROTOCOL
+---------------------------------------
+
+Nicht nur Storage-spezifisch implementieren.
+
+Resource Types:
+- STORAGE
+- COMPUTE vorbereitet
+- GPU vorbereitet
+- SPECIALIZED vorbereitet
+
+Gemeinsame Objekte:
+- ResourceProvider
+- ResourceCapability
+- ResourceOffer
+- ResourceContract
+- ResourceEscrow
+- ResourceProof
+- ResourceReceipt
+- ResourceReputation
+- ResourceSettlement
+- ResourceFailureDomain
+
+QRX 0.0.9 soll diese Infrastruktur wiederverwenden.
+
+
+0.0.8.2 – NATIVE FILESYSTEM STORAGE BACKEND
+-------------------------------------------
+
+Filesystem wird offizielles Reference Backend.
+
+Beispiel:
+
+[storage]
+enabled = true
+backend = "filesystem"
+path = "/var/lib/qrx/storage"
+max_usage = "2TB"
+min_free_space = "50GB"
+
+TODO:
+- konfigurierbares Storage Directory
+- max_usage
+- min_free_space
+- sichere Quotas
+- Crash Recovery
+- Atomic Writes
+- Temp-/Partial-File Handling
+- Disk-Full-Schutz
+- Content-addressed Blob Storage
+- Hash-basierte Directory-Struktur
+- Integrity Check
+- Storage Backend Interface
+
+Backend API:
+PUT
+GET
+DELETE
+PROVE
+CAPACITY
+HEALTH
+
+Optionale Backends:
+- SeaweedFS optional
+- ZFS später
+- Btrfs später
+- S3-compatible Backend später
+- QRX Packfile Backend später
+
+SeaweedFS darf niemals Teil des QRX-Konsenses sein.
+
+
+0.0.8.3 – CAPACITY ACCOUNTING
+-----------------------------
+
+Unterscheiden:
+- Configured Capacity
+- Raw Capacity
+- Proven Capacity
+- Allocated Physical Capacity
+- Logical User Data
+- Usable Capacity
+- Available Capacity
+- Reserve Capacity
+
+Beispiel:
+Raw Capacity        12.84 PB
+Proven Capacity     12.11 PB
+Usable Capacity      8.34 PB
+Allocated            3.17 PB
+Available            5.17 PB
+
+TODO:
+- Netzwerkweite Capacity Aggregation
+- Provider Capacity Accounting
+- Free Capacity Tracking
+- Logical-vs-Physical Storage Accounting
+- Netzwerk-Auslastungsgrad
+- Resilience Headroom
+
+
+0.0.8.4 – CAPACITY PROOF
+------------------------
+
+Ein Node darf Kapazität nicht nur behaupten.
+
+TODO:
+- initialer Capacity Proof
+- periodische Capacity Revalidation
+- zufällige Write Challenges
+- spätere Read Challenges
+- provider-spezifische Challenge-Daten
+- Schutz gegen Mehrfachanmeldung derselben Platte
+- Schutz gegen Fake Capacity
+- Proof Score
+- Proven Capacity darf von Config Capacity abweichen
+
+Nur Proven Capacity zählt für Rewards und Placement.
+
+
+0.0.8.5 – QUANTUM-RESISTANT DATA-AT-REST & CRYPTO AGILITY
+---------------------------------------------------------
+
+QRX Drive muss Nutzerdaten von Anfang an so ablegen, dass ein späterer starker Quantencomputer heute gespeicherte Daten nicht trivial nachträglich entschlüsseln kann.
+
+Ziel:
+Schutz gegen "harvest now, decrypt later".
+
+Vorgeschlagene Crypto Suite v1:
+- Dateiinhalte: AES-256-GCM oder final festgelegter 256-Bit-AEAD-Modus
+- Pro Datei/Objekt: eigener zufälliger 256-Bit File Encryption Key
+- Key Encapsulation / Sharing: ML-KEM, vorzugsweise zunächst hybrid mit klassischem ECDH
+- Manifest-/Ownership-Signaturen: ML-DSA
+- besonders langfristige Recovery-/Root-Signaturen optional zusätzlich SLH-DSA
+- Hashing/Merkle Trees: SHA-3 mit ausreichend großer Ausgabe
+- Provider sehen nur Ciphertext
+
+Ablauf:
+User File
+  ↓
+Random 256-bit File Key
+  ↓
+AES-256-GCM Encryption
+  ↓
+Encrypted Chunks
+  ↓
+Erasure Coding
+  ↓
+Encrypted Shards
+  ↓
+Independent QRX Storage Providers
+
+File Key:
+File Encryption Key
+  ↓
+ML-KEM / Hybrid PQ Key Wrapping
+  ↓
+Encrypted Key Envelope
+  ↓
+Encrypted Manifest
+
+TODO:
+- qrx-drive-pq-v1 Crypto Suite definieren
+- AES-256-GCM Data-at-Rest
+- individuellen File Key pro Objekt
+- ML-KEM Key Wrapping
+- ML-DSA-signierte Manifeste
+- optional SLH-DSA für Recovery-/Root-Artefakte
+- SHA3-basierte Merkle Commitments
+- Crypto-Suite-Versionierung
+- Key Rotation
+- Re-Wrapping ohne vollständigen Datei-Reupload
+- PQ-sicheres Sharing zwischen QRX Wallets
+- PQ-sichere Recovery-Artefakte
+- Migration qrx-drive-pq-v1 -> spätere Suites
+- Crypto Agility als Protokollpflicht
+- Tests gegen langfristige Harvest-Now-Decrypt-Later-Szenarien
+
+
+0.0.8.6 – CLIENT-SIDE ENCRYPTION & MANIFESTS
+--------------------------------------------
+
+QRX Storage Provider dürfen Nutzerdaten grundsätzlich nicht kennen müssen.
+
+TODO:
+- Verschlüsselung vor Upload
+- lokale Key-Verwaltung
+- verschlüsselte Manifests
+- verschlüsselte Dateinamen/Metadaten
+- File Root
+- Chunk Hashes
+- Merkle Tree
+- Versionierung
+
+Flow:
+File
+ ↓
+Client Encryption
+ ↓
+Chunking
+ ↓
+Erasure Coding
+ ↓
+Merkle Commitments
+ ↓
+Distributed Storage
+
+
+0.0.8.7 – MANDATORY REDUNDANCY
+------------------------------
+
+Storage ohne Redundancy wird nicht zugelassen.
+
+FAST:
+- 3 vollständige Replikate
+- 3 unabhängige Provider
+- 3 Failure Domains
+- Overhead ca. 3.0x
+- optimiert für häufige Reads
+
+STANDARD – DEFAULT:
+- 10 Data Shards
+- 4 Parity Shards
+- 14 total
+- 10 required
+- Overhead ca. 1.4x
+- bis zu 4 Shards dürfen fehlen
+
+ARCHIVE:
+- z. B. 16+4
+- später optimiertes EC-Profil
+
+TODO:
+- Reed-Solomon oder vergleichbares Erasure Coding
+- parallele Shard-Erstellung
+- Shard Integrity
+- Failure-Domain Placement
+- automatische Reconstruction
+- automatische Rebalancing-Regeln
+
+
+0.0.8.8 – FAILURE DOMAINS & DECENTRALIZED PLACEMENT
+---------------------------------------------------
+
+Nicht nur Länder betrachten.
+
+Berücksichtigen:
+- Provider Identity
+- Operator Cluster
+- ASN
+- Network Domain
+- Region
+- Latency Cluster
+- Storage Device Group
+- Provider Share
+
+Beispielregeln:
+- max 1 shard / provider
+- max 2 shards / ASN
+- max N shards / region
+
+Placement berücksichtigt:
+- Free Proven Capacity
+- Reliability
+- Proof History
+- Availability
+- Performance
+- Price
+- Failure Domain
+- Network Diversity
+- Regional Demand
+- Existing Provider Share
+
+Keine Zentralinstanz:
+Placement wird deterministisch aus Chain State und finalisierter Chain Randomness berechnet.
+
+
+0.0.8.9 – PROOF OF STORAGE (PoStor)
+-----------------------------------
+
+Challenge z. B. aus:
+- finalized_block_hash
+- contract_id
+- provider_id
+- epoch
+
+TODO:
+- Chain-derived unpredictable challenges
+- zufällige Shard-Auswahl
+- zufälliger Byte-/Segment-Bereich
+- Merkle Proof
+- Provider Signature
+- Contract Binding
+- Proof Deadline
+- Late-Proof Handling
+- Missing-Proof Handling
+- Fraud Detection
+- Slashing-Regeln
+
+Kein zentraler Challenge Server.
+
+
+0.0.8.10 – PERFORMANCE FROM DAY ONE
+-----------------------------------
+
+Storage Performance Metrics:
+- Read throughput
+- Write throughput
+- Proof latency
+- Network throughput
+- Transfer latency
+- Historical availability
+
+Transport:
+QRX Storage P2P bevorzugt QUIC.
+
+TODO:
+- parallele Streams
+- resumable Transfers
+- Chunk Retry
+- Connection Migration
+- Request Hedging
+- Parallel Shard Fetching
+
+Bei STANDARD 10+4:
+Client fragt mehrere Provider parallel an.
+Sobald 10 gültige Shards eingetroffen sind:
+- reconstruct
+- decrypt
+- cancel slow requests
+
+Ein langsamer Provider darf einen Download nicht blockieren.
+
+
+0.0.8.11 – PERFORMANCE COMPENSATION
+-----------------------------------
+
+Performance wird belohnt, darf Heimnodes aber nicht verdrängen.
+
+Beispiel:
+PerformanceFactor = 1.00 ... 1.15
+
+TODO:
+- capped Performance Bonus
+- kein unbegrenzter Datacenter-Vorteil
+- HDD-Nodes weiterhin wirtschaftlich sinnvoll
+- Storage- und Egress-Performance getrennt bewerten
+
+
+0.0.8.12 – PROVIDER REPUTATION
+------------------------------
+
+Score berücksichtigt:
+- Proof Success
+- Availability
+- Response Latency
+- Contract Completion
+- Repair Events
+- Slashing History
+- Performance
+- Provider Age
+
+Aber:
+- Reputation begrenzen
+- Newcomer-Chance garantieren
+- keine dauerhafte Oligopolisierung etablierter Provider
+
+
+0.0.8.13 – PROVIDER BOND / SYBIL PROTECTION
+-------------------------------------------
+
+Mehr gemeldete Ressourcen sollen einen angemessenen Bond benötigen.
+
+TODO:
+- Storage Provider Bond
+- Bond Scaling
+- Fraud Slashing
+- Missing-Data Slashing
+- schwere vs. leichte Verstöße
+- Provider Exit
+- Graceful Contract Migration
+
+Ziel:
+Eine physische Platte darf nicht trivial als Tausende Fake-Provider auftreten.
+
+
+0.0.8.14 – STORAGE CONTRACT ECONOMICS
+-------------------------------------
+
+User bezahlt Storage mit QUB.
+
+Beispiel:
+100 QUB Storage Contract
+
+Vorgeschlagene initiale Aufteilung:
+- 0.50 QUB -> QRX Development Treasury
+- 2.00 QUB -> Contract Resilience Reserve
+- 97.50 QUB -> Storage Provider Budget
+
+Die 2 % Resilience Reserve sind ein Ausgangswert und müssen wirtschaftlich simuliert werden.
+
+
+0.0.8.15 – QRX DEVELOPMENT TREASURY RULE
+----------------------------------------
+
+Storage Development Share:
+STORAGE_DEV_SHARE_BPS = 50
+= 0,5 %
+
+0,5 % wird erhoben auf:
+- neuen Storage Contract
+- Storage Contract Renewal
+- Storage Expansion auf den Mehrwert
+
+Keine erneute Dev Fee auf:
+- Proof Transactions
+- Repairs
+- Provider Replacement
+- Shard Migration
+- Settlement
+- interne Storage-TXs
+
+Grundsatz:
+0,5 % auf den wirtschaftlichen Storage-Umsatz, nicht auf jede technische Storage-TX.
+
+Empfänger:
+QRX Development Treasury
+
+Wallet zeigt die Gebühr transparent.
+
+
+0.0.8.16 – STORAGE PROVIDER PAYOUT
+---------------------------------
+
+Provider werden epochweise bezahlt, nicht im Voraus.
+
+Grundformel:
+ProviderReward =
+      StoredByteEpochs
+    × BaseStorageRate
+    × AvailabilityFactor
+    × ProofFactor
+    × PerformanceFactor
+  + VerifiedEgressReward
+  + RepairReward
+  + BootstrapCapacityReward
+
+Priorität:
+1. tatsächlich gespeicherte Daten
+2. Availability
+3. Proof Success
+4. Bandwidth
+5. capped Performance
+6. Repair Work
+7. Reserve Capacity nur subsidiär
+
+
+0.0.8.17 – USED STORAGE BEATS EMPTY STORAGE
+-------------------------------------------
+
+Belegter Storage muss deutlich stärker vergütet werden als ungenutzte Reservekapazität.
+
+Prinzip:
+1 TB used storage = 100 % economic weight
+1 TB free proven reserve = nur kleiner Bruchteil
+
+Damit finanziert QRX nicht dauerhaft ungenutzte Petabyte-Farmen.
+
+
+0.0.8.18 – CAPACITY BOOTSTRAP REWARDS
+-------------------------------------
+
+Während QRX Drive noch jung ist:
+- kleiner Protocol-/Blockreward-Pool für Proven Reserve Capacity
+- DemandFactor
+- bei Überversorgung sinkt Reward
+- bei Knappheit steigt Incentive
+- Begrenzung gegen Storage-Farming
+
+Wichtig:
+Proof of Storage verändert nicht die normale Validator-Blockchance.
+QRX Consensus und QRX Storage Economics bleiben getrennt.
+
+
+0.0.8.19 – MORE STORAGE = MORE ECONOMIC OPPORTUNITY
+---------------------------------------------------
+
+Mehr nachgewiesener Storage bedeutet:
+- mehr mögliche Assignments
+- mehr belegbare Daten
+- mehr erwartete Storage-Einnahmen
+
+Aber nicht:
+10x Storage = automatisch 10x Macht
+
+Capacity Weight soll leicht abflachen.
+Beispiel:
+capacity_weight proportional zu sqrt(proven_free_capacity)
+
+Ziel:
+Große Nodes belohnen, ohne Zentralisierung zu incentivieren.
+
+
+0.0.8.20 – BANDWIDTH / EGRESS COMPENSATION
+------------------------------------------
+
+Storage und Traffic getrennt bezahlen.
+
+TODO:
+- verified bytes delivered
+- Egress Receipt
+- Bandwidth Settlement
+- Abuse Protection
+- Rate Limits
+- User-defined bandwidth limits
+
+Wichtig für 0.0.9, da Model-/Expert-Shards hohen Traffic verursachen können.
+
+
+0.0.8.21 – AUTONOMOUS REPAIR
+----------------------------
+
+Keine zentrale Repair-Infrastruktur.
+
+Ablauf:
+failed provider
+ ↓
+contract degraded
+ ↓
+new provider selected deterministically
+ ↓
+remaining shards reconstruct missing shard
+ ↓
+new provider receives shard
+ ↓
+Proof succeeds
+ ↓
+contract healthy
+
+TODO:
+- automatic degraded state
+- replacement selection
+- reconstruction
+- transfer
+- verification
+- finalization
+- old provider payout stop
+- new provider payout start
+
+Grundsatz:
+Das Geld folgt der Ressource, nicht dauerhaft einer Adresse.
+
+
+0.0.8.22 – REPAIR REWARDS
+-------------------------
+
+Repair Provider erhalten QUB aus der Resilience Reserve.
+
+TODO:
+- Repair Job
+- Repair Receipt
+- verified reconstruction
+- Repair Reward
+- Repair Fraud Protection
+
+Option:
+Nicht verbrauchte Resilience Reserve am Vertragsende an den User zurückgeben.
+Vor Mainnet wirtschaftlich simulieren.
+
+
+0.0.8.23 – NETWORK REDUNDANCY METRICS
+-------------------------------------
+
+Netzwerkweit anzeigen:
+- Logical User Data
+- Physical Allocated Storage
+- Actual Redundancy Ratio
+- Target Redundancy Ratio
+- Healthy Shards
+- Degraded Shards
+- Repairing Shards
+
+Beispiel:
+Logical Data             3.17 PB
+Physical Allocated       4.51 PB
+Actual Redundancy        1.423x
+Target                   1.40x
+Healthy Shards           99.998 %
+
+
+0.0.8.24 – QRX DRIVE NETWORK HEALTH
+-----------------------------------
+
+Globaler Score aus:
+- Capacity Health
+- Redundancy Health
+- Proof Health
+- Repair Health
+- Provider Diversity
+- ASN Diversity
+- Region Diversity
+- Free Capacity
+- Performance
+
+Wallet:
+QRX DRIVE HEALTH
+98.9 / 100
+
+
+0.0.8.25 – DYNAMIC DEMAND / CAPACITY ECONOMICS
+----------------------------------------------
+
+Wenn freie Kapazität knapp wird:
+Storage demand steigt
+Free Capacity sinkt
+-> Provider compensation steigt
+-> mehr Storage kommt online
+
+Wenn massiv überversorgt:
+Capacity subsidy sinkt.
+
+TODO:
+- DemandFactor
+- UtilizationFactor
+- ResilienceHeadroomFactor
+- regionale Knappheit
+- Preisglättung
+- Manipulationsschutz
+
+
+0.0.8.26 – REGIONAL DIVERSITY BONUS
+-----------------------------------
+
+Regionen mit zu wenig unabhängiger Infrastruktur bekommen zusätzliche Assignment-Chancen bzw. gedeckelten Bonus.
+
+Beispiel:
+DiversityFactor 1.00 ... 1.20
+
+Keine garantierte Rendite.
+
+Wallet formuliert:
+"Current assignment potential: +17 % above network average"
+
+Nicht:
+"Guaranteed +17 % profit"
+
+
+0.0.8.27 – GEOGRAPHIC / NETWORK VERIFICATION
+--------------------------------------------
+
+Node darf Land nicht einfach selbst behaupten.
+
+Berücksichtigen:
+- ASN
+- observed network path
+- latency relationships
+- Peer observations
+- coarse regional inference
+- Sybil resistance
+
+Keine GPS-Pflicht.
+
+Protokoll arbeitet bevorzugt mit Failure Domains, nicht politischen Landesgrenzen.
+
+
+0.0.8.28 – QRX RESOURCE GLOBE
+-----------------------------
+
+Statt 2D-Weltkarte:
+interaktiver 3D-Globus ähnlich Google Earth.
+
+Der Globe wird visuelles Markenzeichen der Wallet.
+
+Layer:
+- Providers
+- Raw Capacity
+- Proven Capacity
+- Usable Capacity
+- Available Capacity
+- Storage Demand
+- Redundancy
+- Network Health
+- Network Latency
+- Opportunity
+
+Darstellung:
+- futuristische Storage Warehouses
+- Data Vaults
+- Storage Hubs
+- Größe repräsentiert aggregierte Kapazität
+
+
+0.0.8.29 – GLOBE PRIVACY
+------------------------
+
+Keine exakten Heimnode-Standorte.
+
+TODO:
+- regionale Aggregation
+- Privacy Cells
+- Mindestzahl unabhängiger Provider für Anzeige
+- kleinere Gruppen in größere Region mergen
+- keine exakten IP-/GPS-Daten veröffentlichen
+- keine individuelle Node-Lokalisierung über GUI
+
+
+0.0.8.30 – GLOBE REDUNDANCY VISUALIZATION
+-----------------------------------------
+
+Regionen zeigen:
+- HEALTHY
+- MEDIUM
+- LOW
+- CRITICAL
+
+Details z. B.:
+Southern Africa
+Proven Capacity       184 TB
+Independent Providers     61
+Independent ASNs          18
+Redundancy Score       72/100
+
+
+0.0.8.31 – OPPORTUNITY ENGINE
+-----------------------------
+
+Wallet empfiehlt Regionen, in denen zusätzliche Nodes:
+1. wirtschaftlich interessant sind
+2. gleichzeitig QRX sicherer/dezentraler machen
+
+Need Score berücksichtigt:
+- Capacity Scarcity
+- Provider Diversity
+- Geographic Diversity
+- Failure-Domain Diversity
+- Storage Demand
+- Latency Benefit
+- ASN Diversity
+- Redundancy Deficit
+- Available Capacity
+- Reliability
+
+Beispiel:
+Recommended Storage Locations
+South Africa       94/100
+Brazil             87/100
+Indonesia          82/100
+Germany            31/100
+
+Liste wird dynamisch aus echtem Network State berechnet.
+
+
+0.0.8.32 – NODE PLANNER
+-----------------------
+
+User kann vor Deployment simulieren:
+- Country / Region
+- Storage
+- Upload
+- Download
+- Expected Availability
+
+Ausgabe:
+- Capacity Impact
+- Redundancy Impact
+- Diversity Impact
+- Latency Benefit
+- Opportunity Score
+
+Keine garantierten Ertragsversprechen.
+
+
+0.0.8.33 – STORAGE MISSIONS
+---------------------------
+
+Netzwerk kann automatisch Ressourcenengpässe veröffentlichen.
+
+Beispiel:
+QRX NETWORK MISSION
+Southern Africa
+
+Wanted:
+50 TB additional proven capacity
+
+Current:
+18 TB
+
+Diversity Bonus:
++15 %
+
+Oder:
+South America East
+Need:
+12 additional independent providers
+
+Keine zentrale Person legt die Mission fest.
+Sie entsteht aus Network State und Protocol Rules.
+
+
+0.0.8.34 – ANIMATED SHARD VISUALIZATION
+---------------------------------------
+
+Bei Upload eigener Dateien:
+Encrypt
+ ↓
+Create shards
+ ↓
+Globe
+ ↓
+animated paths to regions
+
+Anzeige:
+- 14/14 shards distributed
+- 14 independent providers
+- Redundancy healthy
+
+Repair kann bei eigenen Dateien ebenfalls visualisiert werden.
+
+
+0.0.8.35 – QRX DRIVE GUI
+------------------------
+
+Neue Wallet-Hauptsektion:
+QRX DRIVE
+
+Nutzeransicht:
+- Used Storage
+- Purchased Storage
+- Available Storage
+- Files
+- Storage Cost
+- Encryption Status
+- Redundancy
+- Providers
+- Contracts
+- Download/Upload
+- Contract Renewal
+- Storage Profile
+- File Health
+
+Bei Datei:
+Encrypted             ✓
+Profile               Standard 10+4
+Healthy Shards        14/14
+Required              10
+Independent Providers 14
+Last Proof            ...
+
+
+0.0.8.36 – BEGINNER STORAGE UX
+------------------------------
+
+Standardnutzer sehen keine komplizierten EC-Parameter.
+
+FAST
+Maximum read performance
+
+STANDARD
+Recommended
+High redundancy
+
+ARCHIVE
+Lower storage cost
+
+Advanced Mode zeigt technische Details.
+
+
+0.0.8.37 – STORAGE PROVIDER GUI
+------------------------------
+
+Beispiel:
+Provide storage to QRX       ON
+Storage directory            /mnt/qrx
+Maximum usage                2 TB
+Minimum free space           100 GB
+Upload limit                 100 Mbit/s
+Download limit               500 Mbit/s
+
+Modes:
+- Eco
+- Balanced
+- Maximum Performance
+
+Dashboard:
+- Configured
+- Proven
+- Allocated
+- Free
+- Proof Success
+- Availability
+- Performance
+- Storage Revenue
+- Bandwidth Revenue
+- Repair Revenue
+- Capacity Rewards
+
+
+0.0.8.38 – QRXSCAN INTEGRATION
+------------------------------
+
+Öffentlich aggregiert anzeigen:
+- Storage Providers
+- Proven Capacity
+- Usable Capacity
+- Available Capacity
+- Logical Stored Data
+- Redundancy Ratio
+- Healthy Contracts
+- Proofs/24h
+- Repairs/24h
+- Network Health
+- Resource Globe oder vereinfachte Webversion
+
+
+0.0.8.39 – QRX OS INTEGRATION
+-----------------------------
+
+QRX Drive wird Storage-Layer für:
+- Workspaces
+- Builds
+- QRX Retro artifacts
+- Documents
+- Backups
+- RAG data
+- AI artifacts
+- project files
+
+
+0.0.8.40 – MODEL REGISTRY STORAGE FOUNDATION
+--------------------------------------------
+
+Vorbereitung auf 0.0.9.
+
+Model Manifest:
+- Model ID
+- Version
+- Architecture
+- Model Root
+- Tokenizer Root
+- Config Root
+- Shard Roots
+- Expert Mapping
+- Runtime Requirements
+- License Metadata
+
+Große AI-Modelle liegen in QRX Drive.
+Blockchain speichert nur Commitments und Metadaten.
+
+
+0.0.8.41 – EXPERT STORAGE / MODEL CACHE
+---------------------------------------
+
+Storage Provider können spezielle AI-Shards cachen.
+
+TODO:
+- Model Shard Cache
+- Expert Pack Cache
+- Demand Tracking
+- Popularity Tracking
+- regional replicas
+- verified availability
+- separate bandwidth accounting
+
+Grundsatz für später:
+Move compute to the model shard instead of continuously moving model shards to compute.
+
+
+0.0.8.42 – ADVERSARIAL STORAGE TESTNET
+--------------------------------------
+
+Testfälle:
+- Fake Capacity
+- Fake Providers
+- Same Disk / Multiple Identities
+- Corrupted Shards
+- Slow Nodes
+- Node Disappearance
+- Mass Failure
+- Region Failure
+- ASN Failure
+- Network Partition
+- Dishonest Proof
+- Repair Spam
+- Bandwidth Fraud
+- Location Fraud
+- Reward Manipulation
+- Provider Cartel
+- Oversupply Farming
+- Disk Full
+- Crash during Write
+- Crash during Repair
+- PQ crypto downgrade attempts
+- invalid ML-KEM envelopes
+- invalid ML-DSA manifests
+- crypto-suite downgrade
+- key-rotation failure cases
+
+
+0.0.8.43 – DRIVE STORAGE SUBSYSTEM READINESS
+-------------------------------------------
+
+Erst aktivieren, wenn:
+- Proof system adversarial getestet
+- Capacity Fraud abgesichert
+- Redundancy stabil
+- Repair autonom
+- Provider Economics simuliert
+- QUB Distribution validiert
+- Development Share transparent
+- Globe Privacy geprüft
+- Storage funktioniert ohne QRX-Offizielle Infrastruktur
+- PQ Data-at-Rest Suite validiert
+- Crypto Agility getestet
+- Key Rotation und Re-Wrapping funktionieren
+- Harvest-Now-Decrypt-Later-Risiko berücksichtigt
+
+
+0.0.8.44 – QRX NAME REGISTRY
+----------------------------
+
+Native dezentrale QRX-Namen als eigener Namespace, z. B.:
+- qrxchain.qrx
+- lattemining.qrx
+- generals.qrx
+- pascal.qrx
+
+Keine Übernahme oder Ersetzung von ICANN-Domains wie .com, .de oder .org.
+
+TODO:
+- on-chain QRX Name Registry
+- DomainRecord / NameRecord
+- Name Hash über SHA-3
+- Owner Binding
+- sequence / nonce gegen Replay
+- Manifest Root
+- Resolver Records
+- Created Height
+- Expiry Height
+- Renew
+- Transfer
+- Owner Change
+- optional Subdomains
+- Domain History
+- deterministic conflict handling
+- expiry / grace period
+- reclaim nach Ablauf
+
+Vorgeschlagene Records:
+- QUB
+- BTC
+- WEB
+- SERVICE
+- NODE
+- API
+- TEXT
+- DRIVE
+- COMPUTE vorbereitet
+
+Große Inhalte werden niemals on-chain gespeichert.
+Die Chain speichert nur Ownership, Commitments und Resolver-Informationen.
+
+
+0.0.8.45 – DOMAIN ECONOMICS, EXPIRY & ANTI-SQUATTING
+----------------------------------------------------
+
+Domains werden nicht für immer kostenlos reserviert.
+
+TODO:
+- 1-, 2- und 5-Jahres-Registrierungen
+- Renewal
+- Expiry
+- Grace Period
+- kurze Namen teurer als lange Namen
+- hochknappe Namen ggf. über deterministische Auction
+- Mass-Registration-Schutz
+- steigender Reservation Bond für große Domain-Portfolios prüfen
+- Bot-/Front-Running-Schutz
+- Commitment/Reveal für begehrte Registrierungen prüfen
+
+Development Treasury:
+- 0,5 % auf wirtschaftlichen Domain-Umsatz
+- REGISTER
+- RENEW
+- ggf. kostenpflichtige Domain-Auction
+
+Keine 0,5-%-Development-Fee auf:
+- Resolver Lookup
+- Website Request
+- Content Fetch
+- normale Browser-Navigation
+
+Hosting-/Storage-Kosten bleiben von Domain-Kosten getrennt.
+
+
+0.0.8.46 – QRX RESOLVER PROTOCOL
+--------------------------------
+
+Dezentrale Auflösung:
+
+name.qrx
+  ↓
+SHA3(name)
+  ↓
+QRX Name Registry
+  ↓
+signed NameRecord
+  ↓
+Manifest Root / Wallet / Service Record
+
+TODO:
+- kein zentraler DNS-Server
+- Chain-State-basierte Resolution
+- QRX P2P/DHT-Unterstützung
+- resolver cache
+- cache invalidation über sequence / finalized state
+- proof-verifizierte Resolution
+- mehrere Record Types
+- fallback-frei für .qrx
+
+Privacy-Regel:
+.qrx-Namen dürfen niemals zuerst an normalen DNS, ISP-DNS, Google DNS, Cloudflare DNS oder andere klassische Resolver geleakt werden.
+
+
+0.0.8.47 – PUBLIC_SIGNED QRX DRIVE OBJECTS
+------------------------------------------
+
+QRX Drive erhält neben privaten verschlüsselten Objekten einen öffentlichen, signierten Content-Modus für Websites und öffentliche Artefakte.
+
+Object Classes:
+- PRIVATE_PQ
+- PUBLIC_SIGNED
+
+PUBLIC_SIGNED:
+- content-addressed
+- SHA-3-verifiziert
+- Owner-signiert
+- redundant gespeichert
+- ohne privaten Entschlüsselungsschlüssel abrufbar
+
+TODO:
+- Public Website Objects
+- Public Asset Objects
+- Signed Manifest
+- Content-Type Metadata
+- immutable Content IDs
+- Version Metadata
+- MIME-Sicherheitsregeln
+- Integrity Verification vor Rendering
+
+
+0.0.8.48 – DECENTRALIZED WEBSITE HOSTING
+----------------------------------------
+
+Website-Dateien liegen auf QRX Drive, nicht auf einem zentralen Webserver.
+
+Beispiel:
+index.html
+css/app.css
+js/app.js
+img/logo.webp
+
+Flow:
+Website Folder
+  ↓
+PUBLIC_SIGNED objects
+  ↓
+Erasure Coding / Replication
+  ↓
+QRX Storage Providers
+  ↓
+Website Manifest
+  ↓
+DomainRecord -> Manifest Root
+
+TODO:
+- Static Site Manifest
+- relative Path Resolution
+- default index document
+- asset lookup
+- range requests
+- cache policy
+- immutable asset versioning
+- website deployment transaction
+- Domain -> Manifest update
+- content integrity check before execution
+
+Keine zentrale Hosting-Plattform ist für den Betrieb erforderlich.
+
+
+0.0.8.49 – WEBSITE VERSIONING & ROLLBACK
+----------------------------------------
+
+Jedes Deployment erzeugt einen neuen Manifest Root.
+
+Beispiel:
+mysite.qrx
+- deployment #43 -> current
+- deployment #42
+- deployment #41
+
+TODO:
+- Deployment History
+- signed deployment sequence
+- current Manifest pointer
+- Previous Version list
+- Rollback durch neuen signierten Domain Pointer
+- keine Mutation alter content-addressed Objekte
+- optional Pin/Unpin Policy
+- Garbage Collection nur wenn keine aktiven Referenzen/Contracts mehr bestehen
+
+Kein FTP, SSH oder zentraler Webserver für Rollback erforderlich.
+
+
+0.0.8.50 – PQ DOMAIN OWNERSHIP & CRYPTO AGILITY
+------------------------------------------------
+
+Domain Ownership muss langfristig post-quantenresistent sein.
+
+TODO:
+- ML-DSA-signierte Domain Updates
+- crypto-agile Domain Signature Suite
+- Key Rotation
+- Recovery Key / Recovery Policy
+- Owner-Key Migration
+- Hybrid-Modus wo sinnvoll
+- optional SLH-DSA für besonders langfristige Recovery-/Root-Artefakte
+- Downgrade Protection
+- Suite Version Binding
+- Replay Protection
+
+Ziel:
+Ein zukünftiger Quantencomputer darf nicht durch Brechen eines alten klassischen Domain-Schlüssels eine langlebige .qrx-Domain übernehmen können.
+
+
+0.0.8.51 – DOMAIN -> WALLET / IDENTITY UX
+-----------------------------------------
+
+QRX-Namen dienen nicht nur Websites.
+
+Beispiel:
+send 50 QUB to pascal.qrx
+
+TODO:
+- Domain -> QUB Address
+- Domain -> BTC Address optional
+- Wallet Resolution Preview
+- Owner Verification
+- Domain Age
+- Record History
+- Send Confirmation
+- Record Change Warning
+- Address-change risk warning
+- QRX Drive Share Record
+- Node / Service Identity
+
+Private Keys werden niemals im DomainRecord gespeichert.
+
+
+0.0.8.52 – QRX BROWSER CORE: WWW + QRX
+--------------------------------------
+
+Die GUI Wallet erhält eine integrierte Browser-App, die normales WWW und QRX-Net in derselben Oberfläche öffnen kann.
+
+Unterstützte Schemes:
+- http://
+- https://
+- qrx://
+
+Adressleisten-Regeln:
+- .qrx oder qrx:// -> ausschließlich QRX Resolver
+- normale Domains -> HTTPS/WWW
+- freie Suchbegriffe -> vom Nutzer gewählte Suchmaschine
+
+Beispiele:
+https://qrxchain.org
+wikipedia.org
+qrx://qrxchain.qrx
+lattemining.qrx
+
+TODO:
+- Back
+- Forward
+- Reload
+- Tabs
+- Address Bar
+- Downloads
+- History optional
+- Bookmarks
+- Website Permissions
+- WWW rendering
+- QRX rendering
+- QRX verified-site indicator
+- site security panel
+- separate Browser App in GUI Wallet
+
+Der Browser soll sich für Nutzer wie ein normaler Browser verhalten, aber QRX-Net nativ verstehen.
+
+
+0.0.8.53 – BROWSER SECURITY SANDBOX
+-----------------------------------
+
+Wichtigste Sicherheitsregel:
+Der Browser ist optisch Teil der Wallet, aber NICHT Teil des Wallet-Key-Kontexts.
+
+Untrusted Website JavaScript darf niemals direkten Zugriff erhalten auf:
+- Private Keys
+- Seed Phrase
+- Wallet Files
+- Tauri privileged IPC
+- Node Admin RPC
+- Filesystem
+- Wallet Database
+- unlocked signer
+
+Default Browser Sandbox:
+- Wallet access: DENIED
+- Filesystem: DENIED
+- Tauri privileged IPC: DENIED
+- Node admin RPC: DENIED
+- Private keys: IMPOSSIBLE
+- Clipboard: restricted / permission based
+- Camera: permission based
+- Microphone: permission based
+- Location: permission based
+
+TODO:
+- getrennte WebView-/Browser-Sandbox
+- origin isolation
+- process isolation soweit Plattform unterstützt
+- Content Security Policy
+- download sandbox
+- navigation policy
+- popup policy
+- mixed-content policy
+- certificate handling für WWW
+- no privileged bridge by default
+- browser crash darf Wallet Core nicht beschädigen
+
+
+0.0.8.54 – QRX DAPP PERMISSION BRIDGE
+-------------------------------------
+
+QRX-DApps können über eine stark begrenzte Permission API mit der Wallet interagieren.
+
+Beispielmethoden:
+- wallet_connect
+- get_public_address
+- request_signature
+- request_payment
+- resolve_name
+- open_drive_share
+
+Jede privilegierte Aktion läuft über die Wallet und niemals über direkten Key-Zugriff des Browsers.
+
+TODO:
+- per-site permission model
+- Allow / Ask / Deny
+- public address getrennt von payment permission
+- explicit transaction confirmation
+- amount / recipient / network anzeigen
+- permission expiry
+- revoke all
+- per-domain permission storage
+- phishing-resistant origin binding
+- qrx:// origin binding
+- WWW-DApps optional mit strengem Permission-Modell
+
+Kein DApp-Code erhält jemals den privaten Schlüssel.
+
+
+0.0.8.55 – QRX-NET CACHE & OFFLINE VERIFIED SITES
+-------------------------------------------------
+
+Content Addressing ermöglicht verifizierbaren lokalen Cache.
+
+TODO:
+- Local QRX Site Cache
+- Manifest Cache
+- Content Hash Validation
+- Signature Validation
+- Offline Mode
+- cached version indicator
+- cache size limit
+- LRU / retention policy
+- manual pinning
+- invalidate on newer finalized Domain sequence
+
+Anzeige z. B.:
+QRX Cached
+Offline verified copy
+Version 184
+
+Offline-Inhalt wird nur gerendert, wenn Manifest- und Content-Verifikation erfolgreich sind.
+
+
+0.0.8.56 – QRX SITE PUBLISHER
+-----------------------------
+
+Website-Publishing direkt aus GUI Wallet / Browser.
+
+Flow:
+Choose folder
+  ↓
+hash files
+  ↓
+create PUBLIC_SIGNED objects
+  ↓
+store redundantly on QRX Drive
+  ↓
+create/sign manifest
+  ↓
+UPDATE_DOMAIN
+  ↓
+site live
+
+GUI:
+- Choose Site Folder
+- Select .qrx Domain
+- Storage Profile
+- Estimated Physical Storage
+- Estimated QUB Cost
+- Publish
+- Deployment Progress
+- Current Version
+- Rollback
+
+TODO:
+- preflight validation
+- invalid path protection
+- symlink policy
+- no artificial logical file-size cap; enforce only chunk/range/quota/capacity bounds
+- forbidden/unsafe local references
+- atomic deployment pointer switch
+- deploy failure leaves previous site live
+
+
+
+0.0.8.56.1 – UNBOUNDED LOGICAL OBJECTS / HIERARCHICAL CHUNK INDEX
+------------------------------------------------------------------
+
+QRX Drive MUST NOT impose an arbitrary product-level file-size limit such as
+2 GB, 100 GB, 1 TB or similar. Large files are logical objects composed of
+bounded independently processable chunks.
+
+Protocol rules:
+- logical plaintext length uses uint64_t
+- default chunk size: 8 MiB
+- supported chunk range: 64 KiB .. 64 MiB
+- hierarchical content-addressed 64-way index pages
+- bounded-memory upload/download
+- streamed restore
+- each private chunk encrypted independently with AES-256-GCM
+- one 256-bit file key per logical object
+- file key wrapped using X25519MLKEM768 hybrid KEM
+- SHA3-256 CAS integrity for descriptor, index pages and chunks
+- per-chunk AAD binds object salt, chunk index and plaintext length
+- P2P transfer remains range-bounded and resumable
+
+There is no artificial QRX product cap on total object size. Practical limits
+come only from uint64_t protocol representation, host filesystem limits, user
+quota, available proven network capacity and contract economics.
+
+0.0.8.57 – QRX RESOURCE GLOBE: QRX-NET LAYER
+--------------------------------------------
+
+Der bestehende 3D Resource Globe erhält QRX-Net-Ebenen.
+
+Neue Layer:
+- Hosted Sites
+- Active Domains
+- Website Storage
+- Serving Providers
+- Web Demand
+- Regional Availability
+- QRX-Net Redundancy
+- QRX-Net Opportunity
+
+Aggregierte Kennzahlen z. B.:
+- Active .qrx Domains
+- Hosted Sites
+- Website Logical Data
+- Physical Redundant Storage
+- Serving Providers
+- Requests / 24h
+- Cache Hit Ratio
+- Healthy Site Manifests
+
+Privacy-Regeln des Resource Globe gelten unverändert:
+Keine exakten Heimnode-/Provider-Standorte veröffentlichen.
+
+
+0.0.8.58 – QRX-NET OPPORTUNITY & HOSTING MISSIONS
+-------------------------------------------------
+
+Opportunity Engine wird auch für Web Hosting verwendet.
+
+TODO:
+- Regionen mit zu wenig Serving Capacity erkennen
+- Regionen mit zu wenig unabhängigen Host Providern erkennen
+- regionalen Web Demand berücksichtigen
+- Latency Benefit berücksichtigen
+- ASN-/Failure-Domain-Diversität berücksichtigen
+- Hosting Missions erzeugen
+- Storage + Hosting Opportunity gemeinsam anzeigen
+
+Beispiel:
+Southern Africa
+Web Serving Opportunity: 91/100
+Storage Opportunity: 94/100
+Recommended: additional independent QRX Drive/Hosting providers
+
+Keine garantierten Ertragsversprechen.
+
+
+0.0.8.59 – QRX-NET GATEWAY COMPATIBILITY
+----------------------------------------
+
+Optionale Gateways können QRX-Net-Inhalte normalen Browsern zugänglich machen.
+
+Wichtig:
+Gateways sind Komfort und dürfen niemals Voraussetzung für QRX-Net sein.
+
+TODO:
+- optional HTTPS -> qrx:// gateway
+- read-only verified rendering
+- Manifest-/Content-Verifikation
+- aggressive isolation
+- gateway cache
+- no privileged wallet functions
+- mehrere unabhängige Gateways möglich
+- QRX-native Clients umgehen Gateways vollständig
+
+
+0.0.8.60 – HOMOGRAPH / PHISHING PROTECTION
+------------------------------------------
+
+Naming und Browser benötigen Anti-Phishing-Schutz.
+
+TODO:
+- Unicode normalization
+- confusable detection
+- mixed-script warning
+- canonical display
+- suspicious-name warning
+- optional punycode/safe representation
+- signed-owner identity display
+- recently transferred domain warning
+- recently changed wallet record warning
+- browser security indicator
+
+Keine zentral kontrollierte Domain-Zensur als Grundlage des Systems.
+
+
+0.0.8.61 – QRX-NET ADVERSARIAL TESTNET
+--------------------------------------
+
+Zusätzliche Testfälle:
+- Domain front-running
+- registration spam
+- mass squatting
+- commitment/reveal abuse
+- expired-domain takeover edge cases
+- replayed domain update
+- forged ML-DSA domain update
+- crypto downgrade
+- malicious website manifest
+- modified HTML/JS object
+- poisoned cache
+- stale manifest replay
+- malicious redirect
+- QRX->DNS leak
+- homograph phishing
+- malicious DApp permission request
+- browser sandbox escape attempts
+- privileged IPC access attempts
+- drive/path traversal
+- malicious download
+- compromised optional gateway
+- provider censorship
+- regional hosting outage
+- domain owner key rotation failure
+- rollback abuse
+
+
+0.0.8.62 – DRIVE_V1 + QRX_NET_V1 MAINNET READINESS
+--------------------------------------------------
+
+0.0.8 darf als vollständige Mainnet-Funktion erst aktiviert werden, wenn sowohl Drive als auch QRX-Net die Readiness Gates erfüllen.
+
+DRIVE_V1 Gates:
+- Proof system adversarial getestet
+- Capacity Fraud abgesichert
+- Redundancy stabil
+- Repair autonom
+- Economics simuliert
+- QUB Distribution validiert
+- Development Share transparent
+- PQ Data-at-Rest validiert
+- Crypto Agility getestet
+- keine zentrale Pflichtinfrastruktur
+
+QRX_NET_V1 Gates:
+- Name Registry deterministisch
+- Registration/Renew/Expiry sicher
+- Domain Economics simuliert
+- Resolver ohne Zentralserver funktionsfähig
+- .qrx DNS-Leak-Schutz validiert
+- PUBLIC_SIGNED content verification stabil
+- Website rollback stabil
+- PQ Domain Ownership validiert
+- Browser Sandbox auditiert
+- DApp Permission Bridge auditiert
+- Homograph/Phishing-Schutz aktiv
+- QRX-Net funktioniert ohne offizielle QRX/CURA-Gateways
+
+Mandatory Upgrade:
+- post-Genesis PROTOCOL_UPGRADE
+- Protocol 9
+- DRIVE_V1 + QRX_NET_V1 Feature Set
+- Activation Height nach realen Mainnet-Blockzeiten festlegen
+- Ziel weiterhin ungefähr 30.11.2026
+- Release ausreichend vor Activation Height verteilen
+- GUI/CLI/Daemon warnen veraltete Nodes deutlich
+
+Dezentralisierungs-Abschlusstest:
+CURA Server OFF
+Developer Nodes OFF
+Official Gateways OFF
+Official Storage Nodes OFF
+Official Website OFF
+
+Erwartung:
+- QRX Chain läuft
+- QRX Drive läuft
+- .qrx Resolution läuft
+- .qrx Websites laden
+- Provider werden bezahlt
+- Repairs funktionieren
+- Nutzer können eigene Sites veröffentlichen
+
+
+QRX-NET VISION NACH 0.0.8
+-------------------------
+
+0.0.8 liefert:
+QRX Chain
++
+QRX Drive
++
+Decentralized Naming
++
+Domain Hosting
++
+QRX Resolver
++
+PUBLIC_SIGNED Websites
++
+PQ Domain Ownership
++
+WWW + QRX Browser
++
+DApp Permission Bridge
++
+Resource Globe
+
+Damit entsteht:
+
+QRX-NET – DECENTRALIZED INTERNET FOUNDATION
+
+0.0.9 erweitert dieselbe Grundlage um:
+- QRX Compute
+- dynamische dezentrale Anwendungen
+- dezentrale APIs
+- AI Services
+- AI Agents
+- Model / Expert Execution
+
+Zielbild ab 0.0.9:
+Static Frontend  -> QRX Drive
+Dynamic Backend  -> QRX Compute
+AI               -> QRX Compute / Model Registry
+Identity         -> QRX Wallet / .qrx Name
+Payments         -> QUB
+Naming           -> QRX Name Registry
+Storage          -> QRX Drive
+Settlement       -> QRX Chain
+
+
+
+============================================================
+QRX 0.0.9 – COMPUTE
+PROOF OF USEFUL COMPUTE & DISTRIBUTED AI
+============================================================
+
+0.0.9.0 – COMPUTE RESOURCE TYPE
+-------------------------------
+
+0.0.9 verwendet dieselbe Resource-, Storage- und QRX-Net-Infrastruktur aus 0.0.8.
+QRX-Net-Websites bleiben statisch auf QRX Drive; dynamische Anwendungen können ab 0.0.9 QRX Compute als dezentralen Backend-/AI-Layer verwenden.
+
+Erweitern:
+ResourceProvider
+resource_type = COMPUTE
+
+Provider meldet:
+- CPU architecture
+- cores/threads
+- RAM
+- memory bandwidth
+- storage bandwidth
+- network bandwidth
+- accelerator features
+- local models
+- local expert shards
+- current load
+- compute price
+- availability
+
+
+0.0.9.1 – CROSS-PLATFORM COMPUTE RUNTIME
+----------------------------------------
+
+x86-64:
+- SSE fallback wenn sinnvoll
+- AVX2
+- FMA
+- AVX-512
+- BF16
+- AMX wo verfügbar
+
+ARM64:
+- NEON
+- SVE
+- SVE2
+
+Plattformen:
+- Linux x86-64
+- Linux ARM64
+- Windows x86-64
+- macOS Intel
+- macOS Apple Silicon
+
+Runtime Dispatch:
+qrx-compute doctor
+ ↓
+detect hardware
+ ↓
+benchmark
+ ↓
+select fastest verified kernels
+
+
+0.0.9.2 – COMPUTE BENCHMARK
+---------------------------
+
+Nicht GHz bezahlen.
+
+Standardisierte Benchmarks:
+- MXFP4 matmul
+- BF16 matmul
+- memory bandwidth
+- storage streaming
+- network throughput
+- MoE expert execution
+- model inference test
+
+Ausgabe:
+- QRX Compute Score
+- Normalized Compute Units
+
+
+0.0.9.3 – QRX AI MODEL REGISTRY
+-------------------------------
+
+Modelle on-chain registrieren.
+Große Daten liegen in QRX Drive.
+
+Model Registry:
+- Model ID
+- Version
+- Architecture
+- Runtime
+- Manifest Root
+- Tokenizer Root
+- Expert Manifest
+- Memory Requirements
+- Storage Requirements
+- Verification Profile
+- License Metadata
+
+Kimi K3 wird erstes High-End-MoE-Zielmodell.
+
+
+0.0.9.4 – COMPUTE TASK MARKET
+-----------------------------
+
+Compute Task ungefähr:
+- task_id
+- model_id
+- input_commitment
+- max_compute_units
+- max_fee_qub
+- priority_fee_qub
+- deadline
+- seed
+- runtime_version
+- verification_mode
+
+Prompts/Input-Daten nicht öffentlich on-chain.
+On-chain nur Hash / Commitment.
+Input verschlüsselt direkt zu Compute Providern.
+
+
+0.0.9.5 – COMPUTE ESCROW
+------------------------
+
+User legt maximale Kosten fest.
+
+Beispiel:
+Maximum Compute Fee    4 QUB
+FastTrack Fee          1 QUB
+
+Wallet sperrt:
+5 QUB
+
+Nach Ausführung:
+Actual Compute         2.7 QUB
+FastTrack              1.0 QUB
+Refund                 1.3 QUB
+
+Keine überraschenden Kosten.
+
+
+0.0.9.6 – STANDARD QUEUE
+------------------------
+
+Normale Tasks dürfen nicht durch zahlende FastTrack-Nutzer verhungern.
+
+TODO:
+- weighted fair scheduling
+- task aging
+- maximum waiting protection
+- capacity reservations
+- anti-starvation
+
+Beispielkonzept:
+75–80 % normal fair scheduling
+20–25 % FastTrack capacity
+
+Exakte Werte Governance-/Protocol-Parameter.
+
+
+0.0.9.7 – FASTTRACK
+-------------------
+
+Optionaler Priority-Aufschlag.
+
+Wallet:
+STANDARD
+Estimated queue:
+~4 minutes
+
+FASTTRACK
+Priority Fee:
++0.8 QUB
+
+Estimated queue:
+<30 seconds
+
+Keine Garantie der konkreten Zeit, nur Priority.
+
+
+0.0.9.8 – FASTTRACK DEVELOPMENT SHARE
+-------------------------------------
+
+Developer Participation:
+FASTTRACK_DEV_SHARE_BPS = 50
+= 0,5 % ausschließlich der FastTrack Fee.
+
+Beispiel:
+Compute                  10 QUB
+FastTrack                 2 QUB
+
+Dev share:
+2 × 0.5 % = 0.01 QUB
+
+Empfänger:
+QRX Development Treasury
+
+Keine 0,5 % auf normale Compute-Ausführung.
+
+
+0.0.9.9 – PROOF OF USEFUL COMPUTE
+---------------------------------
+
+Offizieller Begriff:
+PoUC – Proof of Useful Compute
+
+Keine Belohnung für sinnlose Hash-Arbeit.
+Belohnt wird Compute, den ein User tatsächlich angefordert hat.
+
+Execution Commitments:
+- Input Commitment
+- Model Commitment
+- Runtime Commitment
+- Execution Parameters
+- Result Commitment
+- Execution Receipt
+- Provider Signature
+
+
+0.0.9.10 – VERIFICATION MODES
+-----------------------------
+
+LOW:
+- Spot Verification
+
+STANDARD:
+- Worker
+- Random Verification
+
+HIGH:
+- 2-of-3 / redundant computation
+
+TODO:
+- deterministische Task-Ausführung wo möglich
+- seeded execution
+- challenge verification
+- partial recomputation
+- redundant verification
+- fraud slashing
+
+
+0.0.9.11 – COMPUTE PROVIDER SETTLEMENT
+--------------------------------------
+
+Bezahlung beispielsweise nach:
+Normalized Compute Units
+× Compute Rate
+× Valid Result
+× Reliability
+× Performance
+
+plus optional:
+- model cache reward
+- bandwidth reward
+- verification reward
+
+
+0.0.9.12 – TASK-LEVEL DISTRIBUTED COMPUTE V1
+--------------------------------------------
+
+Nicht sofort jedes MoE-Expert über das WAN verteilen.
+
+Zunächst:
+Task A -> Node A
+Task B -> Node B
+Task C -> Node C
+Task D -> Compute Cluster D
+
+Das gibt früh echte horizontale Skalierung.
+
+
+0.0.9.13 – INTELLIGENT AI ROUTER
+--------------------------------
+
+Nicht jeder Task braucht Kimi K3.
+
+Router:
+Simple Task -> small local model
+Coding -> coding-specialized model
+RAG -> specialist model
+Hard reasoning -> larger model
+Extreme task -> Kimi K3 / high-end MoE
+
+Ziele:
+- Kosten reduzieren
+- Latenz reduzieren
+- Netzwerk entlasten
+- passende Hardware auswählen
+
+
+0.0.9.14 – KIMI K3 RUNTIME INTEGRATION
+--------------------------------------
+
+Auf dem besprochenen Kimi-K3-in-C/MoE-Ansatz aufbauen.
+
+TODO:
+- QRX Runtime Adapter
+- Model Manifest
+- Expert Manifest
+- shard-aware loading
+- storage streaming
+- local caching
+- CPU capability dispatch
+- Windows/Linux/macOS/ARM support
+- benchmark suite
+- deterministic verification mode
+
+
+0.0.9.15 – MoE EXPERT DISTRIBUTION V2
+-------------------------------------
+
+Später echte Expert-Verteilung.
+
+MoE Router
+ |
+ +-> Expert Group A
+ +-> Expert Group B
+ +-> Expert Group C
+ +-> Expert Group D
+
+Scheduler berücksichtigt:
+- expert locality
+- compute performance
+- network latency
+- storage bandwidth
+- current cache
+- load
+- price
+
+
+0.0.9.16 – EXPERT LOCALITY SCHEDULING
+-------------------------------------
+
+Grundprinzip:
+Compute zum Expert-Shard bringen.
+
+Nicht bei jedem Request gigantische Model-Shards verschieben.
+
+TODO:
+- expert-aware scheduling
+- local shard preference
+- nearby shard preference
+- cache warming
+- demand prediction
+- hot expert replication
+
+
+0.0.9.17 – EXPERT CACHE MARKET
+------------------------------
+
+Storage und Compute verschmelzen.
+
+Provider können bereitstellen:
+- Storage
+- AI Expert Cache
+- Compute
+
+Belohnung für:
+- gespeicherte Expert Packs
+- hohe Availability
+- schnelle Auslieferung
+- hohe Nachfrage
+- regionale Knappheit
+
+
+0.0.9.18 – DISTRIBUTED MoE WAN SAFETY
+-------------------------------------
+
+Nicht einfach 16 Experts über beliebige Kontinente verteilen.
+
+Scheduler berücksichtigt:
+- latency clusters
+- nearby compute pods
+- local model cache
+- expert distribution cost
+- timeout
+- fallback experts/nodes
+
+Ziel:
+WAN-Latenz darf den MoE-Vorteil nicht zerstören.
+
+
+0.0.9.19 – QRX COMPUTE PODS
+---------------------------
+
+Mehrere Nodes können lokale Hochgeschwindigkeitscluster bilden.
+
+QRX Compute Pod:
+- Node A
+- Node B
+- Node C
+- Node D
+
+Intern:
+schnelles LAN / lokale Expert-Verteilung
+
+Extern:
+ein QRX Resource Provider Cluster
+
+Damit können Datacenter und private Homelab-Cluster effizient teilnehmen, ohne das Netzwerk zu zentralisieren.
+
+
+0.0.9.20 – QRX RESOURCE GLOBE EXPANSION
+---------------------------------------
+
+Der 0.0.8-Globe wird weiterverwendet.
+
+Neue Ebenen:
+- STORAGE
+- COMPUTE
+- AI
+- MODEL CACHE
+- NETWORK
+- OPPORTUNITY
+
+Visualisierung:
+- Storage Vaults
+- Compute Nodes
+- AI Nodes
+- Model Cache
+- Opportunity
+
+
+0.0.9.21 – COMPUTE OPPORTUNITY ENGINE
+-------------------------------------
+
+Wallet kann sagen:
+Your Region
+Storage Opportunity       42
+Compute Opportunity       87
+Kimi Expert Cache         95
+
+Empfehlung:
+Recommended Configuration
+Storage             2 TB
+AI Expert Cache   500 GB
+Compute          12 threads
+
+Ziel:
+User wird für Ressourcen belohnt, die das Netzwerk tatsächlich benötigt.
+
+
+0.0.9.22 – ANIMATED AI TASK GLOBE
+---------------------------------
+
+Bei eigenen Tasks:
+Task submitted
+ ↓
+scheduler
+ ↓
+compute providers
+ ↓
+expert groups
+ ↓
+result
+
+Globe kann aggregiert anzeigen:
+- 8 Compute Providers
+- 4 Regions
+- 16 Expert Groups
+- FastTrack ON
+
+Keine sensiblen Node-Standorte.
+
+
+0.0.9.23 – QRX OS COMPUTE INTEGRATION
+-------------------------------------
+
+QRX OS nutzt:
+QRX Wallet -> identity / payment
+QRX Drive -> data / artifacts / model storage
+QRX Compute -> computation
+QRX Chain -> contracts / proofs / settlement
+
+Anwendungen:
+- Chat
+- Coding
+- Documents
+- Research
+- RAG
+- Build Tasks
+- AI Agents
+- Batch Compute
+
+
+0.0.9.24 – RESOURCE PROVIDER UNIFIED UX
+---------------------------------------
+
+Gemeinsamer Bereich:
+
+QRX RESOURCE NODE
+
+Storage
+[ON]
+4 TB
+
+AI Expert Cache
+[ON]
+500 GB
+
+Compute
+[ON]
+12 Threads
+
+Bandwidth
+500 Mbit/s
+
+Revenue:
+- Storage Revenue
+- Bandwidth Revenue
+- Repair Revenue
+- Compute Revenue
+- Verification Revenue
+- Expert Cache Revenue
+
+
+0.0.9.25 – COMPUTE ADVERSARIAL TESTNET
+--------------------------------------
+
+Testen:
+- Fake Compute
+- Wrong Results
+- Partial Execution
+- Model Mismatch
+- Runtime Mismatch
+- Result Collusion
+- Verifier Collusion
+- Slow Worker
+- Task Theft
+- Prompt Leakage
+- FastTrack Spam
+- Queue Starvation
+- Sybil Compute Nodes
+- Cache Fraud
+- Expert Unavailability
+- WAN Latency Failures
+- Compute Pod Failure
+
+
+0.0.9.26 – MAINNET PoUC ACTIVATION
+----------------------------------
+
+Erst wenn:
+- Compute Verification stabil
+- Rewards wirtschaftlich simuliert
+- FastTrack fair
+- Standard Tasks nicht verhungern
+- FastTrack Development Share transparent
+- Model Integrity verifiziert
+- Provider Fraud beherrschbar
+- Resource Globe Privacy geprüft
+- Compute funktioniert ohne offizielle QRX Server
+
+
+============================================================
+ENDARCHITEKTUR
+============================================================
+
+QRX CHAIN
+  |
+  +-- Contracts / Escrow / Proofs / Settlement / Reputation
+       |
+       +-- QRX RESOURCE MARKET
+            |
+            +-- QRX STORAGE 0.0.8
+            |    +-- Proof of Storage
+            |    +-- PQ-safe encrypted shards
+            |
+            +-- QRX COMPUTE 0.0.9
+                 +-- Proof of Useful Compute
+                 +-- AI / CPU jobs
+
+Alles über QRX P2P / DHT und visualisiert im QRX RESOURCE GLOBE.
+
+
+============================================================
+WIRTSCHAFTLICHE GRUNDREGELN
+============================================================
+
+STORAGE
+-------
+
+User bezahlt QUB.
+
+Davon grundsätzlich:
+- 0,5 % -> QRX Development Treasury
+- ca. 2 % -> Resilience Reserve
+- Rest -> tatsächlich leistende Storage Provider
+
+Die konkreten Reserve-Prozentsätze müssen vor Mainnet simuliert werden.
+
+Provider werden nach tatsächlicher Leistung bezahlt.
+Mehr nachgewiesener Storage erhöht erwartete Assignment- und Einkommenschancen.
+Kein Storage-Anteil erhöht die normale Validator-Blockchance.
+
+Storage-Development-Share nur auf wirtschaftliche Storage-Aktionen:
+- CREATE
+- RENEW
+- EXPAND
+
+Keine erneute Dev Fee auf:
+- Proof
+- Repair
+- Migration
+- Provider Replacement
+- Settlement
+
+
+COMPUTE
+-------
+
+User bezahlt tatsächlichen Compute.
+
+Normaler Compute:
+- Provider Revenue
+- normale QRX Network Economics
+
+Optional:
+FastTrack Fee
+
+Nur davon:
+- 0,5 % -> QRX Development Treasury
+
+Standardtasks besitzen Anti-Starvation-Schutz.
+
+
+============================================================
+QRX GRUNDPRINZIP
+============================================================
+
+QRX bezahlt langfristig nicht einfach:
+"Hardware vorhanden"
+
+sondern:
+Hardware vorhanden
++
+Ressource nachgewiesen
++
+Ressource verfügbar
++
+Ressource tatsächlich nützlich
++
+Leistung korrekt erbracht
+
+Damit entsteht:
+Proof of Storage
+        ↓
+Proof of Useful Resources
+        ↓
+Proof of Useful Compute
+
+Und für gespeicherte Nutzerdaten gilt zusätzlich:
+Client-side encrypted
++
+post-quantum key protection
++
+crypto agility
++
+mandatory redundancy
++
+autonomous repair
+
+Damit sind QRX Drive und QRX-Net 0.0.8 gleichzeitig die technische, wirtschaftliche, kryptographische und netzwerkseitige Grundlage für QRX Compute 0.0.9.
+0.0.8 bildet Storage + Naming + Hosting + Browser; 0.0.9 ergänzt verteiltes Compute und dynamische dezentrale Anwendungen.
+
+
+============================================================
+IMPLEMENTATION PROGRESS — 08.09.2026
+============================================================
+
+COMPLETED THROUGH SNAPSHOT 0.0.8.56:
+- 0.0.8.55 Consensus/P2P/Large Object integration checkpoint
+- Authorized STORAGE_GET bounded range serving
+- Hierarchical unbounded logical object foundation
+- 0.0.8.56 real Multi-Provider STANDARD 10-of-14 download
+- concurrent provider fetch workers
+- ranked initial parallel fan-out
+- request hedging into additional providers
+- bounded resumable range reads with retry
+- optional full-shard integrity verification before admission
+- reconstruct immediately after K=10 valid shards
+- cancel/ignore remaining slow work after K
+- transfer statistics for GUI/observability
+- regression suite: 31/31 PASS in developer non-PQC toolchain build
+
+NEXT:
+- Provider Discovery via QRX P2P/DHT/Gossip
+- authenticated provider endpoints/capabilities from decentralized state
+- then Drive / QRX-Net / Resource Globe GUI foundation
+
+NOTE:
+The roadmap section 0.0.8.10 already specifies parallel streams, resumable transfers,
+request hedging and parallel shard fetching. Snapshot 0.0.8.56 is the concrete core
+implementation checkpoint for that requirement; it does not change the Protocol 9
+post-Genesis activation policy.
+
+
+IMPLEMENTATION PROGRESS — SNAPSHOT 0.0.8.57
+============================================
+
+COMPLETED AFTER 0.0.8.56:
+- decentralized Storage Provider Discovery foundation
+- signed, domain-separated provider announcements
+- crypto-agile EVP verification compatible with QRX ML-DSA provider keys
+- monotonic announcement sequence / replay rejection
+- height-bounded announcement expiry and pruning
+- QUIC / QRX-P2P endpoint + capability advertisement
+- active + proven-capacity Chain-State binding
+- gossip merge with mandatory re-verification
+- forged-provider-key rejection
+- contract-assignment intersection before a provider can become a download source
+- conversion of discovered provider metrics into the existing ranked Multi-Provider fetch path
+- no central coordinator, discovery server, repair server or official-node dependency introduced
+- 32/32 Core CTests passing including previous 10-of-14 Multi-Fetch regression
+
+IMPORTANT ARCHITECTURAL SEPARATION:
+Raw provider transport endpoints are internal P2P data and MUST NOT be exposed by the Resource Globe.
+The Globe consumes privacy-preserving regional/failure-domain aggregation only, according to
+0.0.8.28-0.0.8.30 and 0.0.8.57. This prevents decentralized discovery from becoming a home-node
+location leak in the GUI.
+
+NEXT IMPLEMENTATION TARGET:
+Drive / QRX-Net / Resource-Globe GUI foundation, backed by real aggregate resource state and the
+new discovery/multi-fetch substrate. The GUI foundation should expose Drive health, logical vs.
+physical storage, proven/available capacity, provider diversity, redundancy, active .qrx/hosting
+metrics and privacy-cell Globe layers without exposing exact P2P endpoints.
+
+IMPLEMENTATION PROGRESS — 0.0.8.58
+---------------------------------
+DONE:
+- 0.0.8.56 multi-provider 10-of-14 download / hedging / resume
+- 0.0.8.57 decentralized provider discovery
+- 0.0.8.58 shared Drive / QRX-Net / Resource Globe aggregation schema
+- privacy-thresholded atlas cells for Globe consumption
+- Drive wallet navigation + network-health/capacity/redundancy/provider/contract foundation
+- Resource Globe wallet navigation + domains/sites/ASN/privacy/cache metrics foundation
+- regression coverage: storage_phase100_resource_dashboard
+- full Core regression suite: 33/33 passing
+
+NEXT:
+- live daemon/RPC serialization of qrx_resource_dashboard snapshot and privacy-safe atlas cells
+- real 3D globe renderer and animated shard paths
+- Drive file browser/upload/download UX wired to storage contracts and multi-provider fetch
+- provider dashboard controls and local capacity telemetry
+
+===================================================================
+IMPLEMENTATION PROGRESS – 0.0.8.59 LIVE RESOURCE RPC / WALLET WIRING
+===================================================================
+Status: IMPLEMENTED in snapshot qrx-core-0.0.8.59-live-resource-rpc-wallet
+
+Completed:
+- authoritative QRXDB -> Resource Dashboard aggregation
+- live provider/contract/assignment/.qrx-domain counters
+- `getresourcedashboard` daemon RPC
+- `getresourceatlas` daemon RPC
+- qrx-cli parity for both RPCs
+- privacy_min_providers=3 atlas publication gate
+- hidden cells do not expose region names/details
+- Tauri wallet bridge for dashboard + atlas
+- QRX Drive live daemon data wiring
+- Resource Globe privacy-safe region feed wiring
+- no fabricated web request/cache telemetry
+- regression coverage: storage_phase101_live_dashboard
+- full Core regression suite: 34/34 passing
+
+Next implementation block:
+0.0.8.60 – Interactive 3D Resource Globe + Live Region Layer
+- real WebGL/Canvas globe renderer in GUI wallet
+- consume `getresourceatlas` cells only
+- capacity / utilization / opportunity overlays
+- QRX-Net domain/site overlays when authoritative site telemetry exists
+- animated own-file 10-of-14 shard placement/fetch paths without exposing provider IP/location
+- globe camera, hover, region cards, filters and performance-safe fallback
+
+============================================================
+IMPLEMENTATION STATUS UPDATE – 0.0.8.60
+============================================================
+
+DONE – 0.0.8.60 Interactive 3D Resource Globe + Live Region Layer
+- real Canvas 3D renderer in GUI Wallet
+- getresourceatlas is the only live region source
+- drag rotation / zoom / hover inspection
+- Capacity / Utilization / Opportunity / Health layers
+- privacy-threshold badge and hidden-cell accounting
+- privacy-safe visible-region list
+- no IP/endpoint/exact-node-location rendering
+- deterministic display-only fallback for unknown public region labels
+- animated own-shard-route renderer prepared via qrxSetOwnShardRoutes
+- no fake shard routes generated
+
+NEXT – 0.0.8.61 Drive File UX + Authoritative Shard Route Events
+- file browser / upload / download flow
+- FAST / STANDARD 10+4 / ARCHIVE profile selection
+- transfer progress and resume state
+- authoritative own-object assignment events -> animated 10-of-14 globe paths
+- file health / provider diversity / proof state in GUI
+
+============================================================
+IMPLEMENTATION STATUS UPDATE – 0.0.8.61
+============================================================
+
+DONE – Drive File UX + Authoritative Shard Route Events
+- authoritative qrx_drive_live read model from QRXDB contracts/assignments/providers
+- listdrivefiles [owner] RPC + qrx-cli parity
+- getdrivefilehealth <contract_id> RPC + qrx-cli parity
+- getdriveshardroutes <contract_id> RPC + qrx-cli parity
+- profile-aware required-shard / reconstructability calculation
+- healthy / degraded / repairing / missing shard counters
+- wallet stored-object browser backed only by consensus contracts
+- private local display aliases; filenames are not inferred from chain state
+- FAST / STANDARD 10+4 / ARCHIVE preflight profile selector
+- native file chooser preflight with fail-closed storage status
+- authoritative own-contract shard routes -> qrxSetOwnShardRoutes
+- atlas privacy threshold is re-applied to shard routes
+- no provider endpoint/IP disclosure to GUI
+- no fake upload/download completion state
+- regression coverage: storage_phase102_drive_live
+- full Core suite: 35/35 PASS
+- wallet inline JavaScript syntax validation: PASS
+
+IMPORTANT REMAINING BOUNDARY:
+0.0.8.56 provides the ranked 10-of-14 multi-provider download engine and resume/hedging,
+and 0.0.8.57 provides authenticated decentralized provider discovery. The current P2P
+module provides provider-side authorized range reads, but no concrete remote QUIC/range
+client is yet connected to the daemon. Therefore 0.0.8.61 intentionally does not claim
+that selecting a local file uploaded it, and does not fake a restore after save-path
+selection.
+
+NEXT – 0.0.8.62 Real Provider Transfer Bridge
+- concrete QRX-P2P/QUIC provider range client
+- consume authenticated discovery endpoints from 0.0.8.57
+- daemon restore RPC -> 0.0.8.56 multi-provider fetch -> streamed destination file
+- upload fan-out to deterministic assigned providers
+- persistent transfer journal + crash-safe resume
+- transfer progress/resume/hedge events to wallet
+- assignment ACCEPT / proof state drives authoritative Globe path animation
+
+
+IMPLEMENTATION PROGRESS – 0.0.8.62 REAL PROVIDER TRANSFER BRIDGE
+---------------------------------------------------------------
+DONE:
+- real qrxp2p provider socket transport
+- authorized PUT + bounded Range GET
+- per-shard authoritative CAS object IDs in multi-provider source model
+- upload SHA3-CAS verification
+- parallel upload fan-out helper
+- 10-of-14 downloader network fetch adapter
+- persistent atomic transfer journal foundation
+- real loopback socket regression test
+- full CTest: 36/36 passed
+
+FAIL-CLOSED / NEXT:
+- quic:// is intentionally NOT emulated over TCP; genuine QUIC backend still required
+- daemon runtime must own/provider-discovery gossip table and listener lifecycle
+- Wallet RPC transfer-job start/resume/cancel integration still required
+- streamed reconstructed destination writer required for truly unbounded downloads
+
+============================================================
+IMPLEMENTATION STATUS UPDATE – 0.0.8.63
+============================================================
+
+DONE – Daemon Transfer Runtime
+- qrxd-owned asynchronous Drive transfer job manager
+- start/get/list/pause/resume/cancel transfer RPCs + qrx-cli parity
+- real qrxp2p upload and 10-of-14 download/reconstruction execution
+- per-range progress, hedging and resume counters
+- client-side SHA3 per-shard CAS verification before reconstruction
+- persistent v2 transfer journal
+- unfinished journal recovery as PAUSED after restart
+- recovered transfers fail closed until verified provider discovery is restored
+- atomic `.qrxpart.<transfer-id>` destination then rename
+- file paths safely hex-encoded across local CLI control boundary
+- provider QRXSTOR1 handler integrated into normal node-run listener lifecycle
+- Wallet download no longer fakes transport; it starts a real daemon job
+- Wallet transfer polling + Pause / Resume / Cancel controls
+- Wallet upload of a selected local file against an existing authoritative contract
+- authoritative shard routes remain privacy-safe and Globe-compatible
+- storage_phase104_drive_runtime: real sockets, 14 shard upload + 10-of-14 restore
+- storage_phase105_drive_recovery: restart recovery/fail-closed discovery
+- full Core CTest: 38/38 PASS
+- wallet inline JavaScript syntax: PASS
+
+FAIL-CLOSED / NEXT – 0.0.8.64 SIGNED DISCOVERY GOSSIP + STREAMING EC HARDENING
+- wire signed 0.0.8.57 provider announcements into actual node P2P gossip/anti-replay ingress
+- persist/revalidate authenticated discovery cache across restart
+- bind provider discovery signing keys to authoritative provider identity/chain state
+- gossip TTL/pruning/rate limits/DoS controls
+- automatically refresh transfer runtime sources from verified gossip state
+- memory-constant stripe-by-stripe Reed-Solomon reconstruction directly to destination
+- true QUIC backend integration; keep quic:// fail-closed until then
+- live transfer event feed to Globe without polling-only fallback
+
+0.0.8.64 – SIGNED DISCOVERY GOSSIP + AUTHENTICATED CACHE + STREAMING RECONSTRUCTION [IMPLEMENTED]
+----------------------------------------------------------------------------------------------------
+- QRXDISC1 bounded signed provider-announcement wire envelope.
+- Live/cache announcements always re-enter the same chain-bound signature + sequence validation path.
+- Persistent QRXDC01 authenticated discovery cache with atomic save and tamper rejection.
+- Memory-constant stripe-by-stripe 10-of-14 erasure reconstruction.
+- Default restore stripe 128 KiB; memory grows with stripe width/shard count, not logical file size.
+- Incremental SHA3-256 verification of each selected shard against authoritative CAS object_id.
+- Daemon download runtime switched to .qrxpart.<transfer-id> streamed reconstruction + atomic rename.
+- New adversarial/restart/large-stream regression coverage.
+- Internal Core test status: 39/39 passed.
+
+0.0.8.65 – PROVIDER IDENTITY KEY BINDING + LIVE QRXD DISCOVERY GOSSIP [NEXT]
+---------------------------------------------------------------------------
+TODO:
+- canonical consensus/provider identity public-key binding
+- qrxd signed STORAGE_DISCOVERY_PUSH/PULL handlers
+- gossip deduplication, bounded fan-out and rate limits
+- automatic authenticated discovery-cache load/save/prune in node lifecycle
+- refresh QrxDriveRuntime contract sources from verified discovery table
+- no arbitrary RPC-provided provider keys/endpoints
+- replace temporary upload tmpnam() staging with secure platform temp-file creation
+
+============================================================
+IMPLEMENTATION STATUS UPDATE – 0.0.8.65
+============================================================
+
+DONE – Provider Identity Key Binding + Live qrxd Discovery Gossip
+- new consensus transaction STORAGE_PROVIDER_BIND_DISCOVERY_KEY
+- discovery public key is bound to the provider identity in QRXDB/consensus state
+- v1 requires ML-DSA-65 discovery signing keys
+- discovery verification key is NEVER accepted from an announcement/RPC endpoint
+- qrx_storage_provider_discovery_key_lookup() is the canonical lookup used by live gossip and cache restore
+- qrxd/node P2P handles STORAGE_DISCOVERY_PUSH and STORAGE_DISCOVERY_PULL
+- PUSH payload is the exact QRXDISC1 signed envelope from 0.0.8.64
+- accepted announcements are chain/provider/status/proven-capacity/key/signature/height/sequence validated
+- invalid announcement adds peer penalty and is not forwarded
+- bounded gossip fan-out to up to 4 known peers per accepted push
+- existing peer rate-limiter remains in front of storage gossip messages
+- shared authenticated discovery cache moved to chain_dir/storage-discovery.cache
+- node-run automatically loads, revalidates, prunes, saves and updates the shared cache
+- qrxd transfer runtime reloads and revalidates this cache before resolving contract provider sources
+- recovered/stale endpoints are never trusted without current key/chain validation
+- secure platform temporary upload files replace tmpnam()
+- new regression: storage_phase107_identity_gossip
+- full internal Core CTest: 40/40 PASS
+
+SECURITY NOTE – PRIVATE_PQ DATA PATH
+------------------------------------
+The qrx-drive-pq-v1 cryptographic building blocks and large-object object layer are already implemented:
+- random 256-bit per-file key
+- AES-256-GCM independent chunk encryption
+- X25519MLKEM768 hybrid KEM key wrapping
+- SHA3-256 content-addressed chunks/index pages
+- ML-DSA-65 manifest signing support
+
+However, the newer 0.0.8.63/64 daemon transfer-job upload currently erasure-encodes the selected source file directly and does NOT yet automatically route every Drive upload through qrx_drive_object_put_file()/PRIVATE_PQ packaging. Therefore PRIVATE_PQ must NOT yet be claimed as mandatory end-to-end for the new Wallet transfer button.
+
+NEXT – 0.0.8.66 MANDATORY PRIVATE_PQ TRANSFER PIPELINE
+-------------------------------------------------------
+- make PRIVATE_PQ the default/mandatory private Drive upload class
+- stream plaintext -> per-chunk AES-256-GCM -> encrypted object/index -> erasure coding -> providers
+- recipient X25519MLKEM768 envelope persisted in encrypted/signed manifest metadata
+- download: 10-of-14 restore encrypted object -> verify -> unwrap file key -> streamed authenticated decrypt
+- no provider ever receives plaintext private-file bytes
+- bind chunk AAD to object salt + chunk index + plaintext length
+- integrate ML-DSA-65 signed manifest into contract manifest_root
+- fail closed on missing/unsupported qrx-drive-pq-v1 suite
+- crypto-suite downgrade protection and version binding
+- wallet displays PRIVATE_PQ / qrx-drive-pq-v1 instead of generic encrypted status
+- add adversarial tests for ciphertext tamper, KEM envelope substitution, wrong recipient, manifest downgrade and partial-transfer resume
+
+
+============================================================
+IMPLEMENTATION PROGRESS — 0.0.8.66 / 0.0.8.67
+============================================================
+
+0.0.8.66 — MANDATORY PRIVATE_PQ TRANSFER FOUNDATION [DONE]
+- transport-oriented PRIVATE_PQ container added
+- AES-256-GCM chunk encryption
+- one random 256-bit file key per object
+- X25519MLKEM768 hybrid KEM file-key wrapping
+- ML-DSA-65 authentication/signature
+- SHA3-512 streaming integrity commitment
+- verify-before-decrypt
+- tamper and wrong-signing-key rejection
+- bounded-memory encrypt/decrypt
+- regression test storage_phase108_private_pq
+
+0.0.8.67 — PRIVATE_PQ CONTRACT PREFLIGHT / PREPARED UPLOAD [CORE DONE]
+- encryption now precedes erasure coding in the prepared-upload pipeline
+- STANDARD 10+4 prepared shards supported
+- exact per-shard SHA3-256 CAS IDs produced before contract creation
+- SHA3-512 shard roots produced
+- qrx-drive-pq-v1 manifest generated
+- ML-DSA-65 manifest signature generated
+- manifest hash exposed for consensus commitment
+- prepared encrypted object and exact shard bytes persisted as one package
+- regression test storage_phase109_prepare
+
+Mandatory ordering:
+Plaintext
+  -> PRIVATE_PQ encryption
+  -> fixed encrypted container
+  -> erasure coding
+  -> exact shard CAS IDs / roots
+  -> signed manifest
+  -> STORAGE_CONTRACT_CREATE / STORAGE_ASSIGN
+  -> provider upload of the exact prepared shard bytes
+
+This ordering is mandatory because randomized encryption changes the shard CAS IDs.
+Re-encrypting a source after assignments exist is forbidden/fail-closed.
+
+NEXT ROADMAP BLOCK:
+0.0.8.68 — PREPARED UPLOAD DAEMON/WALLET CONSENSUS WIRING
+- preparedriveupload RPC/CLI
+- wallet-bound X25519MLKEM768 key persistence and recovery/backup integration
+- build STORAGE_CONTRACT_CREATE from prepared manifest commitment
+- assignment/object-ID binding checks
+- startdriveupload accepts only a finalized prepared package whose IDs match chain assignments
+- PRIVATE_PQ restore: 10-of-14 -> encrypted container -> signature verify -> KEM unwrap -> streaming AES-GCM decrypt
+- prepared-package lifecycle / crash recovery / garbage collection
+
+============================================================
+IMPLEMENTATION STATUS UPDATE — 0.0.8.68
+============================================================
+
+DONE — PREPARED PRIVATE_PQ RUNTIME AUTHORITY
+- qrx-drive-prepared-v1 prepare.meta persisted atomically with prepared package
+- reload verifies qrx-drive-pq-v1 suite, ML-DSA manifest signature, manifest hash and all shard SHA3-256 CAS files
+- exact prepared shard paths/CAS IDs survive process boundaries
+- qrx_drive_runtime_start_prepared_upload() uploads only those exact prepared shard files
+- provider/assignment source object_id must equal preflight CAS ID for the same shard index
+- no re-encryption / no re-erasure-coding in prepared runtime upload
+- manipulated shard package fails closed before provider transfer
+- regression storage_phase110_prepared_runtime
+- full Core CTest: 43/43 PASS
+
+QRX-NET READ BRIDGE STARTED
+- getdomain <name.qrx> daemon RPC returns authoritative QRXDB DomainRecord fields
+- resolvebrowserinput <input> daemon/CLI path uses canonical QRX browser resolver
+- .qrx / qrx:// routing remains DNS-leak-safe (`dns_allowed=false`)
+- WWW routing remains explicitly separate
+
+BRANCH STATUS
+0.0.8 is NOT complete. Existing Core already contains significant original-roadmap foundations:
+- 0.0.8.44 Name Registry / canonical .qrx names
+- domain consensus/economics/expiry/transfer primitives
+- 0.0.8.46 resolver routing and .qrx DNS-leak protection
+- PUBLIC_SIGNED site verification primitives
+- DApp permission grant validation primitives
+
+NEXT INTEGRATION BLOCKS (do not duplicate existing primitives)
+A. Finish prepared PRIVATE_PQ daemon/wallet transaction orchestration and restore/decrypt path.
+B. Domain management daemon/CLI/Tauri UI on top of existing consensus registry/economics.
+C. PUBLIC_SIGNED site publisher/fetch/cache and website version rollback wiring.
+D. Integrated WWW+QRX Browser WebView with wallet-isolated security sandbox and explicit DApp permission bridge.
+E. QRX-Net Resource Globe/hosting opportunity layers.
+F. Adversarial QRX-Net testnet + DRIVE_V1/QRX_NET_V1 readiness gates.
+Only after these gates is the 0.0.8 branch considered complete for activation.
+
+============================================================
+IMPLEMENTATION STATUS UPDATE — 0.0.8.69
+============================================================
+
+DONE — WALLET-BOUND PRIVATE_PQ ORCHESTRATION
+- durable wallet recipient key is ML-KEM-768 (`drive_mlkem768_priv.pem` / `drive_mlkem768_pub.pem`)
+- private recipient key encryption is bound to the canonical Ed25519 wallet identity
+- qrx-drive-pq-recovery-v1 recovery.qrxseed extension added
+- new wallets create Drive PQ recovery material automatically
+- wallet-recovery-refresh preserves/refreshes it
+- wallet-recover restores the same ML-KEM recipient identity
+- getdrivepqstatus daemon/CLI
+- preparedriveupload daemon/CLI
+- startpreparedriveupload daemon/CLI
+- decryptdrivefile daemon/CLI
+- Wallet file picker performs actual PRIVATE_PQ preflight and retains prepared package ID
+- default PRIVATE Drive UX no longer routes selected plaintext through direct startdriveupload
+- prepared upload still requires exact assignment-CAS equality from 0.0.8.68
+- full Core CTest: 43/43 PASS
+- wallet create/recovery integration manually verified with identical restored ML-KEM public key
+- GUI inline JavaScript: node --check PASS
+
+CRYPTO IMPLEMENTATION CLARIFICATION
+- OpenSSL exposes X25519MLKEM768 here as a TLS hybrid group, but the provider does not serialize it as a durable PKCS#8 wallet key.
+- Persistent at-rest Drive file-key encapsulation therefore uses ML-KEM-768 in 0.0.8.69.
+- X25519MLKEM768 remains available/planned for hybrid transport/TLS negotiation.
+- Do not describe the durable wallet recipient key as X25519MLKEM768.
+
+NEXT STEP:
+0.0.8.70 — AUTOMATIC STORAGE CONTRACT + ASSIGNMENT TRANSACTION ORCHESTRATION
+- turn prepared manifest commitment into STORAGE_CONTRACT_CREATE transaction parameters
+- deterministic provider selection for every prepared shard
+- construct STORAGE_ASSIGN transactions with exact prepared CAS IDs / Merkle roots / leaf counts
+- wallet signs and submits the contract/assignment transaction sequence
+- progress state: prepared -> contract pending -> assignments pending -> provider upload -> proof/healthy
+- crash-safe orchestration journal and duplicate/replay protection
+- no provider upload before authoritative assignments exist
+
+============================================================
+IMPLEMENTATION STATUS UPDATE — 0.0.8.70
+============================================================
+
+DONE — AUTOMATIC STORAGE CONTRACT + ASSIGNMENT ORCHESTRATION
+- qrx_drive_contract Core planner added
+- deterministic Drive contract ID binds owner + prepare_id + signed manifest hash
+- contract quote covers all shards/epochs at maximum performance factor plus protocol split headroom
+- STORAGE_CONTRACT_CREATE generated from the fixed PRIVATE_PQ package
+- encrypted container size is the authoritative storage logical_bytes for shard sizing
+- prepared packages now persist true PoStor Merkle roots + leaf counts per shard
+- STORAGE_ASSIGN uses exact prepared CAS ID + PoStor Merkle root + leaf count
+- consensus provider selection now uses last-finalized-block randomness (`inclusion_height - 1`), making a transaction constructible before the inclusion block exists
+- public qrx_storage_assignment_provider_for_height() exposes exactly the consensus selection rule
+- advancepreparedriveupload daemon/CLI state machine signs/submits one authoritative step at a time
+- orchestration.state prevents duplicate resubmission while waiting and remembers started upload transfer
+- Wallet `Create contract & upload` polls the state machine automatically
+- provider PUT staging accepts PENDING/REPAIRING assignments only when provider/contract/shard/object-ID match
+- downloads remain ACTIVE-only
+- separate pending-aware authenticated discovery source resolver used for upload staging
+- regression storage_phase111_contract_orchestration
+- full Core CTest: 44/44 PASS
+- GUI inline JavaScript syntax PASS
+- cargo unavailable in build environment; no Tauri cargo check executed
+
+NEXT STEP:
+0.0.8.71 — PROVIDER ASSIGNMENT ACCEPTANCE + AUTOMATIC POST-UPLOAD ACTIVATION
+- provider verifies staged shard CAS/Merkle material after PUT
+- provider automatically constructs/signs STORAGE_ASSIGN_ACCEPT from its own wallet identity
+- acceptance is submitted by the provider, never by the file owner
+- transfer job tracks staged -> accept pending -> ACTIVE
+- Drive health/globe only marks shard healthy after authoritative ACTIVE state
+- retry/idempotency and restart journal for provider acceptance
+- begin first PoStor challenge readiness after activation
+
+============================================================
+IMPLEMENTATION STATUS UPDATE — 0.0.8.71
+============================================================
+
+DONE — PROVIDER ASSIGNMENT ACCEPTANCE + AUTOMATIC POST-UPLOAD ACTIVATION
+- new qrx_storage_activation Core module
+- PENDING shard is acceptance-ready only after local provider verifies:
+  - exact consensus provider identity
+  - exact SHA3-256 CAS object ID
+  - exact physical byte count
+  - exact PoStor 64 KiB leaf count
+  - exact PoStor Merkle root
+- node-run automatically discovers locally ready PENDING assignments
+- provider itself constructs and dual-signs STORAGE_ASSIGN_ACCEPT with Ed25519 + ML-DSA-65 wallet identity
+- provider acceptance enters the normal node mempool; owner never signs provider acceptance
+- post-PUT acceptance trigger plus restart scanning
+- 12-block retry/idempotency marker prevents mempool spam while confirmation is pending
+- reads remain ACTIVE-only; staged/PENDING bytes are never advertised as healthy
+- owner orchestration distinguishes WAITING_PROVIDER_ACCEPT / HEALTHY_WAITING_REDUNDANCY / ACTIVE_REDUNDANCY_COMPLETE from raw upload completion
+- STANDARD becomes retrievable at the 10 ACTIVE shard threshold while full redundancy remains 14 ACTIVE shards
+- regression storage_phase112_provider_activation
+- full Core CTest: 45/45 PASS
+
+NEXT STEP:
+0.0.8.72 — AUTOMATIC POSTOR PROOF RUNTIME + HEALTH/REPAIR READINESS
+- provider derives each scheduled PoStor challenge from finalized chain randomness
+- read exact challenged leaf from local CAS object
+- build Merkle proof from locally stored shard without trusting uploader metadata
+- construct/sign/submit STORAGE_POSTOR from provider wallet
+- persistent proof scheduler with restart recovery and duplicate suppression
+- authoritative proof success updates assignment/provider reputation
+- missed-proof health transition hooks toward DEGRADED / repair flow
+- Drive/Globe status distinguishes ACTIVE, PROOF_DUE, DEGRADED, REPAIRING
+
+============================================================
+IMPLEMENTATION STATUS UPDATE — 0.0.8.72
+============================================================
+
+DONE — AUTOMATIC POSTOR PROOF RUNTIME + HEALTH/REPAIR READINESS
+- new qrx_storage_postor_runtime Core module
+- ACTIVE provider assignments get a deterministic proof schedule
+- proof epoch is strictly `last_proof_epoch + 1`
+- challenge height is strictly `(last_proof_height || accepted_height) + QRX_STORAGE_PROOF_WINDOW_BLOCKS`
+- challenge randomness is read only from the finalized QRXDB block-height index
+- missing finalized challenge hash fails closed; no synthetic randomness
+- provider reads the exact challenged 64 KiB leaf from local CAS
+- Merkle sibling subtrees are recomputed from local shard bytes, never trusted from uploader metadata
+- bounded-memory Merkle proof construction: no all-leaf hash array for large shards
+- locally generated proof is verified against the authoritative assignment Merkle root before transaction construction
+- provider creates/signs STORAGE_POSTOR with its own Ed25519 + ML-DSA-65 wallet identity
+- proof transactions use a dedicated lane family and normal VELOCITY mempool submission
+- persistent per-contract/shard/epoch marker suppresses duplicate proof submission for 12 blocks
+- node-run scans proofs automatically during normal operation and after restart
+- consensus now rejects stale/same-epoch PoStor replay and arbitrary challenge-height substitution
+- derived runtime health states: ACTIVE / PROOF_DUE / DEGRADED / REPAIRING
+- missed proof window exposes `repair_ready` for the next automatic repair stage
+- regression storage_phase113_postor_runtime
+- full PQ-required Core CTest: 46/46 PASS
+
+NEXT STEP:
+0.0.8.73 — AUTOMATIC REPAIR ORCHESTRATION
+- detect DEGRADED/repair_ready assignments authoritatively
+- owner/repair coordinator submits STORAGE_REPAIR_START only after proof-window expiry
+- deterministic replacement provider selection from finalized chain randomness
+- reconstruct missing encrypted shard from remaining healthy 10-of-14 data
+- stage exact original CAS/Merkle/leaf commitment to replacement provider
+- replacement provider verifies bytes and submits STORAGE_REPAIR_ACCEPT
+- require replacement PoStor proof before STORAGE_REPAIR_COMPLETE
+- preserve failure-domain diversity and prevent old provider from being immediately reselected
+- crash-safe repair journal / idempotency / no central coordinator dependency
+- Drive/Globe repair status and completion health wiring
+
+============================================================
+IMPLEMENTATION STATUS UPDATE — 0.0.8.73
+============================================================
+
+DONE — AUTOMATIC REPAIR ORCHESTRATION
+- missed PoStor windows are scanned into authoritative repair-start candidates
+- any participating provider node may permissionlessly submit STORAGE_REPAIR_START; no central repair coordinator is required
+- consensus continues to choose the replacement provider deterministically from finalized chain randomness
+- existing assignment/failure-domain exclusions prevent immediate reuse of the failed provider/domain
+- replacement provider reconstructs a missing STANDARD shard directly from >=10 ACTIVE peers
+- new qrx_storage_stream_reconstruct_shard_to_file performs bounded-memory stripe repair
+- source shards are SHA3-256 CAS verified while streaming
+- reconstructed shard must equal the exact original object_id before local CAS admission
+- repair upload authorization belongs only to the on-chain replacement provider while REPAIRING
+- original physical length, CAS id, PoStor Merkle root and leaf count are preserved
+- replacement node automatically submits STORAGE_REPAIR_ACCEPT after local exact-object verification
+- qrx_storage_repair_get exposes restart-safe authoritative repair records
+- replacement must wait one proof window and submit a real first PoStor proof inside STORAGE_REPAIR_COMPLETE
+- consensus hardening requires repair-complete epoch=1 and challenge_height=repair_accept_height+PROOF_WINDOW
+- missing finalized challenge block fails closed
+- persistent START/ACCEPT/COMPLETE retry markers suppress duplicate mempool submission
+- repair can proceed with the file owner offline
+- regression storage_phase114_repair_runtime
+- full Core CTest: 47/47 PASS
+
+NEXT STEP:
+0.0.8.74 — QRX-NET DOMAIN MANAGEMENT + PQ OWNERSHIP WIRING
+- expose register / renew / transfer / update / history / expiry through daemon and CLI
+- wire existing Domain Registry + economics to Tauri Wallet domain manager
+- make ML-DSA / crypto-agile domain ownership authorization mandatory for durable updates
+- bind manifest pointer, wallet records and sequence to signed domain state
+- add safe domain availability / cost preflight and expiry/renewal UX
+- add anti-replay and downgrade regression coverage
+
+============================================================
+IMPLEMENTATION STATUS UPDATE — 0.0.8.74
+============================================================
+
+DONE — QRX-NET DOMAIN MANAGEMENT + PQ OWNERSHIP WIRING
+- Domain Registry remains the single authoritative QRXDB implementation; no parallel registry introduced
+- publishing-key commitment now accepts ML-DSA-65 keys only
+- non-PQ publishing-key downgrade (for example Ed25519) is rejected by qrx_domain_pubkey_commitment
+- domain mutation transactions remain covered by the normal QRX hybrid transaction signature path (Ed25519 + ML-DSA-65)
+- daemon/CLI getdomainpreflight provides normalized-name validation, availability, fixed-vs-auction mode, annual rent, reservation bond, total amount, owned-domain tier and wallet ML-DSA publishing-key readiness
+- registerdomain binds the wallet ML-DSA-65 publishing key by default and submits the consensus-calculated rent + reservation bond
+- renewdomain uses authoritative owner/sequence/current-height state and protocol pricing
+- updatedomain exposes KEEP/SET/CLEAR semantics and WALLET publishing-key binding
+- transferdomain submits the owner-signed transfer; consensus clears QUB address, web manifest root and publishing-key commitment during ownership transfer
+- listdomains returns authoritative wallet-owned domain state with ACTIVE / GRACE / EXPIRED status
+- getdomainhistory exposes sequence history plus current record from QRXDB
+- Tauri commands added for preflight/register/renew/update/transfer/list/history
+- GUI Wallet now has a QRX-Net domain manager with availability/price preflight, registration, renewal, ML-DSA rebinding, history and guarded transfer UX
+- .qrx resolver DNS-leak invariant remains unchanged: QRX route has dns_allowed=false
+- regression net_phase115_domain_management covers ML-DSA-only publishing identity, sequence anti-replay, history, owner indexing and transfer record clearing
+- full Core CTest: 48/48 PASS
+- GUI inline JavaScript syntax PASS
+- cargo unavailable in build environment; Tauri cargo check could not be executed here
+
+NEXT STEP:
+0.0.8.75 — PUBLIC_SIGNED SITE PUBLISHER + VERSIONED HOSTING
+- turn existing qrx_net_site publish/verify primitives into a persistent PUBLIC_SIGNED website package format
+- recursively package a website directory with safe canonical paths and bounded streaming
+- ML-DSA-65 sign site manifest and bind it to the domain publishing-key commitment
+- publish website objects into QRX Drive / storage contracts, then update domain web_manifest_root only after authoritative storage readiness
+- deterministic version sequence and immutable previous versions
+- local publisher journal with restart-safe publish state
+- resolver/fetch path verifies domain record -> publishing key commitment -> site manifest signature -> bundle root -> file CAS/Merkle
+- version history and rollback transaction preparation without mutable provider-side state
+- cache only verified PUBLIC_SIGNED objects; never trust unsigned provider metadata
+- Tauri Publisher UI: choose folder, preflight, publish, versions, rollback
+- adversarial tests for path traversal, manifest substitution, wrong publishing key, stale version, object tamper and downgrade attempts
+
+============================================================
+IMPLEMENTATION STATUS UPDATE — 0.0.8.75
+============================================================
+
+DONE — PUBLIC_SIGNED PACKAGE INTEGRITY + IMMUTABLE VERSION CATALOG
+- persistent QRXNS01 PUBLIC_SIGNED site package format added
+- package carries immutable manifest, sorted file entries and ML-DSA-65 signature
+- load path is bounded by protocol file/signature limits and rejects trailing/invalid data
+- site verification now recomputes bundle_root from every file entry before accepting the signed manifest
+- entry substitution therefore fails even when an attacker preserves the original manifest/signature bytes
+- qrx_net_site_verify_storage verifies domain state -> ML-DSA publishing commitment -> manifest root/signature -> each CAS object -> SHA3 content hash -> file Merkle root
+- immutable local publisher catalog stores <domain>/<sequence>.qrxsite and refuses overwrite of an existing sequence
+- version lookup and rollback preparation return the historical manifest root without mutating chain state
+- prior versions remain immutable; rollback requires a fresh DOMAIN_UPDATE by the current owner
+- explicit duplicate/case-normalized domain regression: SameName.QRX then samename.qrx cannot be registered by a second owner
+- regression net_phase116_site_package covers package round-trip, entry substitution, content tamper, immutable version archive/rollback and duplicate-domain ownership
+- full Core CTest: 49/49 PASS
+
+NEXT STEP:
+0.0.8.76 — DIRECTORY PUBLISHER + STORAGE READINESS + DOMAIN ACTIVATION
+- recursively import a website directory using canonical root-relative paths
+- reject symlinks/reparse-points, path traversal, duplicate normalized paths and files outside selected web root
+- stream large website files into PUBLIC_SIGNED CAS without whole-file RAM buffering
+- create immutable site package/version from wallet ML-DSA-65 publishing key
+- orchestrate PUBLIC_SIGNED storage contracts and wait for authoritative STANDARD readiness
+- only after storage readiness submit DOMAIN_UPDATE web_manifest_root
+- restart-safe publisher journal: PREPARING / STORING / WAITING_REDUNDANCY / ACTIVATING / ACTIVE / FAILED
+- daemon/CLI/Tauri commands for choose-folder preflight, publish, versions and rollback
+- verified fetch/cache bridge for qrx://<domain>/<path>
+
+============================================================
+IMPLEMENTATION STATUS UPDATE — 0.0.8.76
+============================================================
+
+DONE — DIRECTORY PUBLISHER + STORAGE READINESS + DOMAIN ACTIVATION
+- secure recursive website-directory publisher implemented for POSIX and Windows
+- canonical root-relative paths only; traversal, unsafe control characters, duplicate case-normalized paths and files outside the selected tree are rejected
+- POSIX symlinks and Windows reparse points fail the entire publish; private wallet/system files cannot be pulled in via links
+- website files are streamed into PUBLIC_SIGNED CAS; content SHA3-512 and per-file Merkle commitments are recorded in the signed site manifest
+- PUBLIC_SIGNED remains intentionally public: providers may see website bytes, but ML-DSA-65 + content/CAS/Merkle commitments prevent undetected modification
+- canonical QRXWEB1 distribution object contains signed QRXNS package + exact CAS website objects
+- STANDARD 10+4 PUBLIC_SIGNED prepared upload uses qrx-net-public-signed-v1 and exact per-shard CAS + PoStor Merkle commitments
+- file-based Reed-Solomon encoder added; provider shard creation is bounded-memory rather than whole-site buffering
+- large-file seek paths use 64-bit file offsets; no artificial product-level website/file-size cap is introduced by this pipeline
+- deterministic PUBLIC_SIGNED storage-contract orchestration creates the contract and all 14 exact assignments from the prepared package
+- domain site manifest root is also the storage-contract manifest_root; unrelated healthy storage contracts cannot unlock activation
+- authoritative readiness requires >=10 ACTIVE assignments and every present assignment must match the prepared CAS/Merkle/leaf commitment
+- one mismatched assignment makes readiness fail closed
+- PUBLIC_SIGNED runtime uploads only the already-prepared exact shards; no re-encoding after contract commitment
+- restart-safe qrx-net-publish-job-v2 journal persists package/distribution/prepare paths, contract, transfer, activation and pending storage-step state
+- CREATE/ASSIGN idempotency window suppresses repeated transaction submissions while an identical step is still awaiting chain confirmation
+- daemon commands: prepareqrxsitehex / getqrxsitepublish / advanceqrxsite / listqrxsiteversions / rollbackqrxsite
+- CLI commands: prepareqrxsite / getqrxsitepublish / advanceqrxsite / listqrxsiteversions / rollbackqrxsite
+- Tauri Wallet publisher can select a local folder, prepare an immutable version, advance hosting/activation and inspect/rollback versions
+- DOMAIN_UPDATE web_manifest_root is submitted only after >=10 exact ACTIVE storage shards
+- activation is considered ACTIVE only after the authoritative DomainRecord actually contains the new manifest root
+- rollback does not mutate provider objects; it submits a fresh DOMAIN_UPDATE by the current owner
+- rollback target must verify under the current ML-DSA-65 publishing commitment and must still have >=10 authoritative ACTIVE matching shards
+- immutable historical site packages remain versioned and cannot be overwritten
+- duplicate-domain registry invariant from 0.0.8.75 remains consensus-backed and case-normalized
+- regressions net_phase117_directory_publisher + net_phase118_hosting_activation
+- restart journal test now covers pending CREATE/ASSIGN transaction identity fields
+- full Core CTest: 51/51 PASS
+- GUI inline JavaScript syntax PASS
+- cargo unavailable in this build environment; Tauri cargo check could not be executed here
+
+NEXT STEP:
+0.0.8.77 — VERIFIED QRX:// FETCH/CACHE + INTEGRATED WWW/QRX BROWSER ROUTING
+- make PUBLIC_SIGNED packages self-describing for remote verification by carrying/recovering the ML-DSA-65 publishing public key and binding it to the on-chain commitment
+- derive the deterministic website storage contract from DomainRecord owner + .qrx name + manifest root
+- fetch QRXWEB distribution through >=10-of-14 ACTIVE provider sources with parallel/range/resume transport
+- verify reconstructed distribution before cache admission: DomainRecord -> publishing-key commitment -> ML-DSA signature -> bundle root -> object ids -> content hashes/Merkle
+- verified immutable cache keyed by domain manifest root; never cache unsigned or partially verified provider output
+- qrx://<domain>/<path> resolver/fetch API with strict dns_allowed=false and no WWW/DNS fallback
+- integrated Wallet browser routes http/https to normal WWW and qrx:///.qrx to QRX-Net
+- navigation status must visibly distinguish WWW vs QRX and verified vs unavailable
+- index.html/default-document handling, MIME determination and safe missing-file semantics
+- adversarial tests for fake publishing key, stale domain root, malformed QRXWEB, provider corruption, insufficient shards, cache tamper and DNS-leak attempts
+
+============================================================
+IMPLEMENTATION STATUS UPDATE — 0.0.8.77
+============================================================
+
+DONE — VERIFIED QRX:// FETCH/CACHE + INTEGRATED WWW/QRX BROWSER ROUTING
+- new qrx_net_browser core resolves the current authoritative DomainRecord and refuses inactive/unpublished domains
+- browser storage lookup scans authoritative QRXDB contracts and accepts only active STANDARD 10+4 contracts whose manifest_root exactly equals the current domain web_manifest_root
+- cache miss requires >=10 cryptographically authenticated ACTIVE provider discovery sources; provider endpoints remain internal and are never exposed to website code
+- QRXWEB distributions are reconstructed with the existing range-based 10-of-14 transport and each selected source shard is SHA3-CAS verified before reconstructed output is accepted
+- reconstructed distribution is never promoted to cache until complete verification succeeds
+- QRXNS02 site-package format now embeds the ML-DSA publishing public key; the chain continues to store only its commitment
+- verification chain is: DomainRecord -> embedded ML-DSA-65 public key -> on-chain publishing-key commitment -> site manifest signature -> manifest root -> bundle root -> every object id/size -> content SHA3-512 -> file Merkle root
+- QRXNS01 remains read-compatible for local/legacy callers that explicitly supply a publishing public key; self-contained remote browser verification requires QRXNS02
+- full QRXWEB verification is streaming/bounded for website file bytes; no whole-site RAM buffer is required before cache admission
+- verified cache is keyed by domain + current manifest root; cache content is revalidated against current chain state before serving
+- a valid previously verified cache may be used while providers are temporarily unreachable, but only while the current DomainRecord and active storage contract still bind the same manifest root
+- tampered cache is deleted/fails closed; a cache miss then requires live >=10 ACTIVE provider sources
+- default '/' request maps to index.html; unsafe traversal/backslash/control-character paths fail closed
+- daemon/CLI fetchqrxsite returns only verified QRX-Net content and always reports dns_allowed=false
+- resolver keeps .qrx / qrx:// exclusively on QRX-Net; explicit qrx:// cannot fall back to WWW/DNS
+- Tauri bridge adds browser resolve/fetch calls; fetched local bytes come only from daemon-verified cache output
+- GUI Wallet now has a combined WWW + QRX-Net browser shell with one address bar and a visible route/status indicator
+- QRX-Net preview in this step runs with a zero-permission iframe sandbox; no wallet IPC/key/filesystem permission is granted to site content
+- WWW is routed separately and never reused as a hidden fallback for failed QRX-Net resolution
+- qrx_storage_stream_reconstruct_to_file seek writes use 64-bit file offsets for large reconstructed website distributions
+- regression net_phase119_browser_fetch covers embedded-key verification, verified cache use, cache tamper fail-closed and QRX-vs-WWW DNS routing
+- full Core CTest: 52/52 PASS
+- GUI inline JavaScript syntax PASS
+- cargo unavailable in this build environment; Tauri cargo check could not be executed here
+
+NEXT STEP:
+0.0.8.78 — BROWSER SECURITY SANDBOX + ORIGIN ISOLATION
+- move untrusted WWW/QRX site rendering into a dedicated browser WebView/window with no privileged wallet/Tauri IPC bridge by default
+- strict qrx:// origin identity bound to canonical .qrx domain + finalized publishing-key commitment
+- process/origin isolation where platform WebView permits it
+- CSP/navigation/popup/mixed-content/download policy
+- deny filesystem, wallet files, private keys, seed, unlocked signer and node-admin RPC by construction
+- clipboard/camera/microphone/location default deny and permission-mediated only
+- isolate crashes/navigation failures from wallet core
+- introduce a local verified qrx:// resource protocol so HTML/CSS/JS/images can resolve nested assets without file:// privilege leakage
+- ensure qrx:// active content can execute only inside the sandbox and cannot invoke privileged Tauri commands
+- adversarial regression for privileged IPC attempts, file:// escape, navigation escape, popup abuse, mixed-content and malformed verified content
+
+============================================================
+IMPLEMENTATION STATUS UPDATE — 0.0.8.78
+============================================================
+
+DONE — BROWSER SECURITY SANDBOX + ORIGIN ISOLATION FOUNDATION
+- new qrx_net_sandbox core policy accepts only canonical qrx://<name.qrx>/<path> resource identities and never authorizes DNS/HTTP fallback
+- canonical domain normalization is part of sandbox-origin identity; SameName.QRX and samename.qrx are the same QRX origin
+- traversal, percent-encoded traversal, backslash/control-character and non-qrx scheme attempts fail closed before storage resolution
+- zero-permission QRX sandbox policy explicitly denies scripts, wallet IPC, filesystem, external network, popups and downloads
+- CSP baseline denies script/connect/object/frame/worker/base/form capabilities by default
+- GUI QRX renderer no longer injects raw verified HTML directly: active elements (script/object/embed/iframe/form/inputs) and inline event handlers are stripped before rendering
+- verified same-site stylesheets/images/media/fonts are fetched only through qrxnet_browser_fetch, reusing the authoritative DomainRecord -> storage -> ML-DSA/CAS/Merkle verification gate
+- verified subresources are materialized as data: resources inside the sandbox; the untrusted iframe therefore never needs file:// access and cannot issue DNS/HTTP requests for QRX assets
+- CSS url(...) resources are separately fetched through the verified QRX path and rewritten to local data: URLs; failed/untrusted references become empty URLs
+- sandbox CSP is injected into every rendered QRX document with default-src/connect-src/script-src/frame-src/object-src/worker-src/form-action all denied
+- page-initiated navigation is disabled in this zero-permission step: anchors lose href/target, forms are removed, popups/download sandbox tokens are absent; navigation occurs only through the trusted wallet address bar
+- iframe uses an opaque sandbox origin (no allow-same-origin, no allow-scripts) for QRX content, preventing site code from sharing the wallet origin
+- iframe Permissions Policy explicitly denies camera, microphone, geolocation and clipboard read/write
+- WWW continues on its separate resolver path and is never used as fallback after QRX failure; its iframe remains sandboxed without popup/download/top-navigation privileges
+- privileged Tauri/WALLET commands are unreachable from QRX content by construction because scripts are disabled and the site runs in an opaque sandbox document
+- no process-isolation claim is made where the platform WebView does not provide a separately addressable renderer process; security boundary is protocol verification + opaque iframe sandbox + CSP/Permissions Policy
+- regression net_phase120_browser_sandbox covers canonical origin, non-qrx rejection, traversal/encoded traversal/backslash rejection, same-origin normalization and zero-permission policy constants
+- full Core CTest: 53/53 PASS (non-NDEBUG test build; existing assert-based tests require assertions enabled)
+- Release Core compilation PASS
+- GUI inline JavaScript syntax PASS
+- cargo unavailable in this build environment; Tauri cargo check could not be executed here
+
+NEXT STEP:
+0.0.8.79 — QRX DAPP PERMISSION BRIDGE + EXPLICIT WALLET CONSENT
+- introduce a narrow message bridge for QRX DApps instead of exposing generic Tauri invoke
+- origin bind every permission grant to canonical .qrx domain + current publishing-key commitment + manifest root
+- default DENY; explicit user confirmation for wallet read, address request, transaction/sign request and other future capabilities
+- no raw private-key/seed export API under any permission
+- per-origin grants with session/once/persistent scopes and immediate revoke UI
+- transaction requests show human-readable recipient/amount/fee/network and require wallet-side confirmation
+- invalidate persistent grants automatically when publishing key/domain ownership changes; decide manifest-version persistence policy explicitly
+- rate-limit bridge calls and cap payload sizes
+- DApps gain script execution only in the dedicated constrained DApp sandbox, never in the zero-permission static mode
+- adversarial tests for forged origin, stale publishing key/root, permission confused-deputy, replay, oversized payload, hidden transaction and generic IPC escape attempts
+
+============================================================
+IMPLEMENTATION STATUS UPDATE — 0.0.8.79
+============================================================
+
+DONE — QRX DAPP PERMISSION BRIDGE + EXPLICIT WALLET CONSENT FOUNDATION
+- new qrx_net_dapp_bridge core is a narrow capability broker; it does not expose generic wallet/Tauri IPC
+- grants are bound to canonical .qrx domain, current owner, publishing-key commitment and exact current web manifest root
+- publishing-key rotation, domain ownership transfer or manifest-root change invalidates the bound grant
+- allowed grant modes are ONCE, SESSION and PERSISTENT; persistent grant serialization is versioned and fail-closed
+- bridge requests have monotonic per-grant nonces for replay rejection
+- payload size is capped at 16 KiB and calls are bounded per block-height window
+- existing scope mask remains allow-listed; unknown scopes fail closed
+- GUI QRX browser keeps static zero-permission mode as default; DApp script execution is an explicit user toggle
+- DApp scripts are accepted only from the already verified same-site QRX package path and are materialized locally; connect-src remains none
+- DApps communicate only through postMessage with the trusted parent browser frame; message source must be the currently loaded QRX iframe
+- initial wallet bridge exposes only public address read, public balance read and payment request
+- no seed/private-key/raw signer export method exists
+- address/balance scope requires explicit consent and can be remembered for the current session
+- payment request always receives an additional final transaction-specific wallet confirmation displaying DApp domain, recipient, amount and network before send_to_address is invoked
+- revoke action immediately clears current in-memory DApp grants
+- regression net_phase121_dapp_bridge covers replay, wrong session, stale manifest root, publishing-key rotation, payload overflow, ONCE consumption and persistent grant round-trip
+- full Core CTest: 54/54 PASS
+- GUI inline JavaScript syntax PASS
+
+NEXT STEP:
+0.0.8.80 — QRX AD SHIELD + NETWORK-PAID SPONSORED CONTENT
+- block conventional third-party ad/tracker execution by default in QRX-Net and optionally in WWW browser mode
+- introduce an explicit QRX sponsored-content object/permit instead of arbitrary ad-network script exceptions
+- advertiser budget is committed/burned/escrowed on-chain under deterministic campaign rules; no advertiser payment can bypass security or youth-safety policy
+- define deterministic split for protocol/network treasury and eligible delivery/verification participants; viewer reward is optional/configurable and must not create deceptive forced-engagement incentives
+- ads must be static/verified content or tightly constrained declarative media; no third-party JS, fingerprinting, popups, hidden redirects or cross-site trackers
+- frequency caps, category labels, clear Sponsored marker, per-user disable switch and privacy-preserving local impression accounting
+- Sybil-resistant proof design for compensated delivery without exposing browsing history on-chain
+- campaign expiry, budget exhaustion, refund/settlement, fraud/slashing and duplicate-impression protections
+- ad blocker remains authoritative for normal ads even when a campaign is paid; paid permit is an allow-list for a safe format, never an anti-malware bypass
+- adversarial tests for fake permit, exhausted budget, replayed impression, tracking payload, redirect abuse, malformed creative and campaign/domain substitution
+
+FOLLOWING STEP:
+0.0.8.81 — QRX YOUTH PROTECTION + FAMILY SAFETY
+- privacy-preserving local age/family policy; no mandatory central QRX censorship or browsing-history server
+- content rating metadata signed by publisher plus local/community/guardian policy layers; unsigned/unrated content can be treated as restricted under child profiles
+- child/teen profiles with guardian-controlled allowed rating ceiling, DApp capability limits, payment limits and optional domain allow/deny lists
+- ads disabled by default for child profiles; no behavioral profiling, personalized ad targeting or viewer-compensation prompts for minors
+- block/confirm mature-content categories, gambling/adult/drug/violence-sensitive DApps and other guardian-selected classes before rendering/interaction
+- safe-search/navigation policy and explicit interstitial rather than silent fallback
+- camera/microphone/location/clipboard and payment/signature capabilities remain deny-by-default; guardian policy may make selected permissions non-overridable by the child profile
+- local encrypted policy store, PIN/guardian authentication and recovery-safe configuration design
+- publisher ratings cannot weaken a stricter local guardian rule; payment cannot purchase a bypass
+- adversarial tests for forged rating, missing rating, profile switch bypass, local-policy tamper, DApp permission escalation and sponsored-content youth-filter bypass
+
+0.0.8 remains OPEN after 0.0.8.79. Complete 0.0.8.80 and 0.0.8.81, then continue with the remaining QRX-Net globe/hosting missions/adversarial-mainnet-readiness gates before marking the branch complete.
+
+0.0.8.80 — QRX AD SHIELD + NETWORK-PAID SPONSORED CONTENT — DONE
+- Traditional third-party ad/tracker execution remains blocked by QRX browser sandbox/CSP.
+- Only QRX protocol-sponsored campaigns may become eligible for browser-sponsored surfaces; payment NEVER bypasses script/tracking/fingerprinting/popup/security policy.
+- Campaign budget is consensus escrow, not an off-chain ad-network balance.
+- Reward split per verified impression: 55% delivery/network providers, 25% hosting publisher, 10% viewer, 5% protocol reserve, 5% development.
+- Viewer rewards are deliberately minority/capped incentives to reduce Sybil-farming economics; frequency epoch is 144 blocks and the same campaign/viewer token cannot be rewarded twice in one epoch.
+- A billable impression requires 3 independently signed ACTIVE storage-provider delivery receipts with distinct operator/failure-domain characteristics.
+- Impression IDs are consensus replay-protected; campaign creative root is immutable for that campaign.
+- Rewards accrue on-chain and are explicitly claimable; unspent budget remains escrowed and is refundable to advertiser after campaign end.
+- Static creative policy: PNG/JPEG/WebP/text/MP4 only, bounded size; scripts, tracking, fingerprinting and popups are rejected even for paid campaigns.
+- Daemon/CLI/Tauri advertiser/reward controls added; Wallet QRX-Net exposes Ad Shield policy, campaign funding and reward claims.
+- Regression: net_phase122_ad_economy. Full internal suite 55/55 PASS.
+
+NEXT: 0.0.8.81 — QRX YOUTH PROTECTION + FAMILY SAFETY
+- local privacy-preserving age/content policy; no central censorship authority
+- youth profiles default sponsored ads OFF and viewer-ad rewards OFF
+- signed content/ad categories, unrated fail-closed option, guardian PIN/policy integrity
+- domain allow/block lists, DApp/payment constraints, time/session limits
+- youth policy must override campaign payment: advertisers can never buy around the youth filter
+
+0.0.8.81 — QRX YOUTH PROTECTION + FAMILY SAFETY — DONE
+- Added privacy-preserving local Family Safety policy engine; no central QRX browsing-history/censorship service is required.
+- Profiles: ADULT, TEEN, CHILD with explicit max-age rating ceiling, blocked category mask, domain allow/block lists, DApp/payment/capability gates and session-duration policy.
+- CHILD defaults: max rating 12, unrated blocked, gambling/adult/drugs blocked, no DApp/payment/signature capability, sponsored ads OFF, viewer-ad rewards OFF.
+- TEEN defaults: max rating 16, unrated blocked, gambling/adult blocked, DApp may be guardian-enabled but sponsored ads/viewer rewards remain OFF by default.
+- Youth navigation evaluation is fail-closed for missing/unrated content when policy requires ratings; local guardian block/allow lists override publisher metadata.
+- Paid QRX campaigns can never bypass youth policy: sponsored-ad and viewer-reward capabilities have explicit policy decisions independent of campaign escrow/payment.
+- Added encrypted local policy persistence in Core: AES-256-GCM + PBKDF2-HMAC-SHA3-256; wrong PIN/tampering fails authentication.
+- Wallet/Tauri Family Safety vault uses Argon2id (64 MiB, t=3, p=1) + AES-256-GCM, wallet/network scoped, private-file permissions on supported platforms.
+- Youth-profile vault validation rejects policies that attempt to re-enable sponsored ads or viewer rewards.
+- QRX Browser is now a first-class Wallet App like Generals: own Tauri window (`qrx-browser`), own browser/index.html and Apps launchpad icon.
+- Standalone browser keeps QRX and WWW routing separate; QRX remains no-DNS-fallback and runs inside the existing opaque zero-permission sandbox.
+- Family Safety UI supports Adult/Teen/Child profile selection, encrypted Guardian PIN storage and per-domain allow/block controls.
+- Regression: net_phase123_youth_safety covers profile defaults, age/category/unrated gates, normalized domain allow/block behavior, ad/reward/payment denial, encrypted persistence, wrong PIN and vault tampering.
+- Full internal Core suite: 56/56 PASS.
+- Main wallet and standalone browser inline JavaScript syntax: PASS.
+
+NEXT STEP:
+0.0.8.82 — QRX-NET GLOBE + HOSTING MISSIONS / RESOURCE UX COMPLETION
+- extend the privacy-preserving Resource Globe from storage capacity into QRX-Net website availability/hosting missions without exposing exact node/IP/home locations
+- show aggregated .qrx hosting health, provider diversity, ACTIVE/DEGRADED/REPAIRING state and PUBLIC_SIGNED availability by privacy cell
+- add voluntary hosting missions/reward opportunities based on protocol demand, storage reputation and failure-domain diversity; no central assignment service
+- browser/domain cards link to verified hosting health and version state without exposing provider endpoints
+- integrate ad-delivery/network reward activity only as aggregate privacy-safe telemetry
+- family/youth policy must never expose browsing history through globe/telemetry
+- adversarial privacy tests for sparse cells, single-provider inference, route leakage, mission manipulation and reward spoofing
+
+0.0.8 remains OPEN after 0.0.8.81. Complete 0.0.8.82 and then the final adversarial/testnet/mainnet-readiness gate before marking the branch DONE.
+
+0.0.8.82 — QRX-NET GLOBE + HOSTING MISSIONS / RESOURCE UX COMPLETION — DONE
+- Added privacy-safe hosting mission derivation from already-public Resource Atlas cells only; hidden/sparse cells can never be surfaced indirectly as missions.
+- New daemon/CLI RPC `gethostingmissions` exposes only aggregated region-cell demand: wanted additional providers, wanted free bytes, opportunity score and incentive factor.
+- Mission target defaults: 10 providers per visible privacy cell and 1 GiB free proven capacity reserve; this is an incentive signal, never a central assignment.
+- Reward multiplier is derived from existing protocol opportunity score and capped at 1.20x normal storage/hosting earnings; provider selection/placement remains consensus/decentralized.
+- Resource Globe Wallet UI now lists live Hosting Missions and refreshes them with the atlas snapshot.
+- No provider ID, IP, endpoint, home-node location or browsing/viewer history is present in mission output.
+- Hidden privacy cells are explicitly filtered before mission calculation, preventing sparse-cell inference via negative-capacity mission telemetry.
+- Regression `net_phase124_hosting_missions` covers hidden-cell suppression, provider/capacity demand and incentive cap.
+- Full internal Core suite: 57/57 PASS.
+
+NEXT STEP:
+0.0.8.83 — FINAL ADVERSARIAL / TESTNET / MAINNET-READINESS GATE
+- consolidated attack/failure matrix across PRIVATE_PQ Drive, PoStor/repair, .qrx naming/hosting, browser sandbox/DApp permissions, Ad Shield and Youth Safety
+- property/fuzz-style malformed protocol inputs for storage/discovery/site packages/resolver/permission messages
+- restart/crash/reorg exercises for contract/assignment/upload/PoStor/repair/site-publish journals
+- privacy regression proving no endpoint/home-node/viewer-history leakage through Resource Globe, shard routes or hosting missions
+- economic abuse tests for duplicate domains, storage/reward farming, sponsored-ad replay/Sybil pressure and mission spoofing
+- multi-node testnet smoke with 10-of-14 loss/recovery, provider churn, domain publish/fetch/rollback and browser verification
+- release build/tooling audit, wallet/core/CLI feature-parity audit, migration/backward-compatibility checks and roadmap DONE checklist
+- only after this gate passes may QRX 0.0.8 be marked DONE and 0.0.9 QRX Compute begin.
+
+============================================================
+IMPLEMENTATION STATUS UPDATE — 0.0.8.83 FINAL
+============================================================
+
+DONE — FINAL ADVERSARIAL / RELEASE-READINESS IMPLEMENTATION GATE
+- Audited the complete 0.0.8 feature chain: Resource Protocol, PRIVATE_PQ Drive, STANDARD 10+4 erasure, authenticated discovery, provider activation, PoStor, repair, .qrx registry/economics, PUBLIC_SIGNED hosting, verified browser, zero-permission sandbox, DApp broker, sponsored-ad economy, Youth Safety and privacy-safe Hosting Missions.
+- Fixed the release-build test harness: post-0.0.8.57 assert-based regression executables now compile with assertions enabled even under RelWithDebInfo, preventing NDEBUG from deleting setup calls and causing false release-test crashes.
+- Added net_phase125_final_readiness consolidated invariant regression covering: reward split sums to 100%, >=3 provider receipts, Child/Teen ads+viewer rewards fail closed, qrx:// no-DNS/no-wallet/no-filesystem/no-external-network sandbox, traversal rejection, and Hosting Mission reward cap <=1.20x.
+- RelWithDebInfo + QRX_BUILD_TESTS=ON: 58/58 CTest PASS.
+- Release compilation PASS. Existing compiler warnings were inventoried; they do not block compilation, but warning cleanup remains normal hardening work and must not be confused with feature-roadmap completion.
+- QRX 0.0.8 FEATURE ROADMAP IS NOW DONE.
+
+IMPORTANT RELEASE DISTINCTION
+- "0.0.8 roadmap DONE" means the planned implementation/features and internal regression gate are complete.
+- It does NOT by itself constitute an external Mainnet launch certification.
+- Before public Mainnet activation still require: real multi-host/real-network chaos testnet soak, cross-platform Tauri/Cargo builds (Windows/macOS/Linux/ARM targets), upgrade/migration rehearsal against production-like 0.0.7 state, independent security review/fuzzing, packaging/signing/reproducibility checks and operational incident/rollback drills.
+
+NEXT BRANCH:
+0.0.9 — QRX COMPUTE
+- distributed CPU/AI compute substrate on top of the shared Resource Protocol
+- heterogeneous scheduling across Linux/Windows/macOS and ARM/x86
+- hardware capability discovery and CPU AI acceleration where available
+- deterministic job/result commitments, metering, rewards, sandboxing and abuse controls
+- preserve 0.0.8 Storage + QRX-Net feature parity as mandatory regression baseline
+
+IMPLEMENTATION STATUS — 2026-09-09
+----------------------------------
+- 0.0.9.0 Compute Foundation: DONE
+- 0.0.9.1 Cross-Platform Compute Runtime / Native Capability Discovery: DONE
+- 0.0.9.2 Standardized Compute Benchmark / Normalized Compute Units: DONE
+- Benchmark schema covers BF16, MXFP4, memory, storage, network, MoE expert execution and model inference
+- Deterministic fixed-point QRX Compute Score / NCU normalization added
+- Self-reported benchmark scores are NOT reward proofs; attestation/challenge remains later verification work
+- Regression: 61/61 tests PASS
+- Next: 0.0.9.3 QRX AI Model Registry
+
+
+0.0.9.6 – SECURE EXECUTION SANDBOX & RESUMABLE BUDGET GUARD — DONE 2026-09-09
+- deny-by-default portable sandbox policy
+- wallet keys / host secrets / host filesystem never grantable
+- raw network denied in V1; later only explicit allowlisted proxy
+- resource ceilings for memory/runtime/output/subprocesses
+- budget warning >=80%, checkpointing >=95%, hard pause at 100%
+- PAUSED_BUDGET_EXHAUSTED -> explicit BUDGET_EXTENDED -> RESUMING
+- verified spend can never exceed previously authorized budget
+- resumable QRX Drive checkpoint references
+- native OS isolation backends remain executor work; policy foundation does not falsely claim them
+
+0.0.9.7 – PROOF OF USEFUL COMPUTE VERIFICATION FOUNDATION — DONE 2026-09-09
+- deterministic PoUC execution receipts
+- binds graph/node/provider/input/model/runtime/parameters/result/verified amount/heights
+- domain-separated SHA3-256 receipt commitments
+- SPOT / RANDOM / REDUNDANT 2-of-3 verification profiles
+- settlement-ready accepted/rejected verification result
+- challenge transport, verifier assignment, partial recomputation and slashing remain follow-up hardening
+
+NEXT: 0.0.9.8 – AURA AGENT RUNTIME & TOOL API

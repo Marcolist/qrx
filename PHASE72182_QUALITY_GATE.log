@@ -1,0 +1,83 @@
+Key parity: 34 locales x 826 keys
+de: identical non-technical candidates=343
+WARN wallet.auto.b358a3f52022: GUI Wallet
+WARN wallet.auto.649df08a448e: English
+WARN wallet.auto.a6a7709266d3: Deutsch
+WARN wallet.auto.2ca514ebd7c3: Français
+WARN wallet.auto.2001ca082b2d: Español
+WARN wallet.auto.21df73947a06: Italiano
+WARN wallet.auto.053aa1d851d8: Português
+WARN wallet.auto.f61c54c1d707: Nederlands
+WARN wallet.auto.fd2001151c98: Polski
+WARN wallet.auto.a56cf3aec9e1: Čeština
+WARN wallet.auto.3c0f421dceea: Slovenčina
+WARN wallet.auto.9e3f584b004e: Slovenščina
+WARN wallet.auto.0efed3055c29: Hrvatski
+WARN wallet.auto.31904d8253a7: Magyar
+WARN wallet.auto.cac71941ad5b: Română
+WARN wallet.auto.e34d7128b6cc: Български
+WARN wallet.auto.08a6101b132a: Ελληνικά
+WARN wallet.auto.f344580ac42f: Svenska
+WARN wallet.auto.c2d04a6717cf: Dansk
+WARN wallet.auto.e43343e2e3bd: Suomi
+WARN wallet.auto.6aab67ec81dd: Eesti
+WARN wallet.auto.6dcf141d2530: Latviešu
+WARN wallet.auto.99b6f585cb81: Lietuvių
+WARN wallet.auto.7a7123bd68fa: Gaeilge
+WARN wallet.auto.578e11d15070: Malti
+WARN wallet.auto.c9f5bb74a8bc: Íslenska
+WARN wallet.auto.2d0887e93e10: Norsk
+WARN wallet.auto.181bf512944d: Українська
+WARN wallet.auto.efaad145ca77: Türkçe
+WARN wallet.auto.d33f31ad3d90: Bahasa Indonesia
+WARN wallet.auto.7160c86e7097: ไทย
+WARN wallet.auto.93659150d0e5: 简体中文
+WARN wallet.auto.1f7e4a4c370c: 繁體中文
+WARN wallet.auto.c12140a0ffb4: 日本語
+WARN wallet.auto.b60862f4855a: Wallet
+WARN wallet.auto.1fb3910286aa: QRX / QUB Wallet
+WARN wallet.auto.859ea03c4c57: Main parameters used by the current QRX core.
+WARN wallet.auto.9baf4be0cbca: 10 seconds
+WARN wallet.auto.c8fe79faaf6b: 0.25 QUB initial reward
+WARN wallet.auto.0078cc345b17: 100 QUB self-stake
+WARN wallet.auto.c7cdadacf96f: 50% slash + tombstone
+WARN wallet.auto.e01fa717bacc: Offline
+WARN wallet.auto.5a785a2c56ff: Wallet/Delegator Mode may go offline. Validator Fleet hosts must stay online while they are validating.
+WARN wallet.auto.cd83e60b2ac0: Minimal, glassy, cross-chain ready.
+WARN wallet.auto.f86bd93c8dd0: .qrxseed
+WARN wallet.auto.3125a72544a0: QUB + BTC Light
+WARN wallet.auto.f937c37e949d: node1
+WARN wallet.auto.d87f47b47e4d: Dashboard
+WARN wallet.auto.d9a36850b7f3: Apps
+WARN wallet.auto.1b5a571459ec: Staking
+WARN wallet.auto.4525731bf731: Agents & Kraken
+WARN wallet.auto.8119e7f319c9: Roadmap
+WARN wallet.auto.98d5a197e598: Wallets
+WARN wallet.auto.314f19a4709a: Daemon offline
+WARN wallet.auto.4fad6994474b: RPC endpoint:
+WARN wallet.auto.e90a821240c8: Data dir:
+WARN wallet.auto.7c3d0ff954c2: QUBITCOIN GUI Wallet
+WARN wallet.auto.4a94579b037f: Peers
+WARN wallet.auto.4c8335bf3d9a: Host / IP
+WARN wallet.auto.fe035157cda2: Port
+WARN wallet.auto.3deb74565196: Type
+WARN wallet.auto.3e5c8378468a: Reward notifications
+WARN wallet.auto.652a390076df: Allow desktop alerts
+WARN wallet.auto.0f48e55686e4: Validator rewards
+WARN wallet.auto.384a98085658: Delegation rewards
+WARN wallet.auto.b536385aff76: Trading / settlement
+WARN wallet.auto.2dcc227966dc: In-app activity remains visible even when desktop alerts are off.
+WARN wallet.auto.b22cf66e76f9: AURA Wallet AI Assistant
+WARN wallet.auto.18ef453c9364: Open AURA
+WARN wallet.auto.f90a8991d4e9: Wallet info
+WARN wallet.auto.33ce417454bf: Loading…
+WARN wallet.auto.b341eaf9214b: Node info
+WARN wallet.auto.120158d9a2d9: Tokenomics
+WARN wallet.auto.f1773bd3aa21: Daemon health
+WARN wallet.auto.658b55a6337b: Serverless strategy · on-chain identity
+WARN wallet.auto.43370a81d869: More apps
+WARN wallet.auto.413343423e28: QRX native apps can appear here later
+WARN wallet.auto.79428657907e: QUB · QUBITCOIN
+WARN wallet.auto.adba40120954: Available balance
+WARN wallet.auto.b70169956b2a: After send
+ERROR manifest: key mismatch missing=826 extra=4

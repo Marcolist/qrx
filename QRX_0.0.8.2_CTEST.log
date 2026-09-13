@@ -1,0 +1,26 @@
+Internal ctest changing into directory: /mnt/data/qrx-core-0.0.8.2-capacity-accounting/qrx-core/build-0802
+Test project /mnt/data/qrx-core-0.0.8.2-capacity-accounting/qrx-core/build-0802
+      Start  1: velocity_phase4_engine
+ 1/10 Test  #1: velocity_phase4_engine ..............   Passed    0.05 sec
+      Start  2: velocity_phase4b_mvcc
+ 2/10 Test  #2: velocity_phase4b_mvcc ...............   Passed    0.08 sec
+      Start  3: velocity_phase4c_stateful_mvcc
+ 3/10 Test  #3: velocity_phase4c_stateful_mvcc ......   Passed    0.05 sec
+      Start  4: velocity_phase4d_dynamic_mvcc
+ 4/10 Test  #4: velocity_phase4d_dynamic_mvcc .......   Passed    0.13 sec
+      Start  5: velocity_phase4e_speculative_mvcc
+ 5/10 Test  #5: velocity_phase4e_speculative_mvcc ...   Passed    0.13 sec
+      Start  6: velocity_phase4f_block_scheduler
+ 6/10 Test  #6: velocity_phase4f_block_scheduler ....   Passed    0.02 sec
+      Start  7: bitcoin_spv_phase71_hardening
+ 7/10 Test  #7: bitcoin_spv_phase71_hardening .......   Passed    0.09 sec
+      Start  8: resource_phase080_foundation
+ 8/10 Test  #8: resource_phase080_foundation ........   Passed    0.01 sec
+      Start  9: storage_phase081_filesystem
+ 9/10 Test  #9: storage_phase081_filesystem .........   Passed    0.02 sec
+      Start 10: storage_phase082_capacity
+10/10 Test #10: storage_phase082_capacity ...........   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 10
+
+Total Test time (real) =   0.61 sec

@@ -1,0 +1,18 @@
+QRX Generals 0.0.7.7 Phase 3.1 validation
+
+PASS:
+- deterministic adaptive world tier planner
+- 128/256/512/1024/2048 tier boundaries
+- persisted monotonic season world dimensions
+- 64x64 chunk-local occupancy keys
+- Phase-3 flat occupancy read compatibility
+- deterministic HQ placement
+- minimum HQ distance enforcement
+- clustered starter infantry around HQ
+- world/chunk introspection
+- Phase 1 regression
+- Phase 2 regression
+- Phase 3 movement/commit-reveal regression
+- 0.0.7.6 native asset consensus regression
+
+Build completed with existing project warnings; build is not warning-free.

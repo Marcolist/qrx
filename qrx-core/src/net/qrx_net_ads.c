@@ -1,0 +1,19 @@
+#include "net/qrx_net_ads.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+static int tok(const char*s,size_t n){if(!s||!*s||strlen(s)>=n)return 0;for(const unsigned char*p=(const unsigned char*)s;*p;p++)if(*p<' '||*p=='|'||*p==';')return 0;return 1;}
+int qrx_ad_reward_split(uint64_t a,QrxAdRewardSplit*o){
+ if(!o||a<QRX_AD_MIN_IMPRESSION_ATOMS)return -1;
+ if(QRX_AD_REWARD_DELIVERY_BPS+QRX_AD_REWARD_PUBLISHER_BPS+QRX_AD_REWARD_VIEWER_BPS+QRX_AD_REWARD_PROTOCOL_BPS+QRX_AD_REWARD_DEVELOPMENT_BPS!=10000u)return -2;
+ memset(o,0,sizeof(*o));
+ o->delivery_atoms=a*QRX_AD_REWARD_DELIVERY_BPS/10000u;
+ o->publisher_atoms=a*QRX_AD_REWARD_PUBLISHER_BPS/10000u;
+ o->viewer_atoms=a*QRX_AD_REWARD_VIEWER_BPS/10000u;
+ o->protocol_atoms=a*QRX_AD_REWARD_PROTOCOL_BPS/10000u;
+ o->development_atoms=a-o->delivery_atoms-o->publisher_atoms-o->viewer_atoms-o->protocol_atoms;
+ return 0;
+}
+int qrx_ad_creative_policy(const char*m,size_t bytes,int script,int tracking,int popup,int fp){if(!m||!bytes||bytes>QRX_AD_MAX_CREATIVE_BYTES||script||tracking||popup||fp)return -1;return !strcmp(m,"image/png")||!strcmp(m,"image/jpeg")||!strcmp(m,"image/webp")||!strcmp(m,"text/plain")||!strcmp(m,"video/mp4")?0:-1;}
+static int uh(const char*s,uint8_t b[64]){if(!s||strlen(s)!=128)return -1;for(int i=0;i<64;i++){char a=s[2*i],c=s[2*i+1];int x=a>='0'&&a<='9'?a-'0':a>='a'&&a<='f'?a-'a'+10:-1,y=c>='0'&&c<='9'?c-'0':c>='a'&&c<='f'?c-'a'+10:-1;if(x<0||y<0)return -1;b[i]=(uint8_t)((x<<4)|y);}return 0;}
+int qrx_ad_campaign_get(QrxDB*db,const char*id,QrxAdCampaign*o){if(!db||!o||!tok(id,129))return -1;char k[300],v[1800];snprintf(k,sizeof(k),"qrxnet/ad/campaign/%s",id);if(qrxdb_get(db,k,v,sizeof(v)))return -1;char*t=strdup(v),*s=NULL,*a[13];int n=0;for(char*x=strtok_r(t,"|",&s);x&&n<13;x=strtok_r(NULL,"|",&s))a[n++]=x;if(n!=13||strcmp(a[0],"1")){free(t);return -1;}memset(o,0,sizeof(*o));snprintf(o->campaign_id,sizeof(o->campaign_id),"%s",id);snprintf(o->advertiser,sizeof(o->advertiser),"%s",a[1]);snprintf(o->target_url,sizeof(o->target_url),"%s",a[2]);snprintf(o->category,sizeof(o->category),"%s",a[3]);if(uh(a[4],o->creative_root)){free(t);return -1;}o->start_height=strtoull(a[5],0,10);o->end_height=strtoull(a[6],0,10);o->cost_per_impression_atoms=strtoull(a[7],0,10);o->total_budget_atoms=strtoull(a[8],0,10);o->remaining_budget_atoms=strtoull(a[9],0,10);o->settled_impressions=strtoull(a[10],0,10);o->status=(uint32_t)strtoul(a[11],0,10);/* a[12] format reserve */free(t);return 0;}

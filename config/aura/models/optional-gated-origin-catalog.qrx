@@ -1,0 +1,5 @@
+QRXAURA-ORIGIN-CATALOG-2
+# Optional/Advanced catalog. Entries here are never selected by normal zero-touch AUTO.
+# model_id|family|huggingface_repo|revision|expected_license|architecture_hint|runtime_id|quantization|tier|recommended|moe_hint|min_memory_mib|recommended_memory_mib|min_milli_tokens_per_second|quality_bps|coding_bps|reasoning_bps|rag_bps|tool_use_bps|auto_default|gated_optional|file_filter
+qrx/llama3.2-1b-instruct-advanced|llama|meta-llama/Llama-3.2-1B-Instruct|main|llama3.2|llama3|external|bf16|1|0|0|3072|4096|500|7300|6800|6500|7000|6900|0|1|*
+qrx/llama3.2-3b-instruct-advanced|llama|meta-llama/Llama-3.2-3B-Instruct|main|llama3.2|llama3|external|bf16|2|0|0|8192|12288|1500|8200|7600|7500|7900|7800|0|1|*

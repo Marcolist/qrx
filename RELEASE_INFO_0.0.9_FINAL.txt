@@ -1,0 +1,11 @@
+QRX 0.0.9 FINAL SOURCE SNAPSHOT
+Date: 2026-09-11
+Roadmap: 0.0.9.45 through 0.0.9.49 DONE
+Registered C/Core regression: 107/107 PASS
+Documentation coverage gate: PASS (20 GUI view-* pages)
+Canonical handbook: docs/QRX_A_TO_Z_0.0.9.md
+Offline handbook: docs/QRX_A_TO_Z_0.0.9.html
+Printable handbook: docs/QRX_A_TO_Z_0.0.9.pdf
+
+Release boundary:
+Native Tauri installers, target-OS signing/notarization and public release signatures must be produced/validated on their target CI/release hosts. The Linux C regression suite does not certify those artifacts or constitute an independent security audit.

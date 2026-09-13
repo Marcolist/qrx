@@ -1,0 +1,9 @@
+QRX 0.0.7.7 Generals Phase 3 final validation
+UTC 2026-09-04 15:23:13
+
+PASS: QRX Generals 0.0.7.7 Phase 1 serverless consensus: player identity, native unique General, GAME_JOIN, clan creation, treasury funding, WAL atomicity, address compatibility
+PASS: QRX Generals 0.0.7.7 Phase 2 serverless consensus: deterministic seasons/turns, regenerating energy, season entry + reserved prize pool, clan invite IDs, join/leave/rejoin, WAL atomicity, and wallet/address compatibility
+PASS: 0.0.7.6 consensus native assets: issue/reissue lock/sub/unique/owner/qualifier/restricted/tag/global-freeze/address-compatibility
+PASS: QRX Generals 0.0.7.7 Phase 3 deterministic world & orders: deterministic terrain/spawn, starter units, commit/reveal timing, commitment verification, movement, occupancy, Energy debit, replay rejection, WAL atomicity, wallet compatibility
+
+CMake build: PASS (with existing warnings; see build environment output)

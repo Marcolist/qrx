@@ -8,12 +8,6 @@ const char *QRX_DEFAULT_SEEDNODES[QRX_SEEDNODE_COUNT] = {
     "seed3.qrxchain.org"
 };
 
-const char *QRX_COMMUNITY_BOOTSTRAP_IPS[QRX_COMMUNITY_BOOTSTRAP_IP_COUNT] = {
-    "203.0.113.10",
-    "203.0.113.11",
-    "203.0.113.12",
-    "203.0.113.13"
-};
 
 void qrx_p2p_config_defaults(qrx_p2p_runtime_config_t *cfg) {
     if(!cfg) return;

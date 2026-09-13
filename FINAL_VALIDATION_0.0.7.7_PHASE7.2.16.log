@@ -1,0 +1,36 @@
+QRX 0.0.7.7 Phase 7.2.16 Final Validation
+
+Base: Phase 7.2.15 Mainnet Consensus Red-Team Remediation
+Purpose: Mainnet Genesis Dress Rehearsal / Byzantine Multi-Node Simulation
+Scheduled Genesis: 2026-09-15 18:00 CEST / 16:00 UTC / 1789488000
+
+RESULTS
+- Fresh CMake configure (QRX_REQUIRE_PQC=OFF, QRX_BUILD_TESTS=ON): PASS
+- Fresh Core build: PASS
+- CTest: 7/7 PASS
+- Phase 7.2.12 adversarial staking model: 10,000 cases PASS
+- Phase 7.2.13 home-validator safety assertions: PASS
+- Phase 7.2.15 consensus red-team assertions: PASS
+- Phase 7.2.16 Byzantine multi-node dress rehearsal: 14 scenario groups PASS
+- Randomized Byzantine partition/quorum model: 5,000 deterministic cases PASS
+
+PHASE 7.2.16 SCENARIOS
+1. Genesis time boundary / pre-Genesis rejection
+2. Seven-node happy-path finality/convergence
+3. Wrong finalized parent rejection
+4. Height skip rejection
+5. Parent state-root mismatch rejection
+6. Wrong deterministic proposer rejection
+7. Excessive future clock drift rejection
+8. SAFE PAUSED signer rejection
+9. Jailed and tombstoned signer rejection
+10. Strict >2/3 quorum boundary
+11. Minority network partition cannot finalize; heal converges
+12. Competing blocks + double-vote evidence
+13. Crash/restart/catch-up convergence
+14. 5,000 randomized Byzantine quorum/partition cases
+
+SECURITY DESIGN
+- No Mainnet time override or test-only consensus bypass added.
+- Simulator is separate and source-bound to the production 7.2.15 validation invariants.
+- This test phase is not a substitute for a real multi-host operational rehearsal with the final 50 bootstrap public addresses, five governance public keys and production seed DNS.

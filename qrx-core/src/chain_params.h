@@ -26,6 +26,7 @@ int qrx_chain_write_genesis(const char *chain_dir,
                             long long validator_reward_percent,
                             long long delegator_reward_percent,
                             long long network_pool_percent,
+                            const char *dev_address,
                             long long genesis_time);
 int qrx_chain_verify_genesis(const char *chain_dir);
 long long qrx_chain_get_block_reward_at_height(const char *chain_dir, long long height, long long dflt_initial_reward_atoms, long long dflt_halving_interval_blocks);

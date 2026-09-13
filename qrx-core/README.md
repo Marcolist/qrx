@@ -1,6 +1,24 @@
+# QRX 0.0.9 Final Source Snapshot
+
+**Roadmap closeout:** 0.0.9.45-0.0.9.49 complete on 2026-09-11.  
+**Registered Core regression:** 107/107 PASS.  
+**Canonical handbook:** `docs/QRX_A_TO_Z_0.0.9.md` (also HTML/PDF in the release).
+
+Highlights of the final 0.0.9 AURA block include zero-config model discovery/replication, autonomous expert placement and repair, provider supervision/relay failover, signed runtime packages and hardware auto-detection, model provenance/license governance, heterogeneous quality/cost/energy routing, release readiness gates and an automated GUI-to-documentation coverage gate.
+
+> Validation boundary: the 107/107 result is the registered C/Core regression suite. Native Tauri builds, platform code signing and notarization must still run on their target release hosts/CI and are not implied by the Linux C test result.
+
+---
+
 # QRX RC6.4 Final Merge — Cleaned & Unified
 
 This repository is the cleaned, unified QRX working tree for a **public alpha / hobby network**.
+
+## VELOCITY Phase 4F.2
+
+The enclosing release adds cross-venue BTC/QUB → Kraken BTC/EUR opportunity analysis, paper trading, an explicit-confirmation `LIMIT IOC` hedge route and a complete CSV ledger. Live execution requires prefunded Kraken BTC and the separate `ARBITRAGE_CROSS_VENUE` agent permission.
+
+The parity correction includes `tools/qrx-wallet-cli.py`, a safe full `qrx-cli` bridge in Tauri, the shared `qrx-btc-wallet-service`, unbounded local enumeration and the atomic State-Root-verified `QRX_COMPLETE_LEDGER_V3` export. The exporter supports all-time, year, quarter and explicit UTC from/to periods and fails instead of publishing partial results.
 
 ## What this repo is
 

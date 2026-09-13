@@ -1,0 +1,12 @@
+Internal ctest changing into directory: /mnt/data/qrx_tokenomics_san_build
+Test project /mnt/data/qrx_tokenomics_san_build
+    Start 88: compute_phase155_pouc_upstream_transactions
+    Start 87: compute_phase154_pouc_block_pipeline
+1/3 Test #87: compute_phase154_pouc_block_pipeline ..........   Passed    0.06 sec
+    Start 64: compute_phase131_market_escrow
+2/3 Test #64: compute_phase131_market_escrow ................   Passed    0.02 sec
+3/3 Test #88: compute_phase155_pouc_upstream_transactions ...   Passed    0.10 sec
+
+100% tests passed, 0 tests failed out of 3
+
+Total Test time (real) =   0.10 sec

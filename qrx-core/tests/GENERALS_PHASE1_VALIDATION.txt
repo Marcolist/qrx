@@ -1,0 +1,19 @@
+QRX Generals 0.0.7.7 Phase 1 validation
+
+Native host clean CMake build: PASS
+0.0.7.6 native asset regression suite: PASS
+0.0.7.7 Generals Phase 1 suite: PASS
+
+Validated Phase-1 invariants:
+- hybrid signed GAME_* transaction acceptance path
+- wallet-address deterministic player identity
+- duplicate GAME_JOIN rejected atomically
+- native UNIQUE GENERAL# asset created with fixed supply=1 and reissuable=0
+- generic asset transfer of GENERAL# rejected to prevent split ownership state
+- clan name/tag uniqueness roots stored in QRXDB
+- clan founder/leader/member state stored in QRXDB
+- GAME_JOIN contribution credited to Generals treasury
+- GAME_CLAN_CREATE contribution credited to Generals treasury
+- GAME_TREASURY_FUND contribution credited to Generals treasury
+- account debit and treasury/game state share the same WAL batch
+- existing QRX address remains unchanged

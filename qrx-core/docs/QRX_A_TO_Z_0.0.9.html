@@ -1,0 +1,2222 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>QRX 0.0.9 A-Z Handbook</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">QRX 0.0.9 A-Z Handbook</h1>
+</header>
+<h1 id="qrx-0.0.9-az-handbook">QRX 0.0.9 — A–Z Handbook</h1>
+<p><strong>Canonical offline handbook for QRX Core, GUI Wallet, QRX
+Drive, QRX-Net and AURA</strong><br />
+Documentation phase: <strong>0.0.9.49 + Genesis Freeze extensions
+through Apps UX/i18n / Phase 190</strong><br />
+Branch state covered: <strong>0.0.9.0 through the current 0.0.9 Genesis
+Freeze source snapshot</strong><br />
+Current Genesis Freeze regression baseline: <strong>123/123 registered
+Core tests PASS</strong>, including on-chain protocol governance,
+protocol readiness, QRX Upscaler capability profiles, the
+<code>.qrxapp</code> application foundation and the Phase 190
+multilingual/full-width Apps UX gate.</p>
+<blockquote>
+<p>This handbook explains the intended QRX user and operator workflows
+from first installation to advanced provider operation. QRX remains
+software that should be treated conservatively: keep backups, verify
+release hashes, test recovery before relying on funds, and do not treat
+a passing test suite as a substitute for an independent security
+audit.</p>
+</blockquote>
+<hr />
+<h2 id="qrx-in-one-page">1. QRX in one page</h2>
+<p>QRX is a native blockchain/network stack centered on <strong>QUB
+(QUBITCOIN)</strong> and extended by several layers that share the same
+wallet identity and node infrastructure:</p>
+<ul>
+<li><strong>QRX Chain / QUB</strong> — balances, transactions, staking,
+delegation, validators, finality, governance and native assets.</li>
+<li><strong>VELOCITY</strong> — high-throughput transaction execution,
+MVCC/speculative execution, native markets and cross-chain settlement
+foundations.</li>
+<li><strong>QRX Drive</strong> — decentralized encrypted storage with
+erasure coding, provider discovery, multi-provider downloads,
+resumability and repair.</li>
+<li><strong>QRX-Net</strong> — <code>.qrx</code> names, decentralized
+website packages, browser resolution, DApp permissions,
+advertising/reward policy and youth-safety controls.</li>
+<li><strong>AURA / Proof of Useful Compute</strong> — distributed useful
+compute, model/expert distribution, MoE scheduling, verified runtimes,
+provider discovery and task routing.</li>
+<li><strong>BTC Light / Bitcoin SPV</strong> — local Bitcoin key/service
+integration and SPV verification used by BTC-related wallet functions
+and Quantum Swaps.</li>
+<li><strong>Quantum Swaps / Velocity Cross-Chain</strong> — HTLC and
+Bitcoin-SPV-backed cross-chain settlement flows.</li>
+<li><strong>Markets / Agents &amp; Kraken</strong> — QRX-native order
+book plus explicitly authorized agent/gateway paths for external
+execution.</li>
+<li><strong>Generals</strong> — a separate QRX-native game/application
+layer that uses QRX wallet/network primitives.</li>
+<li><strong>QRX App Foundation</strong> — local third-party app
+packaging (<code>.qrxapp</code>), App Registry, sandboxed App Host,
+permission-gated Mini JS SDK and Developer Mode. Public/decentralized
+distribution is intentionally a 0.0.10 layer.</li>
+<li><strong>QRX Upscaler</strong> — local image/batch/video upscaling
+foundation with capability-aware Apple Silicon, Raspberry Pi 5 and
+ODROID-N2/N2+ handling; distributed frame processing remains gated
+behind Proof of Useful Compute.</li>
+</ul>
+<h3 id="what-is-consensus-critical-and-what-is-not">What is
+consensus-critical and what is not?</h3>
+<p>Do not assume everything visible in the wallet lives on-chain.</p>
+<p><strong>Consensus/state examples:</strong> QUB balances, signed
+transactions, validator/delegation state, native markets, governance
+state, asset state, PoUC settlement state, domain commitments and other
+explicitly committed protocol objects.</p>
+<p><strong>Dynamic/off-chain examples:</strong> current AURA provider
+load, model chunk availability, WAN latency, relay health, model cache
+contents, local GUI preferences, local BTC service state and most
+short-lived discovery data. These can be signed and verified without
+being written into every block.</p>
+<h3 id="networks">Networks</h3>
+<p>QRX supports the profiles:</p>
+<ul>
+<li><code>mainnet</code></li>
+<li><code>alpha</code></li>
+<li><code>testnet</code></li>
+<li><code>regtest</code></li>
+</ul>
+<p>The current source schedules <strong>Mainnet genesis for 15 September
+2026 at 16:00 UTC / 18:00 CEST</strong>. Nodes can be prepared before
+that time, but Mainnet block production is prevented before the
+configured activation timestamp.</p>
+<h3 id="genesis-tokenomics-and-service-economics">Genesis tokenomics and
+service economics</h3>
+<p>The Genesis policy deliberately separates <strong>protocol
+emission</strong> from <strong>paid network services</strong>. Storage,
+useful compute and advertising do not create a second inflation stream.
+Their rewards come from QUB already escrowed by the user/advertiser.</p>
+<p><strong>Protocol / staking emission</strong></p>
+<ul>
+<li>Genesis block reward: <strong>0.25 QUB every 10 seconds</strong>
+(<code>25,000,000</code> atoms).</li>
+<li>Initial gross subsidy: <strong>788,400 QUB/year</strong> at the
+10-second target before halvings.</li>
+<li>Halving interval: <strong>12,614,400 blocks</strong> (about four
+years at target block time).</li>
+<li>Maximum supply remains <strong>21,000,000 QUB</strong>. This is a
+hard ceiling, not the issuance target of the current schedule. With a
+0.25-QUB initial reward and four-year halvings, the idealized subsidy
+series totals about <strong>6,307,200 QUB</strong> before integer-atom
+rounding; reaching a Bitcoin-like ~21M emission would require a
+different pre-Genesis emission design.</li>
+<li>The development-fund share is carved out of the block subsidy (20%
+year 1, 10% year 2, 5% year 3, 2% thereafter); it does
+<strong>not</strong> mint on top of the block reward.</li>
+</ul>
+<p><strong>Proof of Storage / QRX Drive</strong></p>
+<p>A storage contract is funded by the client and split
+deterministically:</p>
+<ul>
+<li><strong>97.5%</strong> provider budget</li>
+<li><strong>2.0%</strong> resilience/repair reserve</li>
+<li><strong>0.5%</strong> QRX development share</li>
+</ul>
+<p>Unused provider/resilience escrow follows the contract refund rules.
+Storage proof payouts and repair payouts come from those funded pools
+rather than new QUB issuance.</p>
+<p><strong>Proof of Useful Compute / AURA</strong></p>
+<p>Normal verified compute is paid from the job owner’s authorized
+compute escrow. Optional FastTrack is capped at <strong>25% of the
+maximum compute budget</strong> and its surcharge is split:</p>
+<ul>
+<li><strong>90.0%</strong> to the provider performing the priority
+work</li>
+<li><strong>9.5%</strong> to the QRX network/fee pool</li>
+<li><strong>0.5%</strong> to the QRX development share</li>
+</ul>
+<p>Verifier/challenge rewards are also explicitly user-funded in the
+job’s verification budget. Compute cannot mint additional QUB simply
+because more machines join the network.</p>
+<p><strong>QRX-Net advertising</strong></p>
+<p>Each verified ad impression is paid from the advertiser’s campaign
+escrow and split:</p>
+<ul>
+<li><strong>55.0%</strong> delivery providers</li>
+<li><strong>25.0%</strong> publisher</li>
+<li><strong>15.0%</strong> viewer reward</li>
+<li><strong>4.5%</strong> protocol/network pool</li>
+<li><strong>0.5%</strong> QRX development share</li>
+</ul>
+<p>This means greater QRX usage can raise provider/validator/user income
+through actual demand without changing the monetary emission curve.</p>
+<hr />
+<h1 id="installation-and-first-start">2. Installation and first
+start</h1>
+<h2 id="recommended-path-for-beginners">2.1 Recommended path for
+beginners</h2>
+<p>For a normal desktop user:</p>
+<ol type="1">
+<li>Install the <strong>QRX GUI Wallet</strong> build matching the
+operating system and CPU.</li>
+<li>Start the wallet.</li>
+<li>Choose the intended network in the lower-left network selector.</li>
+<li>Create or import a wallet.</li>
+<li>Make and verify a recovery backup before receiving significant
+funds.</li>
+<li>Allow the wallet to start/connect the local QRX node.</li>
+<li>Use <strong>Dashboard → Mainnet Health</strong> (or the equivalent
+selected network) to confirm sync and peers.</li>
+</ol>
+<p>You normally do <strong>not</strong> need to install a separate model
+runtime, edit JSON, choose GGUF/MLX/CUDA, open a provider port, or
+manually select AURA experts.</p>
+<h2 id="supported-release-targets">2.2 Supported release targets</h2>
+<p>The unified builder currently knows these native release targets:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Target</th>
+<th>Typical output</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Linux x64</td>
+<td>Core/CLI + DEB/AppImage wallet</td>
+</tr>
+<tr class="even">
+<td>Linux ARM64</td>
+<td>Core/CLI + DEB/AppImage wallet</td>
+</tr>
+<tr class="odd">
+<td>macOS Intel</td>
+<td>Core/CLI + APP/DMG wallet</td>
+</tr>
+<tr class="even">
+<td>macOS Apple Silicon</td>
+<td>Core/CLI + APP/DMG wallet</td>
+</tr>
+<tr class="odd">
+<td>Windows x64</td>
+<td>Core/CLI + MSI/NSIS wallet</td>
+</tr>
+</tbody>
+</table>
+<p>Use native runners for final OS packages. The build system
+intentionally rejects pretending an x86 build is ARM simply by renaming
+it.</p>
+<h2 id="building-from-source">2.3 Building from source</h2>
+<p>Core-only development build:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> qrx-core</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cmake</span> <span class="at">-S</span> . <span class="at">-B</span> build</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cmake</span> <span class="at">--build</span> build <span class="at">-j</span></span></code></pre></div>
+<p>Run the native regression suite:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cmake</span> <span class="at">-S</span> . <span class="at">-B</span> build-tests <span class="at">-DQRX_BUILD_TESTS</span><span class="op">=</span>ON</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cmake</span> <span class="at">--build</span> build-tests <span class="at">-j</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">ctest</span> <span class="at">--test-dir</span> build-tests <span class="at">--output-on-failure</span></span></code></pre></div>
+<p>Unified host build:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> scripts/build-all-targets.sh <span class="at">--target</span> host</span></code></pre></div>
+<p>Inspect all build plans without compiling:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> scripts/build-all-targets.sh <span class="at">--all</span> <span class="at">--plan</span></span></code></pre></div>
+<p>The unified release builder compiles Core/CLI first, then the BTC
+wallet service and target sidecars, then the Tauri GUI, and finally
+packages checksummed artifacts.</p>
+<h2 id="data-layout">2.4 Data layout</h2>
+<p>The shared wallet design uses the user QRX root:</p>
+<pre class="text"><code>~/.qrx/</code></pre>
+<p>Network-specific chain/node state lives below the selected network,
+while the shared hybrid wallet identity lives in the common wallet
+store. The GUI and native Core intentionally point at the same shared
+root so a wallet does not have to be copied between CLI and GUI.</p>
+<p>Never manually merge two wallet directories containing different
+private-key sets.</p>
+<h2 id="coredaemoncli-entry-points">2.5 Core/daemon/CLI entry
+points</h2>
+<p>The native supported command-line programs are:</p>
+<ul>
+<li><code>qrx</code> — backend/core utility entry point</li>
+<li><code>qrxd</code> — daemon/node frontend</li>
+<li><code>qrx-cli</code> — local node/wallet control frontend</li>
+</ul>
+<p>Simple alpha example:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">QRX_PASSPHRASE</span><span class="op">=</span><span class="st">&#39;your-passphrase&#39;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./build/qrxd</span> <span class="at">--network</span> alpha <span class="at">--datadir</span> ./data <span class="at">--wallet</span> node1 <span class="at">--listen</span> 127.0.0.1:26661</span></code></pre></div>
+<p>Another terminal:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">./build/qrx-cli</span> <span class="at">--network</span> alpha <span class="at">--datadir</span> ./data <span class="at">--wallet</span> node1 getinfo</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./build/qrx-cli</span> <span class="at">--network</span> alpha <span class="at">--datadir</span> ./data <span class="at">--wallet</span> node1 getwalletinfo</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="ex">./build/qrx-cli</span> <span class="at">--network</span> alpha <span class="at">--datadir</span> ./data <span class="at">--wallet</span> node1 getnewaddress</span></code></pre></div>
+<hr />
+<h1 id="wallet-setup-identity-unlocking-and-recovery">3. Wallet setup,
+identity, unlocking and recovery</h1>
+<h2 id="the-qrx-wallet-identity">3.1 The QRX wallet identity</h2>
+<p>A QRX wallet uses a <strong>hybrid signing identity</strong>. The
+current wallet layout includes Ed25519 and ML-DSA-65 key material. The
+GUI is designed so normal users deal with the wallet name, address and
+passphrase rather than individual key files.</p>
+<h3 id="golden-rule">Golden rule</h3>
+<p><strong>The passphrase is not the recovery backup.</strong> Keep a
+recovery pair/back-up independently of the passphrase.</p>
+<h2 id="new-wallet-checklist">3.2 New wallet checklist</h2>
+<p>After creating a wallet:</p>
+<ol type="1">
+<li>Confirm the wallet address is displayed.</li>
+<li>Set a strong wallet passphrase.</li>
+<li>Open <strong>Safety Center</strong>.</li>
+<li>Generate/export an encrypted wallet backup and/or the supported
+recovery pair.</li>
+<li>Verify the backup health.</li>
+<li>Store at least one copy offline.</li>
+<li>Only then begin using rotating receive identities or holding
+meaningful QUB.</li>
+</ol>
+<h2 id="unlocking">3.3 Unlocking</h2>
+<p>The sidebar contains the session unlock control. Enter the wallet
+passphrase and press <strong>Enter</strong> or <strong>Unlock</strong>.
+The passphrase is intended to remain in application memory for the
+session rather than being written to settings.</p>
+<p>Use <strong>Lock wallet</strong> when you want the GUI to forget the
+in-memory passphrase.</p>
+<h2 id="recovery-center">3.4 Recovery Center</h2>
+<p>The recovery flow is create-only: it should restore into a
+<strong>new wallet name</strong> instead of overwriting an existing
+wallet directory.</p>
+<p>Typical safe recovery sequence:</p>
+<ol type="1">
+<li>Keep the original wallet folder untouched.</li>
+<li>Enter a new wallet name.</li>
+<li>Enter the recovery phrase exactly.</li>
+<li>Select the matching <code>recovery.qrxseed</code> file when
+requested.</li>
+<li>Protect the restored keys with a new passphrase.</li>
+<li>Compare the restored public address/identity with the expected
+wallet.</li>
+<li>Test a harmless read operation before considering the recovery
+complete.</li>
+</ol>
+<p>Legacy 0.0.6 recovery pairs can remain valid if retained. Creating a
+fresh recovery pair for the same keys does not itself change the wallet
+address.</p>
+<h2 id="wallet-migration">3.5 Wallet migration</h2>
+<p>The Wallets view can identify older GUI/legacy locations and copy
+them into the shared <code>~/.qrx</code> store. The intended migration
+model is <strong>copy first, verify second, remove old data only
+later</strong>.</p>
+<p>Do not overwrite a functioning source wallet during migration.</p>
+<hr />
+<h1 id="gui-orientation">4. GUI orientation</h1>
+<p>The left sidebar contains the current wallet, QUB balance, lock state
+and every primary application view. The footer contains node status,
+selected network, RPC/control endpoint and data directory.</p>
+<p>The current GUI navigation items are documented one by one below.</p>
+<hr />
+<h1 id="dashboard">5. Dashboard</h1>
+<p><strong>Purpose:</strong> everyday node/wallet status.</p>
+<p>The Dashboard shows balance, staked amount, validator information and
+peers. The <strong>Mainnet Health</strong> card exposes local chain
+height, how far the node is behind, connection count, supply, best block
+hash, state root, protocol and network.</p>
+<h3 id="peer-viewer">Peer Viewer</h3>
+<p>The optional Peer Viewer reads peer information from the local node.
+Treat peer addresses/IPs as local operational information; the view is
+not intended to publish them.</p>
+<h3 id="reward-notifications">Reward notifications</h3>
+<p>Validator, delegation and trading/settlement notifications can be
+toggled independently. Use a minimum-QUB threshold if many tiny rewards
+would otherwise create noise.</p>
+<h3 id="beginner-check">Beginner check</h3>
+<p>Before sending funds or enabling provider functions, confirm:</p>
+<ul>
+<li>daemon status is online,</li>
+<li>selected network is correct,</li>
+<li>height is progressing,</li>
+<li>peers are connected,</li>
+<li>wallet is the expected wallet.</li>
+</ul>
+<hr />
+<h1 id="apps">6. Apps</h1>
+<p><strong>Purpose:</strong> application launcher and local execution
+boundary for QRX-integrated applications.</p>
+<p>QRX 0.0.9 has two kinds of applications in the Apps area:</p>
+<ol type="1">
+<li><strong>built-in QRX applications</strong> such as Generals, Browser
+and QRX Upscaler; and</li>
+<li><strong>third-party/local applications</strong> installed through
+the QRX App Foundation.</li>
+</ol>
+<p>Third-party apps are separate trust domains even though they are
+displayed inside the wallet. They do not become trusted wallet code
+merely because the user installed them.</p>
+<h2 id="qrx-app-foundation-in-0.0.9">6.1 QRX App Foundation in
+0.0.9</h2>
+<p>The Genesis branch deliberately ships only the <strong>local
+foundation</strong> required for third-party apps:</p>
+<ul>
+<li><code>.qrxapp</code> package format v1;</li>
+<li>Wallet <strong>App Registry</strong>;</li>
+<li>sandboxed QRX <strong>App Host</strong>;</li>
+<li>explicit permission allowlist with per-call enforcement in the
+Rust/Tauri backend;</li>
+<li><strong>QRX Mini JS SDK v1</strong>;</li>
+<li>local install/uninstall of <code>.qrxapp</code> packages;</li>
+<li><strong>Developer Mode</strong> for live unpacked app folders;</li>
+<li>the <code>Hello QRX</code> reference/demo app;</li>
+<li>no private-key exposure and no app-side transaction signing.</li>
+</ul>
+<p>Developer package signatures, QRX Drive publication, QRX-Net
+discovery, the QRX App Directory, update channels and application
+compute capabilities are deferred to <strong>0.0.10</strong>. A
+sideloaded 0.0.9 package is therefore shown as
+<strong>unverified</strong>; a file named <code>SIGNATURE</code> inside
+the archive does not create trust.</p>
+<h2 id="qrxapp-package-format-v1">6.2 <code>.qrxapp</code> package
+format v1</h2>
+<p>A <code>.qrxapp</code> is a bounded ZIP container with a
+<code>qrx-app.json</code> manifest at the package root. A minimal
+package looks like:</p>
+<pre class="text"><code>hello-qrx.qrxapp
+├── qrx-app.json
+├── index.html
+├── app.js
+├── app.css
+└── icon.png        # optional/reserved for UI use</code></pre>
+<p>Required manifest fields are <code>format=1</code>, <code>id</code>,
+<code>name</code>, <code>version</code>, <code>author</code>,
+<code>entry</code> and <code>sdk=1</code>. Permissions must come from
+the v1 allowlist.</p>
+<p>Example:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;format&quot;</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">,</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;id&quot;</span><span class="fu">:</span> <span class="st">&quot;org.example.hello&quot;</span><span class="fu">,</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;name&quot;</span><span class="fu">:</span> <span class="st">&quot;Hello QRX&quot;</span><span class="fu">,</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;version&quot;</span><span class="fu">:</span> <span class="st">&quot;1.0.0&quot;</span><span class="fu">,</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;author&quot;</span><span class="fu">:</span> <span class="st">&quot;Example Developer&quot;</span><span class="fu">,</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;entry&quot;</span><span class="fu">:</span> <span class="st">&quot;index.html&quot;</span><span class="fu">,</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;script&quot;</span><span class="fu">:</span> <span class="st">&quot;app.js&quot;</span><span class="fu">,</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;style&quot;</span><span class="fu">:</span> <span class="st">&quot;app.css&quot;</span><span class="fu">,</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;sdk&quot;</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">,</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;permissions&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;wallet.identity.read&quot;</span><span class="ot">,</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;wallet.balance.read&quot;</span><span class="ot">,</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;wallet.payment.request&quot;</span><span class="ot">,</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;chain.read&quot;</span><span class="ot">,</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;network.status.read&quot;</span><span class="ot">,</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;app.storage&quot;</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>  <span class="ot">]</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p>The installer rejects path traversal (<code>../</code>), absolute
+paths, symlink escapes, unknown permissions, malformed app IDs,
+unsupported SDK versions and missing entry files. The 0.0.9 package
+limits are deliberately small enough for a wallet-hosted application:
+<strong>64 MiB package size, 64 MiB total unpacked size, 16 MiB per file
+and 256 files</strong>.</p>
+<h2 id="sandbox-and-trust-boundary">6.3 Sandbox and trust boundary</h2>
+<p>Third-party app code runs in an iframe with:</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode html"><code class="sourceCode html"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>sandbox=&quot;allow-scripts&quot;</span></code></pre></div>
+<p>and deliberately <strong>without</strong>
+<code>allow-same-origin</code>. The app does not receive direct Tauri
+IPC, private wallet material, camera, microphone, geolocation,
+unrestricted popups/forms or top-level navigation.</p>
+<p>The communication path is:</p>
+<pre class="text"><code>Third-party app
+      |
+      | postMessage
+      v
+QRX App Host
+      |
+      | permission check
+      v
+Rust/Tauri bridge
+      |
+      v
+Wallet / local node read APIs</code></pre>
+<p>The frontend permission check is not the security boundary by itself:
+the Rust host checks the permission again for every SDK operation.</p>
+<h2 id="mini-js-sdk-v1">6.4 Mini JS SDK v1</h2>
+<p>The SDK is injected by the QRX App Host; an app does not bundle its
+own privileged wallet bridge.</p>
+<p>Typical calls:</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> identity <span class="op">=</span> <span class="cf">await</span> QRX<span class="op">.</span><span class="at">wallet</span><span class="op">.</span><span class="fu">getIdentity</span>()<span class="op">;</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> balance <span class="op">=</span> <span class="cf">await</span> QRX<span class="op">.</span><span class="at">wallet</span><span class="op">.</span><span class="fu">getBalance</span>()<span class="op">;</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> height <span class="op">=</span> <span class="cf">await</span> QRX<span class="op">.</span><span class="at">chain</span><span class="op">.</span><span class="fu">getHeight</span>()<span class="op">;</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> network <span class="op">=</span> <span class="cf">await</span> QRX<span class="op">.</span><span class="at">network</span><span class="op">.</span><span class="fu">getStatus</span>()<span class="op">;</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="cf">await</span> QRX<span class="op">.</span><span class="at">storage</span><span class="op">.</span><span class="fu">set</span>(<span class="st">&quot;settings&quot;</span><span class="op">,</span> { <span class="dt">quality</span><span class="op">:</span> <span class="st">&quot;high&quot;</span> })<span class="op">;</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> settings <span class="op">=</span> <span class="cf">await</span> QRX<span class="op">.</span><span class="at">storage</span><span class="op">.</span><span class="fu">get</span>(<span class="st">&quot;settings&quot;</span>)<span class="op">;</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="cf">await</span> QRX<span class="op">.</span><span class="at">wallet</span><span class="op">.</span><span class="fu">requestPayment</span>({</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">recipient</span><span class="op">:</span> <span class="st">&quot;qrx...&quot;</span><span class="op">,</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">amount</span><span class="op">:</span> <span class="st">&quot;0.1&quot;</span><span class="op">,</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">memo</span><span class="op">:</span> <span class="st">&quot;Example purchase&quot;</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div>
+<h3 id="mini-sdk-permissions">Mini SDK permissions</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Permission</th>
+<th>SDK capability</th>
+<th>Security meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>wallet.identity.read</code></td>
+<td><code>QRX.wallet.getIdentity()</code></td>
+<td>public wallet identity only</td>
+</tr>
+<tr class="even">
+<td><code>wallet.balance.read</code></td>
+<td><code>QRX.wallet.getBalance()</code></td>
+<td>balance read only</td>
+</tr>
+<tr class="odd">
+<td><code>wallet.payment.request</code></td>
+<td><code>QRX.wallet.requestPayment()</code></td>
+<td>opens/pre-fills the normal Send flow; never signs</td>
+</tr>
+<tr class="even">
+<td><code>chain.read</code></td>
+<td><code>QRX.chain.getHeight()</code> and allowed chain reads</td>
+<td>read-only local-chain information</td>
+</tr>
+<tr class="odd">
+<td><code>network.status.read</code></td>
+<td><code>QRX.network.getStatus()</code></td>
+<td>read-only local network/node status</td>
+</tr>
+<tr class="even">
+<td><code>app.storage</code></td>
+<td><code>QRX.storage.get/set()</code></td>
+<td>app-ID-scoped local storage, capped at 64 KiB in v1</td>
+</tr>
+</tbody>
+</table>
+<p><code>requestPayment()</code> is intentionally a
+<strong>request</strong>, not a payment primitive. The app can suggest
+recipient, amount and memo, but the QRX wallet shows the normal Send
+screen and the user must review and confirm. The third-party app never
+receives the private key and cannot silently call a signing/broadcast
+path.</p>
+<h2 id="installing-and-removing-an-app">6.5 Installing and removing an
+app</h2>
+<p>Normal local workflow:</p>
+<ol type="1">
+<li>Open <strong>Wallet -&gt; Apps</strong>.</li>
+<li>Select <strong>Install .qrxapp</strong>.</li>
+<li>Choose the package.</li>
+<li>Review name, author, requested permissions and unverified/sideload
+status.</li>
+<li>Install.</li>
+<li>Launch the new entry from the App Registry.</li>
+<li>Remove it from the Apps management controls when no longer
+wanted.</li>
+</ol>
+<p>A third-party app should be treated like locally installed software:
+install packages only from a source you intended to trust, even though
+the sandbox reduces the consequences of a malicious package.</p>
+<h2 id="developer-mode-and-hello-qrx">6.6 Developer Mode and
+<code>Hello QRX</code></h2>
+<p>Developer Mode loads an unpacked application directory live instead
+of making the developer rebuild a <code>.qrxapp</code> after every edit.
+It <strong>does not disable the sandbox or permission
+checks</strong>.</p>
+<p>The reference SDK tree is:</p>
+<pre class="text"><code>GUIWALLET/qrxapp-sdk/
+├── README.md
+├── build-qrxapp.sh
+├── demo-hello/
+└── dist/hello-qrx.qrxapp</code></pre>
+<p>Build the demo package with:</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> GUIWALLET/qrxapp-sdk</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./build-qrxapp.sh</span></span></code></pre></div>
+<p>The demo shows public identity/balance reads, chain/network reads,
+app-scoped storage and a safe payment request. Developers should copy
+the demo rather than reaching into undocumented Tauri internals.</p>
+<h2 id="app-platform-ecosystem">6.7 0.0.10 App Platform ecosystem</h2>
+<p>0.0.9 is intentionally the compatibility base. The next layer is:</p>
+<pre class="text"><code>                   QRX APP PLATFORM
+
+Developer
+   |
+   +-- Mini SDK
+   |
+   +-- .qrxapp
+          |
+          v
+   Developer Signature
+          |
+          v
+       QRX Drive
+          |
+          v
+       QRX-Net
+          |
+          v
+   QRX App Directory
+          |
+          v
+       QRX Wallet
+          |
+   +------+--------+
+   v               v
+Local Compute    QRX Compute</code></pre>
+<p>0.0.10 is where QRX adds developer identity/signature verification,
+immutable package publication through QRX Drive, QRX-Net discovery, the
+public/decentralized App Directory, update metadata/reputation and
+explicit Local/QRX Compute capability grants. The 0.0.9 manifest/SDK
+contract is the compatibility base so apps should not need a rewrite
+just to gain network distribution.</p>
+<h2 id="localization-and-full-width-apps-ux">6.8 Localization and
+full-width Apps UX</h2>
+<p>The 0.0.9 Apps foundation is integrated with the same
+<strong>55-locale wallet catalog</strong> used by the rest of the GUI.
+App installation, App Registry state, permission review, Developer Mode,
+App Host labels, payment-request review and QRX Upscaler status/fallback
+text use translation keys rather than a separate English-only interface.
+Arabic also switches the document direction to RTL in the App Host.
+Technical identifiers such as <code>.qrxapp</code>,
+<code>QRX Compute</code>, <code>COMPUTE_POUC_V1</code>,
+<code>Mini JS SDK</code>, <code>Apple Silicon</code>,
+<code>Metal</code>, <code>Vulkan</code> and filter/runtime names remain
+invariant by design.</p>
+<p>All 55 catalogs have the same <strong>885-key</strong> schema in this
+snapshot. The Phase 190 test verifies that the new Apps/Upscaler/App
+Host keys exist and are non-empty in every locale, that the localized UX
+is not merely an English fallback corpus, and that dynamic application
+paths call the active locale catalog. The normal i18n parity,
+editorial-quality and mixed-English lexical gates also pass.</p>
+<p>The top-level <strong>Apps</strong> and <strong>QRX Upscaler</strong>
+views use the complete available wallet content width next to the
+persistent sidebar. Header, launcher, notices, Developer Mode and
+action/progress areas span the full workspace. The Upscaler may use two
+internal columns for local/compute information on wide displays and
+collapses to one column below 900 px. Dialogs, confirmation prompts and
+other narrow-reading surfaces intentionally remain bounded instead of
+being stretched across an ultrawide display. A launched third-party app
+receives the full App Host frame (<code>width:100%; height:100%</code>)
+while remaining inside its sandbox.</p>
+<h2 id="qrx-upscaler">6.9 QRX Upscaler</h2>
+<p><strong>QRX Upscaler</strong> is the first substantial Apps-area
+workload intended to exercise the same local-app principles. The current
+0.0.9 source ships the deterministic local image/batch core, video-frame
+orchestration, hardware capability probing and the wallet entry.</p>
+<p>Local examples:</p>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-upscaler</span> image in.png out.png <span class="at">--scale</span> 4 <span class="at">--filter</span> lanczos3</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-upscaler</span> batch frames-in frames-out <span class="at">--scale</span> 2</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-upscaler</span> video in.mp4 out.mp4 <span class="at">--scale</span> 2</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-upscaler</span> capabilities</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-upscaler</span> selftest</span></code></pre></div>
+<p>Classical filters are <code>nearest</code>, <code>bilinear</code>,
+<code>bicubic</code> and <code>lanczos3</code> (default); scale is an
+integer factor from 1 to 8. PNG is available when built with libpng;
+PPM/PGM are always available.</p>
+<p>The pixel accumulation path is fixed-point and has deterministic
+regression vectors. Do <strong>not</strong> use byte-for-byte equality
+of arbitrary GPU AI output as the future distributed-verification rule:
+heterogeneous Vulkan/Metal/CUDA inference can differ numerically.
+Distributed AI work must bind model/runtime/input/tile parameters and
+use the PoUC verification/challenge policy rather than assuming every
+GPU emits identical bytes.</p>
+<h3 id="hardware-capability-profiles">Hardware capability profiles</h3>
+<p>The capability probe deliberately separates a <strong>compatibility
+profile</strong> from descriptive hardware metadata:</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Device</th>
+<th>QRX profile</th>
+<th>Accelerator path</th>
+<th>Default handling</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Apple Silicon M1/M2/M3/M4 and future compatible generations</td>
+<td><code>apple-silicon</code></td>
+<td>native Metal for QRX Metal backends; ncnn Vulkan path through
+MoltenVK</td>
+<td>supported; RAM/capability based Auto tuning</td>
+</tr>
+<tr class="even">
+<td>Raspberry Pi 5</td>
+<td><code>raspberry-pi-5</code></td>
+<td>VideoCore VII / V3DV Vulkan</td>
+<td>supported low-memory path</td>
+</tr>
+<tr class="odd">
+<td>ODROID-N2/N2+</td>
+<td><code>odroid-n2-plus</code></td>
+<td>Mali-G52 / PanVK</td>
+<td>experimental; conservative tiles and classical fallback</td>
+</tr>
+<tr class="even">
+<td>other Vulkan-capable desktop</td>
+<td><code>generic</code></td>
+<td>native Vulkan</td>
+<td>enabled only after loader + usable device/runtime checks</td>
+</tr>
+<tr class="odd">
+<td>no usable AI runtime</td>
+<td>appropriate profile + unavailable runtime</td>
+<td>CPU/classical</td>
+<td>classical fallback remains available</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Apple Silicon is one profile.</strong> <code>M1</code>,
+<code>M2 Pro</code>, <code>M3 Max</code>, <code>M4</code>, etc. are
+retained only as <code>generation</code>/<code>variant</code> metadata
+for display and scheduler hints. A future Apple Silicon generation can
+therefore enter the same <code>apple-silicon</code> compatibility path
+without inventing another platform profile.</p>
+<p>On macOS, Vulkan is not treated as the native graphics API. The ncnn
+Vulkan backend uses <strong>MoltenVK -&gt; Metal</strong> when that
+runtime is present. The capability command reports this explicitly
+through <code>vulkan_mode=moltenvk</code>. Missing MoltenVK does not
+make the Mac unusable; it makes the AI Vulkan path unavailable while
+classical/local processing remains available.</p>
+<h3 id="video-and-batch-workflow">Video and batch workflow</h3>
+<p>The intended video flow is:</p>
+<pre class="text"><code>video
+  -&gt; inspect timing/audio
+  -&gt; decode frames
+  -&gt; process frame batches
+  -&gt; restore frame order/timing
+  -&gt; encode/remux
+  -&gt; preserve audio when supported by the configured media tool</code></pre>
+<p>The current source executes the external media tool as a
+<strong>separate process with an argument vector</strong>, not through a
+shell command string and not linked into QRX Core. The release policy in
+this snapshot does not bundle FFmpeg; the operator can point
+<code>QRX_UPSCALER_MEDIA_TOOL</code> at an installed media tool. A
+self-contained media runtime can be packaged later only under an
+explicitly approved redistribution/license profile.</p>
+<h3 id="ai-modelruntime-status">AI model/runtime status</h3>
+<p>The current source prepares capability-aware AI selection but does
+<strong>not</strong> yet bundle model weights. Candidate permissive
+runtimes include ncnn (BSD-3-Clause) and ONNX Runtime (MIT); each
+model’s weights have their own license/provenance and must pass the
+normal QRX model governance rules. The preferred offline-photo direction
+discussed for the app is a Real-ESRGAN-class model through a permissive
+runtime, but the handbook distinguishes that planned runtime delivery
+from what the present source archive actually contains.</p>
+<h3 id="distributed-mode">Distributed mode</h3>
+<p>Distributed frame batches are Proof-of-Useful-Compute work. They
+remain fail-closed until <code>COMPUTE_POUC_V1</code> reaches a
+governance-committed activation height (target not before 31 Jan 2027).
+A future distributed job uses bounded frame batches rather than one
+network job per frame, can reorder completed batches before assembly,
+and is paid from the user’s compute escrow; it does not mint additional
+QUB. Private-video frames leaving the machine must remain an explicit
+per-job opt-in.</p>
+<hr />
+<h1 id="qrx-drive">7. QRX Drive</h1>
+<p><strong>Purpose:</strong> decentralized file storage and
+retrieval.</p>
+<p>QRX Drive splits data into content-addressed pieces/shards,
+distributes them to providers, tracks storage contracts and can
+reconstruct files using multiple providers.</p>
+<h3 id="upload-workflow">Upload workflow</h3>
+<ol type="1">
+<li>Choose a file.</li>
+<li>Select the intended storage profile (<code>STANDARD</code>,
+<code>FAST</code>, <code>ARCHIVE</code> where exposed).</li>
+<li>Prepare the upload.</li>
+<li>Review the contract/cost/placement information.</li>
+<li>Start/advance the upload.</li>
+<li>Wait until sufficient shards/providers are active.</li>
+</ol>
+<h3 id="download-workflow">Download workflow</h3>
+<p>QRX can use multiple providers in parallel. The runtime supports
+resume/retry and repair instead of forcing the whole file to restart
+after one failed shard.</p>
+<h3 id="health-and-routes">Health and routes</h3>
+<p>The GUI can show authoritative shard routes on the Resource Globe.
+Privacy-protected regions are intentionally not exposed as precise
+locations.</p>
+<h3 id="file-size-policy">File-size policy</h3>
+<p>QRX Drive is designed around chunking/large-object handling rather
+than an arbitrary small user-facing file cap. Practical limits still
+come from provider capacity, erasure layout, network policy, disk space
+and implementation limits.</p>
+<h3 id="security">Security</h3>
+<p>Private Drive content uses the QRX Drive encryption/key-envelope
+path. Keep the wallet/recovery material safe: decentralizing ciphertext
+does not make lost decryption keys recoverable by the network.</p>
+<hr />
+<h1 id="qrx-net">8. QRX-Net</h1>
+<p><strong>Purpose:</strong> decentralized naming and web
+publishing.</p>
+<p>QRX-Net adds <code>.qrx</code> domains and QRX-hosted site packages.
+The browser layer can resolve normal WWW content and QRX-native content
+without pretending <code>.qrx</code> is conventional DNS.</p>
+<h3 id="domain-workflow">Domain workflow</h3>
+<p>Typical operations include:</p>
+<ul>
+<li>preflight a <code>.qrx</code> name,</li>
+<li>register,</li>
+<li>renew,</li>
+<li>update target/web root/publishing commitment,</li>
+<li>transfer,</li>
+<li>inspect history.</li>
+</ul>
+<h3 id="site-publishing">Site publishing</h3>
+<p>A site directory is packaged, content-addressed and prepared for QRX
+Drive distribution. Published versions can be listed and a previous
+version can be selected for rollback.</p>
+<h3 id="browser-security">Browser security</h3>
+<p>The QRX browser sandbox accepts QRX-native names/paths under the QRX
+resolution rules. DApp bridge permissions are separate from generic page
+rendering.</p>
+<h3 id="ads-and-youth-safety">Ads and youth safety</h3>
+<p>QRX-Net contains explicit policy layers for advertising/reward logic
+and youth-safety controls. These are not reasons to let arbitrary site
+code access the wallet without consent.</p>
+<hr />
+<h1 id="resource-globe">9. Resource Globe</h1>
+<p><strong>Purpose:</strong> privacy-safe visual overview of QRX network
+resources.</p>
+<p>The Globe aggregates storage, compute, model-cache and related
+provider information into coarse regions. It is intentionally not a
+public map of exact home addresses or private IPs.</p>
+<h3 id="aura-compute-automatic">AURA Compute · Automatic</h3>
+<p>For beginners this is the main AURA provider control.</p>
+<p>Normal controls are intentionally small:</p>
+<ul>
+<li><strong>Off</strong></li>
+<li><strong>Automatic (recommended)</strong></li>
+<li><strong>Eco / Balanced / Performance</strong></li>
+<li>optional model-cache/disk budget</li>
+</ul>
+<p>In Automatic mode QRX decides which compatible runtime and
+model/expert data to use.</p>
+<h3 id="what-automatic-does">What Automatic does</h3>
+<p>It can perform the chain:</p>
+<pre class="text"><code>hardware discovery
+→ signed runtime selection
+→ runtime verification/install
+→ signed model catalog lookup
+→ compatible model/expert placement
+→ provider discovery
+→ cache/prefetch
+→ secure job execution</code></pre>
+<p>A normal user should not have to understand CUDA compute capability,
+GGUF quantization or MLX package paths.</p>
+<h3 id="advanced-provider-controls">Advanced provider controls</h3>
+<p>Advanced settings can expose runtime overrides, relay endpoints and
+operational settings. Change them only when diagnosing or intentionally
+pinning infrastructure.</p>
+<hr />
+<h1 id="send">10. Send</h1>
+<p><strong>Purpose:</strong> send QUB or the supported quick-send assets
+from the active wallet.</p>
+<p>Before confirming:</p>
+<ol type="1">
+<li>verify network,</li>
+<li>verify destination chain/address,</li>
+<li>verify amount and fee,</li>
+<li>confirm the source wallet/address,</li>
+<li>read any warning shown by the GUI.</li>
+</ol>
+<p>QRX contains protections against common self-address and
+wrong-network mistakes, but no UI can make a correctly signed transfer
+to the wrong recipient reversible.</p>
+<p>Use Address Book entries to reduce repeated copy/paste, but verify a
+new contact once before relying on it.</p>
+<hr />
+<h1 id="receive">11. Receive</h1>
+<p><strong>Purpose:</strong> show QRX/BTC receiving addresses and QR
+codes.</p>
+<p>For QUB, the wallet may expose the primary/shared address and
+rotation features. Rotating/stealth-style privacy features should be
+used only when you understand how recovery is preserved.</p>
+<p>For exchange deposits, use the address type explicitly supported by
+that exchange. Do not send centralized-exchange deposits to a
+stealth/shielded address merely because the wallet can generate one.</p>
+<hr />
+<h1 id="transactions">12. Transactions</h1>
+<p><strong>Purpose:</strong> transaction history, status and
+accounting/export workflow.</p>
+<p>Use this page to inspect incoming/outgoing activity and
+confirmations. The broader wallet stack supports exports by periods such
+as all-time, year, quarter and custom ranges so accounting does not
+require iterating an unbounded history in one request.</p>
+<p>A transaction shown locally is not automatically final; check
+network/confirmation/finality state when that matters.</p>
+<hr />
+<h1 id="staking">13. Staking</h1>
+<p><strong>Purpose:</strong> stake QUB, delegate to validators and
+manage delegation lifecycle.</p>
+<p>Core operations include:</p>
+<ul>
+<li>stake,</li>
+<li>delegate,</li>
+<li>undelegate,</li>
+<li>claim undelegated stake,</li>
+<li>inspect staking status and validator set.</li>
+</ul>
+<h3 id="risks">Risks</h3>
+<p>Staking is not the same as a guaranteed bank yield. Validator
+behavior and protocol rules can affect rewards and penalties.
+Slashing/double-sign protection is consensus-critical.</p>
+<hr />
+<h1 id="validator-mode">14. Validator Mode</h1>
+<p><strong>Purpose:</strong> operate the wallet/node as a validator.</p>
+<p>A validator should be treated as always-on infrastructure, not as a
+casual checkbox.</p>
+<h3 id="safe-pause">Safe Pause</h3>
+<p>Use <strong>Safe Pause</strong> before a planned extended shutdown.
+The intent is to tell the validator lifecycle that the operator is going
+offline safely rather than abruptly disappearing while still expected to
+participate.</p>
+<h3 id="validator-fleet">Validator fleet</h3>
+<p>The stack supports multiple validator signer identities/fleet
+management. Do not run the same validator key in two independent active
+processes that can double-sign.</p>
+<h3 id="home-validator-catch-up">Home validator catch-up</h3>
+<p>After downtime, let the node catch up and reach healthy chain state
+before expecting normal validator participation.</p>
+<hr />
+<h1 id="btc-light">15. BTC Light</h1>
+<p><strong>Purpose:</strong> lightweight Bitcoin wallet/service
+integration used by the GUI and cross-chain features.</p>
+<p>The current architecture uses the shared Rust BTC wallet service and
+light synchronization rather than embedding a full Bitcoin Core node
+into QRX.</p>
+<h3 id="keep-separate-concepts-clear">Keep separate concepts clear</h3>
+<ul>
+<li>QUB wallet keys are not Bitcoin keys.</li>
+<li>QRX network sync is not Bitcoin sync.</li>
+<li>A BTC address must be backed up according to the BTC service/wallet
+design.</li>
+</ul>
+<p>If BTC status looks stale, diagnose the BTC light service separately
+from QRX peer health.</p>
+<hr />
+<h1 id="quantum-swaps">16. Quantum Swaps</h1>
+<p><strong>Purpose:</strong> cross-chain QUB/BTC exchange using
+HTLC/Velocity/SPV foundations.</p>
+<p>High-level lifecycle:</p>
+<pre class="text"><code>order / session
+→ hashlock and refund conditions
+→ BTC funding
+→ SPV verification / confirmations
+→ QUB-side settlement
+→ redeem OR timeout/refund</code></pre>
+<p>Funding transaction IDs and deadlines are security-sensitive. Do not
+casually replace a funding transaction after a swap has bound itself to
+a specific transaction/session rule.</p>
+<p>Reorg handling and Bitcoin retarget/header validation belong to the
+Bitcoin-SPV security path, not to a GUI timer alone.</p>
+<hr />
+<h1 id="markets">17. Markets</h1>
+<p><strong>Purpose:</strong> QRX-native order book, chart and order
+control.</p>
+<p>The chart uses QRX-native candles, trades and order-book state; it is
+not an embedded TradingView exchange widget.</p>
+<h3 id="limit-order-workflow">LIMIT order workflow</h3>
+<ol type="1">
+<li>select market,</li>
+<li>choose BUY/SELL,</li>
+<li>enter quantity and limit price,</li>
+<li>set expiry when required,</li>
+<li>review agent/owner identity,</li>
+<li>acknowledge that the order is real on the selected network,</li>
+<li>sign/broadcast.</li>
+</ol>
+<p>The Markets view also includes cancel/order-control functions.</p>
+<p>Do not confuse QRX-native market liquidity with an external exchange
+balance.</p>
+<hr />
+<h1 id="agents-kraken">18. Agents &amp; Kraken</h1>
+<p><strong>Purpose:</strong> delegated trading/automation identities and
+external exchange gateway workflows.</p>
+<p>Agent permissions are explicit. Typical boundaries include market
+allowlists, maximum trade values, daily limits, expiry and specific
+permission classes.</p>
+<h3 id="paper-vs-live">Paper vs live</h3>
+<p>A paper-trading or opportunity-analysis result is not a live external
+order. Live execution must be opt-in and use an authorized agent/gateway
+path.</p>
+<h3 id="kraken">Kraken</h3>
+<p>External Kraken actions require the separately configured
+credentials/permissions and sufficient exchange balances. Never embed a
+powerful unrestricted exchange API key into a public model prompt or
+QRX-Net page.</p>
+<hr />
+<h1 id="privacy">19. Privacy</h1>
+<p><strong>Purpose:</strong> optional privacy features beyond normal
+transparent QUB.</p>
+<p>The stack contains privacy layers for concepts including:</p>
+<ul>
+<li>receive-address rotation,</li>
+<li>stealth receiving,</li>
+<li>shielded QUB flows,</li>
+<li>hidden-balance/proof foundations,</li>
+<li>shield / private transfer / unshield lifecycle.</li>
+</ul>
+<h3 id="important-limitation">Important limitation</h3>
+<p>“Private” does not mean that every network fact disappears. Timing,
+peer/network observations, entry/exit transactions and other metadata
+can remain observable depending on the operation.</p>
+<p>Transparent QUB remains the compatibility-first path for exchanges
+and basic transfers.</p>
+<hr />
+<h1 id="safety-center">20. Safety Center</h1>
+<p><strong>Purpose:</strong> beginner protection, backups and
+risky-operation separation.</p>
+<p>Use the Safety Center before upgrading, migrating, enabling advanced
+privacy features or operating a validator.</p>
+<p>Recommended routine:</p>
+<ul>
+<li>run safety check,</li>
+<li>create encrypted full-wallet backup,</li>
+<li>maintain a recovery phrase + matching <code>.qrxseed</code>
+pair,</li>
+<li>verify backup health,</li>
+<li>keep at least one offline copy,</li>
+<li>test recovery before treating the backup as trustworthy.</li>
+</ul>
+<p>Expert plaintext/private-key-style operations are intentionally not
+the default.</p>
+<hr />
+<h1 id="roadmap">21. Roadmap</h1>
+<p><strong>Purpose:</strong> show public development direction and
+feature status.</p>
+<p>A roadmap item is not the same as a Mainnet guarantee.
+Distinguish:</p>
+<ul>
+<li>already implemented/tested,</li>
+<li>prepared/feature-gated,</li>
+<li>future target.</li>
+</ul>
+<p><strong>QRX Upscaler</strong> now has a shipped local foundation:
+deterministic classical image/batch processing, video frame
+orchestration, host capability detection and an Apps entry. AI
+model/runtime execution is a separate runtime layer and must be
+validated locally before use. Distributed provider execution remains
+gated behind <code>COMPUTE_POUC_V1</code> like every other post-Genesis
+resource layer.</p>
+<p>For 0.0.9, the final documentation gate is this A–Z handbook plus the
+documentation coverage test.</p>
+<hr />
+<h1 id="wallets">22. Wallets</h1>
+<p><strong>Purpose:</strong> manage multiple wallet names, inspect
+shared/legacy locations, import safely and switch active wallet.</p>
+<p>The wallet manager is designed to avoid accidental overwrites. When
+importing an older wallet:</p>
+<ol type="1">
+<li>keep the source,</li>
+<li>copy/import into the shared store,</li>
+<li>inspect the identity,</li>
+<li>activate it,</li>
+<li>verify balance/history,</li>
+<li>only later archive the old copy.</li>
+</ol>
+<p>Never merge unrelated private key sets into one wallet directory.</p>
+<hr />
+<h1 id="address-book">23. Address Book</h1>
+<p><strong>Purpose:</strong> local QUB/BTC contacts.</p>
+<p>Contacts contain public information only: label, chain, address, tags
+and note. They must never contain private keys or recovery phrases.</p>
+<p>The GUI keeps QUB and BTC entries explicitly separated. Export/import
+uses JSON and is designed not to silently overwrite pinned contacts.</p>
+<hr />
+<h1 id="aura-beginner-guide">24. AURA — beginner guide</h1>
+<h2 id="what-aura-is">24.1 What AURA is</h2>
+<p>AURA is the user-facing distributed useful-compute/AI layer on QRX.
+The network can combine many heterogeneous providers rather than
+requiring every user to own a datacenter GPU.</p>
+<h2 id="automatic-is-the-default">24.2 Automatic is the default</h2>
+<p>The intended beginner choice is:</p>
+<pre class="text"><code>AURA Compute: Automatic
+Power profile: Balanced
+Disk cache: Automatic or a simple GiB limit</code></pre>
+<p>That is enough.</p>
+<h2 id="hardware-auto-detection">24.3 Hardware auto-detection</h2>
+<p>QRX can discover:</p>
+<ul>
+<li>native CPU resources,</li>
+<li>Apple Silicon/Metal capability,</li>
+<li>NVIDIA CUDA through the driver API when present,</li>
+<li>memory/capability information used by the MoE scheduler.</li>
+</ul>
+<p>NVIDIA P40/Pascal is explicitly representable and is not incorrectly
+assumed to have tensor cores.</p>
+<h2 id="signed-runtime-packages">24.4 Signed runtime packages</h2>
+<p>0.0.9.45 adds a signed runtime-package catalog. A runtime
+announcement binds:</p>
+<ul>
+<li>publisher identity,</li>
+<li>package ID/version,</li>
+<li>platform/architecture,</li>
+<li>runtime/backend type,</li>
+<li>hardware requirements,</li>
+<li>content hash,</li>
+<li>download URI,</li>
+<li>validity heights and anti-rollback sequence.</li>
+</ul>
+<p>The One-Click activation flow is:</p>
+<pre class="text"><code>native hardware discovery
+→ choose compatible signed runtime
+→ fetch package
+→ SHA3 verify package
+→ atomically install
+→ activate adapter
+→ persist host config</code></pre>
+<p>A modified package is rejected before activation.</p>
+<h2 id="model-catalog-and-discovery">24.5 Model catalog and
+discovery</h2>
+<p>Models are not identified by random filenames. A signed QRX model
+catalog identifies model/version, architecture, format, quantization,
+license, context, capability and a <strong>manifest root</strong>.</p>
+<p>The manifest lists content-addressed assets such as:</p>
+<ul>
+<li>config,</li>
+<li>tokenizer,</li>
+<li>shared weights,</li>
+<li>weight chunks,</li>
+<li>MoE expert packs,</li>
+<li>adapters.</li>
+</ul>
+<p>Provider availability gossip then tells the network which provider
+currently holds which assets.</p>
+<h2
+id="why-qrx-does-not-ship-every-model-inside-the-wallet-installer">24.6
+Why QRX does not ship every model inside the wallet installer</h2>
+<p>Large model weights can be many gigabytes. Shipping all supported
+models with every wallet would make installation impractical and would
+duplicate data unnecessarily.</p>
+<p>Instead the normal hierarchy is:</p>
+<pre class="text"><code>local RAM / VRAM
+→ local SSD model cache
+→ LAN peer
+→ current MoE pod
+→ nearby QRX provider
+→ QRX Drive
+→ external origin fallback</code></pre>
+<p>Popular model assets should therefore become increasingly QRX-native
+over time.</p>
+<h2 id="external-origins-hugging-face-and-initial-model-seeding">24.7
+External origins, Hugging Face and initial model seeding</h2>
+<p>QRX 0.0.9 Genesis Freeze adds a real origin/bootstrap path rather
+than treating an external URL as a placeholder. The shipped data-only
+catalog is:</p>
+<pre class="text"><code>config/aura/models/official-origin-catalog.qrx</code></pre>
+<p>It contains zero-touch Nano/Edge GGUF bootstrap specifications for
+Qwen 0.6B/1.7B/4B, DeepSeek R1 Distill Qwen 1.5B and Ministral 3B, plus
+larger Qwen3.8-27B, Kimi-K2-Instruct, Kimi-K3 and DeepSeek-V3.2 entries.
+A catalog specification is <strong>not yet trusted model bytes</strong>.
+Before an official model can enter the governed QRX model catalog, a
+seed operator imports the selected upstream revision once. QRX then:</p>
+<pre class="text"><code>resolve upstream repository
+-&gt; pin immutable revision SHA
+-&gt; verify declared license/gating policy
+-&gt; enumerate selected runtime/model files
+-&gt; download with resume support
+-&gt; hash every object into QRX SHA3 CAS
+-&gt; parse config + Safetensors shard index
+-&gt; derive MoE layer/expert ranges where available
+-&gt; build source map + QRX model bundle + model registry record
+-&gt; publish/sign the resulting manifest through QRX model governance
+-&gt; announce availability
+-&gt; replication controller places missing copies</code></pre>
+<p>A normal provider does not need to know Hugging Face. Its automatic
+fetch order remains QRX-first. If the governed model manifest permits an
+external fallback and QRX Drive/CAS cannot supply an object, the client
+may fetch only the <strong>exact immutable revision</strong> recorded by
+that manifest. A server returning different bytes or a different
+revision is rejected by content-root/revision checks.</p>
+<h2 id="nanoedge-zero-touch-models-and-graceful-scaling">24.8 Nano/Edge
+zero-touch models and graceful scaling</h2>
+<p>AURA Automatic is designed to remain useful even when the entire
+available compute fabric is one small machine. The official zero-touch
+catalog therefore contains execution-ready, non-gated GGUF choices in
+several capacity bands rather than starting with giant MoE models:</p>
+<ul>
+<li><code>qrx/qwen3-0.6b-q8</code> — Nano fallback for very small
+hosts;</li>
+<li><code>qrx/deepseek-r1-distill-qwen-1.5b-q4</code> — small
+reasoning-oriented Nano model;</li>
+<li><code>qrx/qwen3-1.7b-q8</code> — stronger general/coding Nano
+model;</li>
+<li><code>qrx/ministral3-3b-instruct-q4</code> — Edge model with strong
+tool-use weighting;</li>
+<li><code>qrx/qwen3-4b-q4</code> — Edge general/coding model.</li>
+</ul>
+<p>The user does <strong>not</strong> choose these names. AUTO combines
+measured free memory, measured throughput, task class and task
+complexity. A low-memory host can answer locally with Nano; an 8 GiB
+Pi-class host can move between Nano and Edge; larger hosts or multiple
+providers can escalate to Local/Cluster/K2/K3 classes. If a host cannot
+execute an LLM efficiently it can still contribute routing,
+verification, model cache, relay, pre/post processing or QRX Drive
+capacity.</p>
+<p>For Apple Silicon GGUF models, native Metal discovery selects the
+<code>LLAMA_CPP_METAL</code> adapter. This is intentionally separate
+from MLX: Metal hardware support does not falsely claim that an MLX
+runtime is installed. CPU, CUDA and Metal runtime choice remains hidden
+under AUTO.</p>
+<p>Meta Llama is <strong>not required</strong> for the default
+zero-touch set. Official Llama access uses Meta’s community license and
+may require explicit access/license acceptance. QRX therefore keeps
+Llama entries in <code>optional-gated-origin-catalog.qrx</code>, with
+<code>auto_default=0</code> and <code>gated_optional=1</code>. An
+Advanced user/operator can enable such a source deliberately; normal
+Automatic never blocks first run on a gated model.</p>
+<p>The model weights are not bundled in the QRX application archive. The
+first authorized import downloads the exact governed quantization, pins
+the immutable upstream revision, verifies/content-addresses it, seeds
+QRX Drive/CAS and allows provider replication. Subsequent clients prefer
+QRX peers/Drive before the external origin.</p>
+<p>Operator tool:</p>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Inspect upstream metadata without downloading the model</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-aura-model-seed</span> <span class="dt">\</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--catalog</span> config/aura/models/official-origin-catalog.qrx <span class="dt">\</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--model</span> qrx/qwen3.8-27b <span class="dt">\</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--resolve-only</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Perform the one-time content import/QRX-CAS seed</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-aura-model-seed</span> <span class="dt">\</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--catalog</span> config/aura/models/official-origin-catalog.qrx <span class="dt">\</span></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">--model</span> qrx/qwen3.8-27b <span class="dt">\</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">--cas</span> /srv/qrx/model-cas <span class="dt">\</span></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">--work</span> /srv/qrx/model-import</span></code></pre></div>
+<p>For gated repositories, a token can be supplied only through an
+environment variable using <code>--hf-token-env</code>; it is never
+written into the model manifest. Gated imports stay disabled unless
+explicitly allowed.</p>
+<p>Very large models can require hundreds of GB to more than a TB of
+upstream data. The presence of a bootstrap catalog entry therefore does
+<strong>not</strong> mean the source archive itself contains those
+weights. The model becomes QRX-native after the initial seed has
+produced real content roots and the governed manifest is published.</p>
+<h2 id="model-replication">24.8 Model replication</h2>
+<p>The replication controller can consider:</p>
+<ul>
+<li>current replica count,</li>
+<li>region diversity,</li>
+<li>demand,</li>
+<li>catalog priority/popularity,</li>
+<li>boot-critical assets,</li>
+<li>hot MoE experts.</li>
+</ul>
+<p>Under-replicated assets receive higher placement priority. Hot expert
+packs can be migrated toward demand.</p>
+<h2 id="governance-provenance-and-licenses">24.9 Governance, provenance
+and licenses</h2>
+<p>0.0.9.46 adds a separate governance boundary for model updates.</p>
+<p>A model can be rejected because:</p>
+<ul>
+<li>its license is not permitted,</li>
+<li>required provenance is missing/mismatched,</li>
+<li>no effective governance decision exists,</li>
+<li>the manifest is blocked,</li>
+<li>a rollback requires a different previous manifest.</li>
+</ul>
+<p>A governance approval cannot override an explicit license deny
+rule.</p>
+<h2 id="nat-and-relays">24.10 NAT and relays</h2>
+<p>A home provider does not have to expose a public inbound port just to
+participate. The 0.0.9.41 relay design supports an <strong>outbound
+provider tunnel</strong>.</p>
+<p>The relay transports framed data; signing, PQ key establishment and
+authenticated encryption remain endpoint responsibilities between
+requester and provider.</p>
+<h2 id="durable-jobs-and-retries">24.11 Durable jobs and retries</h2>
+<p>Jobs/results are journaled so a crash or lost response does not
+automatically mean the same useful computation has to be paid/executed
+again.</p>
+<p>An <strong>identical retry</strong> can return the committed result.
+A modified request that reuses the same sequence is rejected.</p>
+<h2 id="eco-balanced-performance">24.12 Eco / Balanced /
+Performance</h2>
+<p>These profiles affect scheduling preference, not model truth.</p>
+<ul>
+<li><strong>Eco</strong> — stronger preference for lower
+cost/energy.</li>
+<li><strong>Balanced</strong> — mixed quality/latency/cost/energy.</li>
+<li><strong>Performance</strong> — stronger preference for quality,
+latency and throughput.</li>
+</ul>
+<p>0.0.9.47 routes production offers using quality, latency, price,
+energy, reliability and locality rather than “fastest GPU wins”.</p>
+<hr />
+<h1 id="aura-advancedoperator-reference">25. AURA — advanced/operator
+reference</h1>
+<h2 id="host-contract">25.1 Host contract</h2>
+<p>The GUI writes a durable AURA host configuration using the
+<code>QRXAURA41</code> format. The node receives its path through
+<code>QRX_AURA_PROVIDER_CONFIG</code>.</p>
+<p>Important host fields include:</p>
+<ul>
+<li>provider and pod identity,</li>
+<li>network/region,</li>
+<li>cache/memory/network limits,</li>
+<li>secure-dispatch and PQ requirements,</li>
+<li>runtime adapter selection/path,</li>
+<li>lease and job journals,</li>
+<li>optional relay endpoints.</li>
+</ul>
+<h2 id="runtime-adapters">25.2 Runtime adapters</h2>
+<p>Stable adapter kinds are:</p>
+<ul>
+<li><code>AUTO</code></li>
+<li><code>LLAMA_CPP_CPU</code></li>
+<li><code>LLAMA_CPP_CUDA</code></li>
+<li><code>MLX_METAL</code></li>
+<li><code>EXTERNAL</code></li>
+</ul>
+<p>Beginners should leave this on <code>AUTO</code>.</p>
+<h2 id="moe-pods">25.3 MoE pods</h2>
+<p>A pod can advertise roles such as inference, router, embedding, RAG,
+pre/post-processing, verification and model cache. Scheduling is
+benchmark/capability driven rather than tied to a specific consumer
+hardware brand.</p>
+<h2 id="expert-locality-and-predictive-prefetch">25.4 Expert locality
+and predictive prefetch</h2>
+<p>The coordinator tracks co-activation and can prefetch experts likely
+to be needed next. This reduces WAN traffic and activation latency when
+expert sequences are predictable.</p>
+<h2 id="supervisor-and-relay-failover">25.5 Supervisor and relay
+failover</h2>
+<p>The provider supervisor records runtime health and relay failures.
+Relays can enter cooldown and a healthier relay can be selected
+automatically.</p>
+<h2 id="production-telemetry">25.6 Production telemetry</h2>
+<p>Production telemetry can track requests, tokens, latency, observed
+quality, cost, energy, WAN bytes and failures. Telemetry commitments
+make benchmark/campaign outputs reproducible without pretending that a
+single benchmark predicts every future task.</p>
+<hr />
+<h1 id="native-assets-and-tokenization">26. Native assets and
+tokenization</h1>
+<p>QRX native assets support issuance concepts plus regulated-token
+controls such as whitelist/revoke policy where the asset definition
+enables them. Treat issuer authority as a security and legal property of
+that asset; it is not equivalent to QUB itself.</p>
+<p>Asset anti-spam economics and burn/fee accounting exist to stop
+unlimited free namespace/state abuse.</p>
+<hr />
+<h1 id="cli-and-rpc-quick-reference">27. CLI and RPC quick
+reference</h1>
+<p>The CLI accepts:</p>
+<pre class="text"><code>qrx-cli [--network &lt;alpha|testnet|regtest|mainnet&gt;]
+        [--datadir PATH]
+        [--wallet NAME]
+        [--rpc-user USER]
+        [--rpc-password PASS]
+        &lt;command&gt;</code></pre>
+<h2 id="nodestatus">27.1 Node/status</h2>
+<div class="sourceCode" id="cb27"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getinfo</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getblockcount</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getblockchaininfo</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getnetworkinfo</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getnodestatus</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getmainnethealth</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getpeerinfo</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getmempoolinfo</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getbuildinfo</span></code></pre></div>
+<h2 id="wallet">27.2 Wallet</h2>
+<div class="sourceCode" id="cb28"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getwalletinfo</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getnewaddress</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> listaddresses</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getbalance</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> history</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> sendtoaddress <span class="op">&lt;</span>addr<span class="op">&gt;</span> <span class="op">&lt;</span>amount<span class="op">&gt;</span> <span class="pp">[</span><span class="ss">memo</span><span class="pp">]</span></span></code></pre></div>
+<h2 id="stakingvalidator">27.3 Staking/validator</h2>
+<div class="sourceCode" id="cb29"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getstakinginfo</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> stake <span class="op">&lt;</span>amount<span class="op">&gt;</span></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> delegate <span class="op">&lt;</span>validator<span class="op">&gt;</span> <span class="op">&lt;</span>amount<span class="op">&gt;</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> undelegate <span class="op">&lt;</span>validator<span class="op">&gt;</span> <span class="op">&lt;</span>amount<span class="op">&gt;</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> claim-undelegated <span class="op">&lt;</span>validator<span class="op">&gt;</span></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> validator-set</span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getvalidatorstatus</span></code></pre></div>
+<h2 id="qrx-drive-1">27.4 QRX Drive</h2>
+<div class="sourceCode" id="cb30"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> listdrivefiles <span class="pp">[</span><span class="ss">owner</span><span class="pp">]</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getdrivefilehealth <span class="op">&lt;</span>contract_id<span class="op">&gt;</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getdriveshardroutes <span class="op">&lt;</span>contract_id<span class="op">&gt;</span></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> preparedriveupload <span class="op">&lt;</span>source<span class="op">&gt;</span> <span class="op">&lt;</span>STANDARD<span class="kw">|</span><span class="ex">FAST</span><span class="kw">|</span><span class="ex">ARCHIVE</span><span class="op">&gt;</span></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> startpreparedriveupload <span class="op">&lt;</span>contract_id<span class="op">&gt;</span> <span class="op">&lt;</span>prepare_id<span class="op">&gt;</span></span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> startdrivedownload <span class="op">&lt;</span>contract_id<span class="op">&gt;</span> <span class="op">&lt;</span>destination<span class="op">&gt;</span></span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> listdrivetransfers</span></code></pre></div>
+<h2 id="qrx-net-1">27.5 QRX-Net</h2>
+<div class="sourceCode" id="cb31"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getdomainpreflight <span class="op">&lt;</span>name.qrx<span class="op">&gt;</span> <span class="pp">[</span><span class="ss">years</span><span class="pp">]</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> registerdomain <span class="op">&lt;</span>name.qrx<span class="op">&gt;</span> <span class="op">&lt;</span>years<span class="op">&gt;</span> <span class="pp">[</span><span class="ss">qub_address</span><span class="pp">]</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> renewdomain <span class="op">&lt;</span>name.qrx<span class="op">&gt;</span> <span class="op">&lt;</span>years<span class="op">&gt;</span></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> listdomains <span class="pp">[</span><span class="ss">owner</span><span class="pp">]</span></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> prepareqrxsite <span class="op">&lt;</span>name.qrx<span class="op">&gt;</span> <span class="op">&lt;</span>folder<span class="op">&gt;</span></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> listqrxsiteversions <span class="op">&lt;</span>name.qrx<span class="op">&gt;</span></span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> rollbackqrxsite <span class="op">&lt;</span>name.qrx<span class="op">&gt;</span> <span class="op">&lt;</span>version<span class="op">&gt;</span></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> fetchqrxsite <span class="op">&lt;</span>name.qrx<span class="op">&gt;</span> <span class="pp">[</span><span class="ss">path</span><span class="pp">]</span></span></code></pre></div>
+<h2 id="auraresource">27.6 AURA/resource</h2>
+<div class="sourceCode" id="cb32"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getresourcedashboard</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getresourceatlas</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getaurafabric</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> getauraatlas</span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> listauramodels</span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> gethostingmissions</span></code></pre></div>
+<h2 id="privacy-1">27.7 Privacy</h2>
+<div class="sourceCode" id="cb33"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> privacy-feature-status</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> stealth-address</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> stealth-scan</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> shielded-address</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a><span class="ex">qrx-cli</span> shielded-balance</span></code></pre></div>
+<p>The CLI source is the authoritative command inventory for the exact
+build; use <code>qrx-cli --help</code>/usage output when scripting
+against a different snapshot.</p>
+<hr />
+<h1
+id="a.-genesis-memo-asset-burns-and-staged-post-genesis-activation">27A.
+Genesis memo, asset burns and staged post-Genesis activation</h1>
+<p>The canonical Mainnet Genesis memo is part of
+<code>genesis.cfg</code> and therefore part of the Genesis hash:</p>
+<blockquote>
+<p>At the threshold of the AI age, amid global change, QRX was launched
+to keep value, verification, and digital sovereignty in the hands of
+people – and to help ensure that the opportunities of artificial
+intelligence are open to all, not reserved for a few.</p>
+</blockquote>
+<p>Changing even one character before finalization changes the Genesis
+hash. After the final Genesis is distributed, the memo is immutable as
+part of chain identity.</p>
+<p>Native-asset anti-spam burns use <code>block_reward_units_v1</code>.
+Genesis prices preserve the historical amounts (for example MAIN = 400
+current block rewards = 100 QUB at the 0.25-QUB subsidy), then scale
+with the subsidy after halvings instead of becoming a fixed-supply
+bottleneck. If subsidy eventually reaches zero, the consensus helper
+retains a one-atom-per-unit anti-spam floor.</p>
+<p>Post-Genesis resource features are fail-closed and activate by
+threshold-signed <strong>height</strong>, never merely because a
+calendar date arrives. Operational target dates are:</p>
+<ul>
+<li><code>DRIVE_V1</code>: 2026-11-30 17:00 UTC</li>
+<li><code>QRX_NET_V1</code>: 2026-12-07 17:00 UTC</li>
+<li><code>ADVERTISING_V1</code>: 2026-12-15 17:00 UTC</li>
+<li><code>COMPUTE_POUC_V1</code>: 2027-01-31 17:00 UTC</li>
+</ul>
+<p><code>ADVERTISING_V1</code> additionally requires
+<code>QRX_NET_V1</code>, so domain/hosting activation no longer
+automatically enables the advertising economy. Governance should
+schedule the final activation heights only after the relevant readiness
+gates and soak tests pass.</p>
+<h2 id="a.1-common-protocol-readiness-state-machine">27A.1 Common
+protocol-readiness state machine</h2>
+<p>All four staged post-Genesis layers use one common status model
+rather than four unrelated wallet rules:</p>
+<pre class="text"><code>LOCKED
+  -&gt; NOT_READY
+  -&gt; SOAKING
+  -&gt; WAITING_TARGET_DATE
+  -&gt; READY_FOR_GOVERNANCE
+  -&gt; SCHEDULED
+  -&gt; ACTIVE</code></pre>
+<p><strong>Soak</strong> means an observation/burn-in period on the real
+Mainnet state. Reaching a provider count for a moment is not enough; the
+prerequisite layer must remain stable for the configured number of
+blocks. Target dates are <strong>not-before policy dates</strong>, not
+automatic consensus switches. A feature becomes scheduled only after a
+valid threshold-signed on-chain governance transaction commits its
+activation height.</p>
+<p>Mainnet does <strong>not</strong> trust a local
+<code>protocol_upgrades.db</code> file as activation authority. Protocol
+schedules are consensus state; all validating nodes derive the same
+activation height from the chain.</p>
+<p>The current staged policy is:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th>Target date</th>
+<th>Automatic readiness / soak policy</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>DRIVE_V1</code></td>
+<td>30 Nov 2026</td>
+<td>&gt;=14 serving and mature attested providers, &gt;=14 independent
+operators, &gt;=4 ASNs, &gt;=3 visible regions, &gt;=14 GiB proven
+capacity, &gt;=80% availability, &gt;=80% proof success, health &gt;=60,
+~7-day provider maturity soak</td>
+</tr>
+<tr class="even">
+<td><code>QRX_NET_V1</code></td>
+<td>07 Dec 2026</td>
+<td><code>DRIVE_V1</code> active, &gt;=14 serving providers, &gt;=4
+ASNs, &gt;=3 regions, &gt;=3 active storage contracts, &gt;=85%
+availability, health &gt;=70, ~7 days of active Drive soak</td>
+</tr>
+<tr class="odd">
+<td><code>ADVERTISING_V1</code></td>
+<td>15 Dec 2026</td>
+<td><code>QRX_NET_V1</code> active, &gt;=14 serving providers, &gt;=4
+ASNs, &gt;=3 regions, &gt;=3 active <code>.qrx</code> domains, &gt;=85%
+availability, health &gt;=70, ~7 days of active QRX-Net soak</td>
+</tr>
+<tr class="even">
+<td><code>COMPUTE_POUC_V1</code></td>
+<td>31 Jan 2027</td>
+<td><code>DRIVE_V1</code> + <code>QRX_NET_V1</code> active, &gt;=8 bound
+compute-provider identities, all nine PoUC safety/readiness evidence
+flags, &gt;=14 storage providers, &gt;=4 ASNs, &gt;=3 regions, health
+&gt;=70, ~14-day dependency/shadow soak</td>
+</tr>
+</tbody>
+</table>
+<p>Before <code>DRIVE_V1</code>, storage providers may perform only the
+non-economic preflight operations required to prove capacity, bind
+discovery identity, activate and collect attestations/maturity. Storage
+contracts/rewards remain gated. Before <code>COMPUTE_POUC_V1</code>, a
+provider may bind its cryptographic compute-provider identity so Mainnet
+can count real prospective providers; paid compute escrows/jobs/rewards
+remain gated.</p>
+<p>The wallet reads this state from its local <code>qrxd</code> via:</p>
+<pre class="text"><code>getprotocolreadiness DRIVE_V1
+getprotocolreadiness QRX_NET_V1
+getprotocolreadiness ADVERTISING_V1
+getprotocolreadiness COMPUTE_POUC_V1</code></pre>
+<p>The GUI may therefore show, for example,
+<code>NOT READY - 3/14 providers</code>,
+<code>SOAKING - 5/7 days</code>,
+<code>LOCKED - DRIVE_V1 dependency</code>, or
+<code>READY FOR GOVERNANCE</code>. <code>READY FOR GOVERNANCE</code>
+means the machine-verifiable network criteria pass; it does not replace
+human review of release/security findings before the governance signers
+approve an activation proposal.</p>
+<h2 id="a.2-three-mac-governance-activation-example">27A.2 Three-Mac
+governance activation example</h2>
+<p>Three separate governance signers are sufficient for the existing
+3-of-5 threshold. They are <strong>not</strong> sufficient to fake
+readiness. For example, three Macs can hold GOV1/GOV2/GOV3 and sign a
+<code>DRIVE_V1</code> proposal, while the readiness engine may still
+report only <code>3/14</code> independent storage providers. Once
+readiness passes, the three signers approve the same proposal, one node
+broadcasts the <code>GOVERNANCE_PROTOCOL</code> transaction, and every
+validating node learns the same future activation height from consensus
+state. No per-validator file copying is required.</p>
+<h1 id="security-model">28. Security model</h1>
+<h2 id="wallet-keys">28.1 Wallet keys</h2>
+<p>Protect the hybrid private keys and recovery material. QRX can verify
+network data; it cannot undo disclosure of a private key.</p>
+<h2 id="pq-boundaries">28.2 PQ boundaries</h2>
+<p>QRX uses hybrid/post-quantum components in selected protocol paths,
+including wallet signatures and AURA/Drive security work. “PQ-capable”
+should not be interpreted as proof that every dependency, platform or
+cryptographic path has undergone independent post-quantum audit.</p>
+<h2 id="modelruntime-trust">28.3 Model/runtime trust</h2>
+<p>AURA separates:</p>
+<ul>
+<li>runtime package publisher signature,</li>
+<li>package content hash,</li>
+<li>model catalog signature,</li>
+<li>model manifest root,</li>
+<li>provenance,</li>
+<li>license policy,</li>
+<li>governance decision,</li>
+<li>provider availability signature.</li>
+</ul>
+<p>This is intentionally more strict than “download the newest file
+named model.gguf”.</p>
+<h2 id="relays-are-not-trusted-with-endpoint-keys">28.4 Relays are not
+trusted with endpoint keys</h2>
+<p>A relay should not need the provider wallet private key or the
+requester session secret. Treat a relay as transport infrastructure, not
+as an execution authority.</p>
+<h2 id="fail-closed-for-production">28.5 Fail closed for production</h2>
+<p>0.0.9.48 release readiness requires secure host settings, a
+compatible verified runtime package path, governed recommended models
+and a distributable model path before reporting AURA release
+readiness.</p>
+<hr />
+<h2 id="governance-vault-and-3-of-5-operator-safety">28.6 Governance
+Vault and 3-of-5 operator safety</h2>
+<p>QRX Mainnet governance remains <strong>3-of-5</strong> at consensus
+level. The Governance Vault is an operator-safety layer and does not
+weaken or replace that threshold.</p>
+<p>Recommended layout:</p>
+<pre class="text"><code>OFFLINE BACKUP VAULT
+  DEV_GOV_1 encrypted backup
+  DEV_GOV_2 encrypted backup
+  DEV_GOV_3 encrypted backup
+  DEV_GOV_4 encrypted backup
+  DEV_GOV_5 encrypted backup
+  signing disabled
+
+OPERATIONAL VAULT
+  DEV_GOV_1 ONLINE private key
+  DEV_GOV_2 ONLINE private key
+  DEV_GOV_3 OFFLINE public descriptor only
+  DEV_GOV_4 OFFLINE public descriptor only
+  DEV_GOV_5 OFFLINE public descriptor only</code></pre>
+<p>An operational vault hard-limits itself to <strong>two online private
+signing keys</strong>. The remaining roots are descriptor-only. A third
+signature is produced on a separate/offline signer and imported as a
+normal immutable governance signature file. The existing
+<code>governance-apply</code> path still verifies three unique valid
+Genesis governance roots before applying a proposal.</p>
+<p>The offline five-key backup stores encrypted private-key material
+under the non-signing filename <code>governance.key.backup</code>; the
+vault API refuses to sign from an <code>OFFLINE_BACKUP</code> vault.
+Restoring a root into an operational vault is explicit and still cannot
+raise the online signer count above two.</p>
+<p>Useful commands:</p>
+<pre class="text"><code>governance-vault-backup-create &lt;backup&gt; &lt;GOV1&gt; &lt;GOV2&gt; &lt;GOV3&gt; &lt;GOV4&gt; &lt;GOV5&gt;
+governance-vault-init &lt;operational-vault&gt;
+governance-vault-restore-online &lt;backup&gt; DEV_GOV_1 &lt;operational-vault&gt;
+governance-vault-restore-online &lt;backup&gt; DEV_GOV_2 &lt;operational-vault&gt;
+governance-vault-add-offline &lt;operational-vault&gt; &lt;DEV_GOV_3/governance.pub&gt;
+governance-vault-status &lt;operational-vault&gt;
+governance-vault-sign &lt;operational-vault&gt; DEV_GOV_1 &lt;proposal&gt; &lt;signature&gt;</code></pre>
+<p>The five-key backup is intended for <strong>offline/removable
+encrypted storage</strong>, not permanent attachment to an
+internet-connected wallet. Keeping all five recoverable in one backup
+location is convenient, but geographic duplication and distinct per-key
+passphrases are still strongly recommended.</p>
+<h1 id="upgrades-rollback-and-migration">29. Upgrades, rollback and
+migration</h1>
+<p>Before an upgrade:</p>
+<ol type="1">
+<li>stop initiating new risky operations,</li>
+<li>verify node health,</li>
+<li>create/verify wallet backup,</li>
+<li>back up important operator configuration,</li>
+<li>install the new version,</li>
+<li>allow migrations to complete,</li>
+<li>re-check node/network/wallet state,</li>
+<li>only then resume validator/provider operation.</li>
+</ol>
+<p>0.0.9.48 includes an idempotent AURA host migration helper that can
+initialize missing runtime-auto state, secure defaults, journals and a
+conservative cache budget.</p>
+<h3 id="rollback-boundaries">Rollback boundaries</h3>
+<p>Code rollback and model rollback are separate.</p>
+<p>AURA model rollback uses signed governance and a previously known
+manifest root; it is not a request to accept arbitrary older bytes.</p>
+<p>Database/consensus rollback should use the dedicated recovery/undo
+paths rather than manually deleting random state files.</p>
+<hr />
+<h1 id="troubleshooting-decision-tree">30. Troubleshooting decision
+tree</h1>
+<h2 id="daemon-offline">Daemon offline</h2>
+<ol type="1">
+<li>Confirm selected network.</li>
+<li>Confirm the expected data directory.</li>
+<li>Start/restart the local node.</li>
+<li>Check whether another process owns the listen/control port.</li>
+<li>Check logs/build info.</li>
+<li>Do not delete chain/wallet state as a first troubleshooting
+step.</li>
+</ol>
+<h2 id="wallet-will-not-unlock">Wallet will not unlock</h2>
+<ol type="1">
+<li>Confirm the correct wallet name.</li>
+<li>Confirm Caps Lock/input layout.</li>
+<li>Try the expected legacy empty-passphrase behavior only when the
+wallet is known to be legacy.</li>
+<li>Inspect wallet key protection in Wallets/Safety Center.</li>
+<li>Use recovery into a new wallet instead of editing encrypted PEM
+files by hand.</li>
+</ol>
+<h2 id="no-peers-not-syncing">No peers / not syncing</h2>
+<ol type="1">
+<li>Check <code>getnetworkinfo</code>, <code>getpeerinfo</code>,
+<code>getnodestatus</code>.</li>
+<li>Confirm firewall/network.</li>
+<li>Confirm network profile.</li>
+<li>Check seed/addnode configuration.</li>
+<li>Compare height with another known-good node.</li>
+</ol>
+<h2 id="qrx-drive-object-degraded">QRX Drive object degraded</h2>
+<ol type="1">
+<li>Open file health.</li>
+<li>Inspect shard routes/provider count.</li>
+<li>Resume any interrupted transfer.</li>
+<li>Let repair orchestration seek replacement providers.</li>
+<li>Do not delete the only local recoverable copy until redundancy is
+healthy.</li>
+</ol>
+<h2 id="aura-automatic-says-no-compatible-runtime">AURA Automatic says
+no compatible runtime</h2>
+<ol type="1">
+<li>Keep Runtime on AUTO.</li>
+<li>Confirm native hardware discovery.</li>
+<li>Confirm the signed runtime catalog contains a package for
+platform/arch/backend.</li>
+<li>Confirm package validity heights and publisher key.</li>
+<li>Confirm the package hash matches after download.</li>
+<li>For CUDA, verify the NVIDIA driver can expose the device.</li>
+<li>For Apple Silicon, Metal discovery alone does not pretend MLX is
+installed; the verified MLX adapter/package completes that
+transition.</li>
+</ol>
+<h2 id="aura-provider-not-reachable-behind-nat">AURA provider not
+reachable behind NAT</h2>
+<ol type="1">
+<li>Enable/configure a relay endpoint.</li>
+<li>Confirm outbound connectivity.</li>
+<li>Check supervisor relay health/cooldown.</li>
+<li>Do not expose wallet private keys to the relay.</li>
+</ol>
+<h2 id="aura-retry-fails">AURA retry fails</h2>
+<p>If a request is an exact retry after a lost result, the durable
+journal should allow returning the committed result. If the payload
+changed while reusing the same sequence, rejection is intentional
+anti-replay behavior.</p>
+<h2 id="model-exists-but-cannot-be-selected">Model exists but cannot be
+selected</h2>
+<p>Check:</p>
+<ul>
+<li>model catalog validity,</li>
+<li>governance status,</li>
+<li>license policy,</li>
+<li>provenance,</li>
+<li>hardware/runtime requirements,</li>
+<li>context requirement,</li>
+<li>model/expert availability,</li>
+<li>disk budget,</li>
+<li>current provider health.</li>
+</ul>
+<h2 id="btc-light-stale">BTC Light stale</h2>
+<p>Diagnose BTC service/sync separately from QRX peers. A healthy QRX
+node does not imply a healthy Bitcoin light sync.</p>
+<hr />
+<h1 id="developerintegrator-map">31. Developer/integrator map</h1>
+<p>Important source areas:</p>
+<pre class="text"><code>qrx-core/src/compute/     AURA, PoUC, model/runtime/provider layers
+qrx-core/src/storage/     QRX Drive and storage transport/runtime
+qrx-core/src/net/         QRX-Net names/sites/browser/policy
+qrx-core/src/consensus/   finality/slashing/consensus pieces
+qrx-core/src/bitcoin/     Bitcoin SPV
+GUIWALLET/                Tauri desktop wallet
+scripts/                  release/build/audit tooling</code></pre>
+<h3 id="closing-modules">0.0.9 closing modules</h3>
+<ul>
+<li><code>qrx_aura_runtime_packages.*</code> — signed runtime packages +
+one-click activation</li>
+<li><code>qrx_aura_model_governance.*</code> —
+governance/provenance/license/update/rollback</li>
+<li><code>qrx_aura_production_routing.*</code> — quality/cost/energy/WAN
+production routing and telemetry</li>
+<li><code>qrx_aura_release.*</code> — host migration and
+release-readiness gate</li>
+</ul>
+<h3 id="adding-a-runtime">Adding a runtime</h3>
+<p>Do not only drop a <code>.so/.dylib/.dll</code> into a folder. Add a
+signed package announcement with platform/arch/backend requirements and
+content root, then verify it through the runtime package manager.</p>
+<h3 id="adding-a-model">Adding a model</h3>
+<p>A new model generation should normally require a new signed
+catalog/manifest entry, <strong>not a QRX consensus fork</strong>.
+Governance, license and provenance rules still apply.</p>
+<hr />
+<h2 id="adding-a-qrx-app-in-0.0.9">Adding a QRX app in 0.0.9</h2>
+<p>Start from <code>GUIWALLET/qrxapp-sdk/demo-hello/</code>, request
+only the permissions the app needs, and test it first in Developer Mode.
+Package it with <code>build-qrxapp.sh</code>, then install the resulting
+<code>.qrxapp</code> through the wallet. Do not call undocumented Tauri
+commands from third-party code; the Mini SDK/App Host is the stable
+boundary.</p>
+<p>The 0.0.9 SDK is intentionally small. A capability that is not in the
+allowlist is unavailable to third-party apps rather than implicitly
+granted.</p>
+<h1 id="faq">32. FAQ</h1>
+<h3 id="do-i-have-to-download-every-aura-model">Do I have to download
+every AURA model?</h3>
+<p>No. Model/expert assets are fetched and cached according to hardware,
+demand, placement policy and disk budget.</p>
+<h3 id="do-i-choose-qwenkimideepseek-manually">Do I choose
+Qwen/Kimi/DeepSeek manually?</h3>
+<p>Normally no. Automatic routing should select a compatible model for
+the task. Advanced users can inspect/pin behavior when explicitly
+supported.</p>
+<h3 id="does-every-aura-provider-need-a-public-ip">Does every AURA
+provider need a public IP?</h3>
+<p>No. NAT/relay mode is designed for providers that can make an
+outbound connection but cannot accept an inbound public port.</p>
+<h3 id="can-qrx-use-a-macbook-with-816-gb">Can QRX use a MacBook with
+8–16 GB?</h3>
+<p>Potentially yes, especially for smaller models, utility roles or
+selected MoE expert packs. Placement is capability/budget driven rather
+than “full model or nothing”.</p>
+<h3 id="are-p40-gpus-supported">Are P40 GPUs supported?</h3>
+<p>The runtime capability layer explicitly represents NVIDIA P40/Pascal
+SM 6.1 and avoids assuming tensor cores on that generation. An
+appropriate compatible CUDA runtime/model path is still required.</p>
+<h3 id="is-aura-a-single-model">Is AURA a single model?</h3>
+<p>No. AURA is the orchestration/user layer over a signed, versioned
+model fabric.</p>
+<h3 id="does-qrx-drive-have-one-central-storage-server">Does QRX Drive
+have one central storage server?</h3>
+<p>No. The target architecture uses distributed providers, redundancy,
+multi-provider reconstruction and repair.</p>
+<h3 id="can-i-recover-without-my-wallet-backup">Can I recover without my
+wallet backup?</h3>
+<p>Do not assume so. Decentralization does not recreate lost private
+keys. Maintain verified recovery material.</p>
+<h3 id="can-third-parties-build-apps-for-the-qrx-wallet">Can third
+parties build apps for the QRX Wallet?</h3>
+<p>Yes. 0.0.9 provides the local <code>.qrxapp</code> format, App
+Registry, sandbox, permissions, Mini JS SDK and Developer Mode.
+Public/decentralized distribution is deferred to 0.0.10.</p>
+<h3 id="can-a-.qrxapp-spend-my-qub-by-itself">Can a <code>.qrxapp</code>
+spend my QUB by itself?</h3>
+<p>No. The v1 SDK can request that the wallet open/pre-fill a payment,
+but the user reviews and confirms the normal Send flow. The app does not
+receive private keys or a silent signing primitive.</p>
+<h3 id="is-apple-m1m2m3m4-a-different-upscaler-platform-profile">Is
+Apple M1/M2/M3/M4 a different Upscaler platform profile?</h3>
+<p>No. They all use the single <code>apple-silicon</code> compatibility
+profile. Generation and chip variant are metadata used for
+display/automatic tuning; RAM and verified runtime capability remain
+more important than the marketing generation name.</p>
+<h3 id="is-vulkan-native-on-apple-silicon-macos">Is Vulkan native on
+Apple Silicon macOS?</h3>
+<p>No. QRX treats Metal as the native Apple graphics API. An ncnn Vulkan
+backend can run through MoltenVK when that runtime is available.</p>
+<h3 id="is-a-passed-123123-test-suite-a-security-audit">Is a passed
+123/123 test suite a security audit?</h3>
+<p>No. It is a regression signal for the shipped test matrix, not an
+independent security certification.</p>
+<hr />
+<h1 id="release-checklist">33. 0.0.9 release checklist</h1>
+<p>For the final 0.0.9 branch close:</p>
+<ul>
+<li><strong>DONE:</strong> AURA host/provider integration</li>
+<li><strong>DONE:</strong> Durable job/result retry journal</li>
+<li><strong>DONE:</strong> NAT/relay transport</li>
+<li><strong>DONE:</strong> Production runtime adapters</li>
+<li><strong>DONE:</strong> Zero-config model fabric and provider
+discovery</li>
+<li><strong>DONE:</strong> Autonomous replication repair/hot expert
+placement</li>
+<li><strong>DONE:</strong> Provider supervisor/relay
+failover/health</li>
+<li><strong>DONE:</strong> Signed runtime package manager + one-click
+activation</li>
+<li><strong>DONE:</strong> Model
+governance/provenance/license/update/rollback</li>
+<li><strong>DONE:</strong> Quality/cost/energy production routing +
+telemetry</li>
+<li><strong>DONE:</strong> Mainnet AURA migration/readiness gate</li>
+<li><strong>DONE:</strong> Real immutable-origin/Hugging-Face bootstrap
++ resumable import</li>
+<li><strong>DONE:</strong> Qwen/Kimi/DeepSeek bootstrap catalog
+specifications</li>
+<li><strong>DONE:</strong> Drive-first governed origin fallback and
+executable replication transfer</li>
+<li><strong>DONE:</strong> Complete A–Z handbook source</li>
+<li><strong>DONE:</strong> Governance Vault V1: offline five-key backup,
+max-two operational signers, offline signature import</li>
+<li><strong>DONE:</strong> On-chain <code>GOVERNANCE_PROTOCOL</code>
+activation scheduling; local Mainnet upgrade files are
+non-authoritative</li>
+<li><strong>DONE:</strong> Common DRIVE/QRX-Net/Advertising/Compute
+readiness framework and wallet roadmap status</li>
+<li><strong>DONE:</strong> Final documentation coverage test
+(<code>compute_phase174_qrx_a_to_z_documentation_gate</code>)</li>
+<li><strong>DONE:</strong> QRX App Foundation v1: <code>.qrxapp</code>,
+App Registry, sandbox/App Host and per-call permissions</li>
+<li><strong>DONE:</strong> QRX Mini JS SDK v1 + <code>Hello QRX</code>
+demo + Developer Mode</li>
+<li><strong>DONE:</strong> QRX Upscaler local classical
+image/batch/video orchestration and capability probe</li>
+<li><strong>DONE:</strong> Unified <code>apple-silicon</code> Upscaler
+compatibility profile with M-generation/variant metadata</li>
+<li><strong>DONE:</strong> Phase 190 multilingual Apps/Upscaler/App Host
+UX across all 55 locale catalogs (885-key parity) + full-width
+Apps/Upscaler workspaces</li>
+<li><strong>DONE:</strong> Raspberry Pi 5 supported and ODROID-N2/N2+
+experimental Vulkan profiles with safe fallback</li>
+<li><strong>OPEN:</strong> Native AI upscaler runtime/model bundle on
+every release target (separate runtime-delivery gate)</li>
+<li><strong>OPEN:</strong> 0.0.10 developer signatures / QRX Drive /
+QRX-Net / App Directory / app compute capabilities</li>
+<li><strong>OPEN:</strong> Native Tauri builds on each release
+OS/architecture in CI</li>
+<li><strong>OPEN:</strong> Public-release code signing/notarization
+where applicable</li>
+</ul>
+<hr />
+<h1 id="glossary">34. Glossary</h1>
+<p><strong>AURA</strong> — QRX useful-compute/AI orchestration
+layer.<br />
+<strong>Asset manifest</strong> — content-addressed description of model
+files/expert packs.<br />
+<strong>BFT</strong> — Byzantine fault tolerant consensus/finality
+family.<br />
+<strong>Content root</strong> — cryptographic hash identifying exact
+bytes/content.<br />
+<strong>Expert</strong> — MoE sub-network selected by a router for some
+tokens.<br />
+<strong>Hot expert</strong> — expert with elevated current demand.<br />
+<strong>Manifest root</strong> — cryptographic identity of a complete
+model manifest.<br />
+<strong>ML-DSA-65</strong> — post-quantum digital-signature algorithm
+used in QRX hybrid wallet/signature work.<br />
+<strong>MLX/Metal</strong> — Apple Silicon-oriented model
+runtime/backend path.<br />
+<strong>MoE</strong> — Mixture of Experts model architecture.<br />
+<strong>PoSTOR / Proof of Storage</strong> — QRX storage proof/provider
+layer.<br />
+<strong>PoUC</strong> — Proof of Useful Compute.<br />
+<strong>Provider</strong> — node offering storage/compute/network
+resources.<br />
+<strong>QRX Drive</strong> — decentralized storage layer.<br />
+<strong>QRX-Net</strong> — decentralized naming/site/browser
+layer.<br />
+<strong>Relay</strong> — transport intermediary used when a provider
+cannot accept inbound connections.<br />
+<strong>Runtime adapter</strong> — executable bridge from QRX AURA jobs
+to an inference runtime.<br />
+<strong>SPV</strong> — Simplified Payment Verification for Bitcoin
+header/transaction proof validation.<br />
+<strong>QRX App Host</strong> — trusted wallet-side mediator between
+sandboxed <code>.qrxapp</code> code and permission-checked native
+APIs.<br />
+<strong>QRX Mini JS SDK</strong> — injected JavaScript API exposed to
+third-party QRX apps; v1 is read-oriented plus safe payment requests and
+app-scoped storage.<br />
+<strong><code>.qrxapp</code></strong> — bounded ZIP application package
+with <code>qrx-app.json</code> manifest used by the 0.0.9 local App
+Registry.<br />
+<strong>Apple Silicon profile</strong> — single QRX Upscaler
+compatibility profile for Apple ARM Macs; M-generation/variant is tuning
+metadata, not a separate platform.<br />
+<strong>MoltenVK</strong> — Vulkan-on-Metal translation layer used when
+QRX runs an ncnn Vulkan path on macOS.<br />
+<strong>Velocity</strong> — QRX high-throughput/native
+market/cross-chain execution family.</p>
+<hr />
+<h2 id="documentation-authority">Documentation authority</h2>
+<p>This Markdown file is the canonical 0.0.9 offline handbook. Release
+notes describe deltas; this handbook describes how the complete system
+is intended to be used.</p>
+<p>When this guide disagrees with an exact command accepted by a newer
+binary, the newer binary’s versioned CLI/API contract wins and the
+documentation coverage gate should be updated in the same release.</p>
+<h2 id="aura-zero-touch-runtime-delivery">AURA zero-touch runtime
+delivery</h2>
+<p>For normal users, AURA runtime setup is automatic. The user does
+<strong>not</strong> choose CPU vs. CUDA vs. Metal, GGUF, quantization,
+or a llama.cpp build. <code>AURA Compute -&gt; Automatic</code> is the
+normal path.</p>
+<p>At startup, QRX discovers the host hardware, selects a compatible
+signed runtime package, verifies the package SHA3 content root and
+publisher signature, probes the QRX AURA plugin ABI, and only then
+persists the runtime as active. Failed verification leaves the package
+inactive.</p>
+<p>The Genesis runtime matrix covers:</p>
+<ul>
+<li>Linux x86-64: llama.cpp CPU, plus CUDA when a compatible NVIDIA GPU
+is present.</li>
+<li>Linux ARM64: llama.cpp CPU/ARM path for Raspberry Pi 5 and other
+ARM64 systems.</li>
+<li>macOS x86-64: llama.cpp CPU.</li>
+<li>macOS Apple Silicon: llama.cpp Metal for GGUF models; MLX remains a
+separate verified runtime path for MLX-formatted models.</li>
+<li>Windows x86-64: llama.cpp CPU; CUDA may be supplied by an enabled
+native CUDA release runner.</li>
+<li>NVIDIA CUDA packages include compute capability 6.1 so Tesla
+P40-class providers remain eligible.</li>
+</ul>
+<p>Runtime lookup is content-addressed. QRX prefers a verified local CAS
+object, may use an available QRX Drive/provider context, and only then
+falls back to the signed HTTPS release origin. A package downloaded from
+an origin is rejected if its bytes do not match the content root in the
+signed runtime catalog.</p>
+<p>The runtime catalog is signed by the QRX runtime publisher key. The
+public trust root is bundled with the wallet/application resources; it
+is not trusted merely because a download server supplied a key next to a
+package. This prevents a compromised package host from replacing both a
+binary and the key used to approve it.</p>
+<p><code>qrxd</code> consumes the wallet-generated AURA host
+configuration. When AURA is set to Automatic and no explicit runtime
+override is present, daemon startup performs the zero-touch runtime
+bootstrap. If the release catalog is unavailable, the node can still
+start while AURA remains pending; an unverified runtime is never
+silently activated.</p>
+<h3 id="release-operator-requirements">Release-operator
+requirements</h3>
+<p>Zero-touch for the end user still requires the release operator to
+prepare the trusted artifacts before shipping a platform installer:</p>
+<ol type="1">
+<li>Build the native runtime artifacts on the appropriate native/CI
+runners.</li>
+<li>Sign the unified runtime catalog with the offline/CI-protected
+Ed25519 runtime signing key.</li>
+<li>Bundle the resulting public publisher key and signed catalog in the
+wallet resources.</li>
+<li>Package/sign/notarize the platform application as required by the
+operating system.</li>
+<li>Seed the verified runtime artifacts into the release origin and,
+where available, QRX Drive.</li>
+</ol>
+<p>The private runtime signing key must never be included in the source
+tree or wallet.</p>
+</body>
+</html>

@@ -1,0 +1,10 @@
+QRX 0.0.7.7 Generals Serverless Phase 2 validation
+
+PASS: clean native CMake build
+PASS: Phase 1 serverless consensus regression
+PASS: Phase 2 deterministic seasons/turns, energy, season entry/reserved prize pool, clan invites/join/leave
+PASS: QRX 0.0.7.6 native asset Mainnet consensus regression
+PASS: QRX 0.0.7.6 regulated asset/KYC regression
+PASS: QRX 0.0.7.5 governance/attester/protocol regression
+
+Native installers for macOS/Windows/Linux are not asserted by this validation; the Core source build and listed native host test suites were executed here.

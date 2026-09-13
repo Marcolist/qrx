@@ -1,0 +1,27 @@
+QRX 0.0.9.38 FULL-TREE CONTINUITY AUDIT
+Date: 2026-09-10
+Baseline: canonical QRX 0.0.9.37 full-tree release
+Excluded from source comparison: generated build directories (`build`, `build-sanitize`, `cmake-build-*`).
+
+Baseline regular files: 1117
+0.0.9.38 pre-release regular files before release audit/manifest: 1124
+Removed baseline files: 0
+
+New implementation/release-prep files at this checkpoint:
+- IMPLEMENTATION_0.0.9.38.md
+- RELEASE_AUDIT_0.0.9.38_BUILD.log
+- RELEASE_AUDIT_0.0.9.38_CTEST_96_OF_96_PASS.log
+- qrx-core/IMPLEMENTATION_0.0.9.38.md
+- qrx-core/src/compute/qrx_aura_remote_dispatch.c
+- qrx-core/src/compute/qrx_aura_remote_dispatch.h
+- qrx-core/tests/compute_phase163_aura_remote_dispatch_leases_drive_anti_entropy.c
+
+Changed baseline files:
+- QRX_0.0.8_0.0.10_ROADMAP_STORAGE_COMPUTE_OUROBOROS.txt
+- qrx-core/CMakeLists.txt
+- qrx-core/QRX_0.0.8_0.0.10_ROADMAP_STORAGE_COMPUTE_OUROBOROS.txt
+- qrx-core/src/compute/qrx_aura_fabric_gossip.c
+- qrx-core/src/compute/qrx_aura_fabric_gossip.h
+- qrx-core/src/qrx.c
+
+Result: PASS — no 0.0.9.37 release file was removed.

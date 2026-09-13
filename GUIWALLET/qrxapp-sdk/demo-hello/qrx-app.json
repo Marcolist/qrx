@@ -1,0 +1,22 @@
+{
+  "format": 1,
+  "id": "org.qrx.demo.hello",
+  "name": "Hello QRX",
+  "version": "1.0.0",
+  "author": "QRX Contributors",
+  "description": "Reference app for QRX Mini JS SDK v1.",
+  "entry": "index.html",
+  "script": "app.js",
+  "style": "app.css",
+  "sdk": "1",
+  "min_wallet": "0.0.9",
+  "networks": ["mainnet", "alpha", "testnet", "regtest"],
+  "permissions": [
+    "wallet.identity.read",
+    "wallet.balance.read",
+    "wallet.payment.request",
+    "chain.read",
+    "network.status.read",
+    "app.storage"
+  ]
+}

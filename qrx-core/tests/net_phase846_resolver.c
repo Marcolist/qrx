@@ -1,0 +1,4 @@
+#include "net/qrx_net_resolver.h"
+#include <assert.h>
+#include <string.h>
+int main(void){QrxBrowserResolution r;assert(qrx_browser_resolve_input("lattemining.qrx/docs",&r)==0&&r.route==QRX_BROWSER_ROUTE_QRX&&!r.dns_allowed&&!strcmp(r.canonical_url,"qrx://lattemining.qrx/docs"));assert(qrx_browser_resolve_input("https://lattemining.qrx/docs",&r)==0&&r.route==QRX_BROWSER_ROUTE_QRX&&!r.dns_allowed);assert(qrx_browser_resolve_input("qrx://Pascal.QRX/",&r)==0&&r.route==QRX_BROWSER_ROUTE_QRX&&!strcmp(r.qrx_name,"pascal.qrx"));assert(qrx_browser_resolve_input("example.org",&r)==0&&r.route==QRX_BROWSER_ROUTE_WWW&&r.dns_allowed&&!strcmp(r.canonical_url,"https://example.org"));assert(qrx_browser_resolve_input("quantum computing",&r)==0&&r.route==QRX_BROWSER_ROUTE_SEARCH);assert(qrx_browser_resolve_input("qrx://example.org",&r)!=0);return 0;}

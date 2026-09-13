@@ -1,0 +1,9 @@
+QRX 0.0.7.7 Generals Phase 4.1 final validation
+Fri Sep  4 16:06:00 UTC 2026
+PASS: QRX Generals 0.0.7.7 Phase 1 serverless consensus: player identity, native unique General, GAME_JOIN, clan creation, treasury funding, WAL atomicity, address compatibility
+PASS: QRX Generals 0.0.7.7 Phase 2 serverless consensus: deterministic seasons/turns, regenerating energy, season entry + reserved prize pool, clan invite IDs, join/leave/rejoin, WAL atomicity, and wallet/address compatibility
+PASS: QRX Generals 0.0.7.7 Phase 3 deterministic world & orders: deterministic terrain/spawn, starter units, commit/reveal timing, commitment verification, movement, occupancy, Energy debit, replay rejection, WAL atomicity, wallet compatibility
+PASS: QRX Generals 0.0.7.7 Phase 3.1 adaptive seasonal world: deterministic size tiers, 64x64 chunk occupancy, fair HQ minimum distance, clustered starter armies, monotonic coordinate-compatible world model
+PASS: QRX Generals 0.0.7.7 Phase 4 strategic combat regression (rerun separately after aggregate timeout)
+PASS: QRX Generals 0.0.7.7 Phase 4.1 supply, production and strategic infrastructure
+NOTE: aggregate validation command hit environment timeout after Phase 3.1; remaining Phase 4 and Phase 4.1 tests were rerun separately and passed.

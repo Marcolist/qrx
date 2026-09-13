@@ -1,0 +1,23 @@
+QRX 0.0.9.39 FULL-TREE CONTINUITY AUDIT
+Baseline: canonical 0.0.9.38 full-tree archive
+Build directories excluded.
+baseline_regular_files=1129
+current_regular_files_pre_manifest=1138
+removed_baseline_files=0
+added_files=9
+ADDED IMPLEMENTATION_0.0.9.39.md
+ADDED RELEASE_AUDIT_0.0.9.39.md
+ADDED RELEASE_AUDIT_0.0.9.39_BUILD.log
+ADDED RELEASE_AUDIT_0.0.9.39_CTEST_97_OF_97_PASS.log
+ADDED qrx-core/IMPLEMENTATION_0.0.9.39.md
+ADDED qrx-core/RELEASE_AUDIT_0.0.9.39.md
+ADDED qrx-core/src/compute/qrx_aura_provider_service.c
+ADDED qrx-core/src/compute/qrx_aura_provider_service.h
+ADDED qrx-core/tests/compute_phase164_aura_provider_service_secure_durable_moe.c
+changed_files=5
+CHANGED QRX_0.0.8_0.0.10_ROADMAP_STORAGE_COMPUTE_OUROBOROS.txt
+CHANGED qrx-core/CMakeLists.txt
+CHANGED qrx-core/QRX_0.0.8_0.0.10_ROADMAP_STORAGE_COMPUTE_OUROBOROS.txt
+CHANGED qrx-core/src/compute/qrx_aura_remote_dispatch.c
+CHANGED qrx-core/src/compute/qrx_aura_remote_dispatch.h
+result=PASS

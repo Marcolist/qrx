@@ -94,6 +94,7 @@ static int qrx_control_port_for_network(const char *network) {
 
 static char g_rpc_user[128] = "";
 static char g_rpc_password[256] = "";
+static char g_rpc_token[129] = "";
 
 static char *qrx_base64_encode_local(const unsigned char *data, size_t len) {
     static const char tbl[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -130,7 +131,9 @@ static void make_auth_header(char *out, size_t out_sz) {
 }
 
 static void usage(void){
-    puts("qrx-cli [--network <alpha|testnet|regtest|mainnet>] [--datadir PATH] [--wallet NAME] [--rpc-user USER] [--rpc-password PASS] <command>\nCommands: getinfo|getnewaddress|listaddresses|getbalance [addr]|getblockcount|getblockchaininfo|getnetworkinfo|getnodestatus|getuptime|getbuildinfo|getpeerinfo|getstakinginfo|getwalletinfo|getreward [height]|getparams [height]|gethalving [height]|getforks|getactivefork [height]|sendtoaddress <addr> <amount> [memo]|sendrawtransaction <txfile>|history [addr] [limit]|addnode <host:port>|listpeers|peerstatus|banscores|stake <amount>|delegate <validator> <amount>|validator-set|tokenomics|getdevaddress|faucet <addr> <amount>|createswap <recipient> <amount> <hashlock_hex> <timelock_seconds> [memo]|redeemswap <swap_id> <secret>|refundswap <swap_id>|getswap <swap_id>|listswaps|shielded-address|shield <amount> [shielded_address]|shielded-balance|shielded-send <shielded_address> <amount>|unshield <transparent_address> <amount>|shielded-history|stealth-address|stealth-send <stealth_address> <amount> [memo]|stealth-scan|stealth-history|privacy-feature-status|stop");
+    puts("qrx-cli [--network <alpha|testnet|regtest|mainnet>] [--datadir PATH] [--wallet NAME] [--rpc-user USER] [--rpc-password PASS] <command>\nCommands: getinfo|getnewaddress|listaddresses|getbalance [addr]|getaddressnonce <addr> [lane]|getnoncelanes <addr>|getagent <agent>|listagents [owner]|getagentlimits <agent>|getorder <order_id>|listorders [owner_or_agent] [status]|gettrade <trade_id>|listtrades [market] [limit]|getorderbook <market> [depth]|getassetbalance <asset> [address]|listassets|getassetinfo <asset>|getassettag <qualifier> <address>|getassetrestriction <asset> <address>|getassetburnedfees|gettradinginfo|getgateway <gateway>|listgateways [venue]|getexecutionreport <report_id>|getstateroot|getsettlement <trade_id>|getcrosschaininfo|getcrosschainswap <session_id>|listcrosschainswaps [status]|getcrosschainorderbook [depth]|getbtchtlctemplate <hashlock_hex> <buyer_btc_pubkey_hex> <seller_btc_refund_pubkey_hex> <csv_blocks> [mainnet|testnet|regtest]|getbtcspvinfo|getbtcbestheader|getbtcheader <hash|height>|verifybtcproof <txid> <block_hash> <tx_index> <branch_csv>|getbtcconfirmations <txid>|verifycrosschainfunding <session_id> <rawtx_hex> <block_hash> <tx_index> <branch_csv>|getcrosschainfunding <session_id>|getcrosschainsecurity <session_id>|getvelocityinfo|getvelocityengineinfo|getresourcedashboard|getresourceatlas|getaurafabric|getauraatlas|listauramodels|gethostingmissions|getdomainpreflight <name.qrx> [years]|registerdomain <name.qrx> <years> [qub_address]|renewdomain <name.qrx> <years>|updatedomain <name.qrx> <KEEP|SET|CLEAR> <qub|-> <KEEP|SET|CLEAR> <web_root_hex|-> <KEEP|SET|CLEAR> <WALLET|publishing_commitment_hex|->|transferdomain <name.qrx> <new_owner>|listdomains [owner]|getdomainhistory <name.qrx>|getadpolicy|getadcampaign <campaign_id>|getadrewards|createadcampaign <id> <target_url> <creative_root_hex> <start_height> <end_height> <cost_per_impression_atoms> <budget_atoms> [category]|claimadrewards|prepareqrxsite <name.qrx> <folder>|getqrxsitepublish <name.qrx> <version>|listqrxsiteversions <name.qrx>|rollbackqrxsite <name.qrx> <version>|advanceqrxsite <name.qrx> <version> [epochs] [rate_atoms_per_gib_epoch]|getdomain <name.qrx>|resolvebrowserinput <url-or-name>|fetchqrxsite <name.qrx> [path]|listdrivefiles [owner]|getdrivefilehealth <contract_id>|getdriveshardroutes <contract_id>|getdrivepqstatus|preparedriveupload <source> <STANDARD|FAST|ARCHIVE>|startpreparedriveupload <contract_id> <prepare_id>|advancepreparedriveupload <prepare_id> [epochs] [rate_atoms_per_gib_epoch]|decryptdrivefile <encrypted-container> <destination>|startdrivedownload <contract_id> <destination>|startdriveupload <contract_id> <source>|getdrivetransfer <transfer_id>|listdrivetransfers|pausedrivetransfer <transfer_id>|resumedrivetransfer <transfer_id>|canceldrivetransfer <transfer_id>|getblockcount|getblockchaininfo|getnetworkinfo|getnodestatus|getmainnethealth|getdriveactivationreadiness|getprotocolreadiness <FEATURE_FLAG>|getuptime|getbuildinfo|getmempoolinfo|getrecentblocks [limit]|getrecenttransactions [limit]|getvalidatorstatus|getblockproducerinfo|setvalidatorfleet <wallet1,wallet2,...|->|getfeeinfo|getpeerinfo|getstakinginfo|getwalletinfo|walletpassphrasehex <hex|->|walletpassphrasehexfor <wallet> <hex|->|walletlock|walletlockfor <wallet>|getreward [height]|getparams [height]|getprotocolinfo [height]|gethalving [height]|getforks|getactivefork [height]|createrawtransaction <from> <to> <amount> <ed25519_pub_hex> <mldsa65_pub_b64> [memo] [fee] [nonce]|createvelocitytransaction <from> <to> <amount> <ed25519_pub_hex> <mldsa65_pub_b64> <tx_type> <lane_id> <expiry_height> <payload> [fee] [nonce]|createagentregistertransaction <owner> <agent> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createagentupdatetransaction <owner> <agent> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createagentrevoketransaction <owner> <agent> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createordertransaction <agent> <owner> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createexternalordertransaction <agent> <owner> <venue> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|creategatewayregistertransaction <authority> <gateway> <venue> <name> <gateway_ed_pub_hex> <gateway_mldsa65_pub_b64> <gateway_expires_height> <authority_ed_pub_hex> <authority_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|creategatewayrevoketransaction <authority> <gateway> <authority_ed_pub_hex> <authority_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createexecutionreporttransaction <gateway> <owner> <order_id> <SUBMITTED|PARTIALLY_FILLED|FILLED|REJECTED|CANCELED> <filled_quantity_atoms> <avg_price_atoms> <venue_fee_atoms> <venue_order_id> <report_sequence> <gateway_ed_pub_hex> <gateway_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainbuytransaction <agent> <owner> <btc_sats> <max_qub_per_btc_atoms> <order_expiry_height> <hashlock_hex> <btc_receive_pubkey_hex> <qrx_refund_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainselltransaction <agent> <owner> <btc_sats> <min_qub_per_btc_atoms> <order_expiry_height> <btc_refund_pubkey_hex> <btc_refund_csv_blocks> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainredeemtransaction <seller_owner> <session_id> <secret_hex> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainrefundtransaction <buyer_owner> <session_id> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createbtcspvheadertransaction <address> <header_hex> <ed_pub_hex> <mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createbtcspvfundingprooftransaction <address> <session_id> <rawtx_hex> <block_hash> <tx_index> <branch_csv> <ed_pub_hex> <mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createordercanceltransaction <agent> <owner> <order_id> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createorderreplacetransaction <agent> <owner> <order_id> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|signrawtransactionwithwallet <rawtxfile> <signedtxfile>|decoderawtransaction <txfile>|gettxid <txfile>|sendtoaddress <addr> <amount> [memo]|sendfromaddress <source> <addr> <amount> [memo]|sendrawtransaction <txfile>|history [addr] [limit]|addnode <host:port>|listpeers|peerstatus|banscores|stake <amount>|delegate <validator> <amount>|undelegate <validator> <amount>|claim-undelegated <validator>|validator-set|tokenomics|getdevaddress|faucet <addr> <amount>|createswap <recipient> <amount> <hashlock_hex> <timelock_seconds> [memo]|redeemswap <swap_id> <secret>|refundswap <swap_id>|getswap <swap_id>|listswaps|shielded-address|shield <amount> [shielded_address]|shielded-balance|shielded-send <shielded_address> <amount>|unshield <transparent_address> <amount>|shielded-history|stealth-address|stealth-send <stealth_address> <amount> [memo]|stealth-scan|stealth-spend <tx_id> <transparent_address> <amount>|stealth-history|privacy-feature-status|stop");
+    puts("Phase 4F.2: createarbitragehedgetransaction <agent> <owner> <matched_crosschain_buy_order_id> <arbitrage_id> <quantity_sats> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]");
+    puts("Complete history: the local Core reader accepts `qrx list-trades <chain-dir> * all`; use qrx-wallet-cli export-ledger for an unbounded verified CSV export");
 }
 
 static int socket_call(const char *sock_path, const char *cmd, char *out, size_t out_sz){
@@ -168,8 +171,8 @@ static int socket_call(const char *sock_path, const char *cmd, char *out, size_t
     }
 
     char method[128] = {0};
-    char params[3072] = {0};
-    char tmp[4096];
+    char params[32768] = {0};
+    char tmp[32768];
     snprintf(tmp, sizeof(tmp), "%s", cmd);
     tmp[strcspn(tmp, "\r\n")] = 0;
     char *save = NULL;
@@ -187,23 +190,25 @@ static int socket_call(const char *sock_path, const char *cmd, char *out, size_t
     }
     strncat(params, "]", sizeof(params)-strlen(params)-1);
 
-    char body[4096];
+    char body[65536];
     snprintf(body, sizeof(body), "{\"method\":\"%s\",\"params\":%s}", method, params);
 
-    char auth_header[1024];
+    char auth_header[1024], token_header[256];
     make_auth_header(auth_header, sizeof(auth_header));
+    token_header[0]=0; if(g_rpc_token[0]) snprintf(token_header,sizeof(token_header),"X-QRX-RPC-Token: %s\r\n",g_rpc_token);
 
-    char req[8192];
+    char req[131072];
     snprintf(req, sizeof(req),
         "POST /rpc HTTP/1.1\r\n"
         "Host: 127.0.0.1:%d\r\n"
         "Content-Type: application/json\r\n"
         "%s"
+        "%s"
         "Content-Length: %zu\r\n"
         "Connection: close\r\n"
         "\r\n"
         "%s",
-        port, auth_header, strlen(body), body);
+        port, auth_header, token_header, strlen(body), body);
 
 #ifdef _WIN32
     if(send(fd, req, (int)strlen(req), 0) < 0){ closesocket(fd); return -1; }
@@ -235,6 +240,12 @@ static int socket_call(const char *sock_path, const char *cmd, char *out, size_t
 }
 
 
+
+static int qrx_hex_encode_text(const char *in,char *out,size_t out_sz){
+    static const char h[]="0123456789abcdef"; if(!in||!out)return -1; size_t n=strlen(in); if(n*2+1>out_sz)return -1;
+    for(size_t i=0;i<n;i++){unsigned char c=(unsigned char)in[i];out[i*2]=h[c>>4];out[i*2+1]=h[c&15];}out[n*2]=0;return 0;
+}
+
 int main(int argc,char **argv){
     char detected_network[64];
     const char *network=NULL, *datadir=NULL, *wallet="default"; int cmdi=-1;
@@ -248,18 +259,130 @@ int main(int argc,char **argv){
         cmdi=i; break;
     }
     if(cmdi<0){ usage(); return 1; }
+    if(!strcmp(argv[cmdi], "help") || !strcmp(argv[cmdi], "--help") || !strcmp(argv[cmdi], "-help") || !strcmp(argv[cmdi], "-h")) {
+        usage();
+        return 0;
+    }
+    if(!network || !*network) {
+        network = qrx_detect_network(detected_network, sizeof(detected_network));
+    }
     if(qrx_ensure_node(network,datadir,wallet,NULL,NULL,0,base,sizeof(base),cdir,sizeof(cdir),wdir,sizeof(wdir),ndir,sizeof(ndir))!=0){ fprintf(stderr,"qrx-cli: failed to initialize\n"); return 1; }
+    { char tp[PATH_MAX]; snprintf(tp,sizeof(tp),"%s/rpc.token",cdir); qrx_read_file_first_line(tp,g_rpc_token,sizeof(g_rpc_token)); }
     snprintf(sock, sizeof(sock), "http://127.0.0.1:%d/rpc", qrx_control_port_for_network(network));
-    char cmd[4096] = {0};
+    char cmd[131072] = {0};
     if(!strcmp(argv[cmdi],"getinfo")) snprintf(cmd,sizeof(cmd),"getinfo\n");
     else if(!strcmp(argv[cmdi],"getnewaddress")) snprintf(cmd,sizeof(cmd),"getnewaddress\n");
     else if(!strcmp(argv[cmdi],"address")||!strcmp(argv[cmdi],"receive")) snprintf(cmd,sizeof(cmd),"address\n");
     else if(!strcmp(argv[cmdi],"listaddresses")) snprintf(cmd,sizeof(cmd),"listaddresses\n");
     else if(!strcmp(argv[cmdi],"getbalance")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "getbalance %s\n" : "getbalance\n", cmdi+1<argc?argv[cmdi+1]:"");
+    else if(!strcmp(argv[cmdi],"getresourcedashboard")) snprintf(cmd,sizeof(cmd),"getresourcedashboard\n");
+    else if(!strcmp(argv[cmdi],"getresourceatlas")) snprintf(cmd,sizeof(cmd),"getresourceatlas\n");
+    else if(!strcmp(argv[cmdi],"getaurafabric")) snprintf(cmd,sizeof(cmd),"getaurafabric\n");
+    else if(!strcmp(argv[cmdi],"getauraatlas")) snprintf(cmd,sizeof(cmd),"getauraatlas\n");
+    else if(!strcmp(argv[cmdi],"listauramodels")) snprintf(cmd,sizeof(cmd),"listauramodels\n");
+    else if(!strcmp(argv[cmdi],"gethostingmissions")) snprintf(cmd,sizeof(cmd),"gethostingmissions\n");
+    else if(!strcmp(argv[cmdi],"listdrivefiles")) snprintf(cmd,sizeof(cmd),"listdrivefiles %s\n", cmdi+1<argc?argv[cmdi+1]:"-");
+    else if(!strcmp(argv[cmdi],"getdrivefilehealth") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getdrivefilehealth %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"getdrivepqstatus")) snprintf(cmd,sizeof(cmd),"getdrivepqstatus\n");
+    else if(!strcmp(argv[cmdi],"preparedriveupload") && cmdi+2<argc) { char hx[PATH_MAX*2+8]; if(qrx_hex_encode_text(argv[cmdi+1],hx,sizeof(hx))) return 1; snprintf(cmd,sizeof(cmd),"preparedriveuploadhex %s %s\n",hx,argv[cmdi+2]); }
+    else if(!strcmp(argv[cmdi],"startpreparedriveupload") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"startpreparedriveupload %s %s\n",argv[cmdi+1],argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"advancepreparedriveupload") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"advancepreparedriveupload %s%s%s%s%s\n",argv[cmdi+1],cmdi+2<argc?" ":"",cmdi+2<argc?argv[cmdi+2]:"",cmdi+3<argc?" ":"",cmdi+3<argc?argv[cmdi+3]:"");
+    else if(!strcmp(argv[cmdi],"decryptdrivefile") && cmdi+2<argc) { char a[PATH_MAX*2+8],b[PATH_MAX*2+8]; if(qrx_hex_encode_text(argv[cmdi+1],a,sizeof(a))||qrx_hex_encode_text(argv[cmdi+2],b,sizeof(b))) return 1; snprintf(cmd,sizeof(cmd),"decryptdrivefilehex %s %s\n",a,b); }
+    else if(!strcmp(argv[cmdi],"startdrivedownload") && cmdi+2<argc) { char hx[PATH_MAX*2+8]; if(qrx_hex_encode_text(argv[cmdi+2],hx,sizeof(hx))) return 1; snprintf(cmd,sizeof(cmd),"startdrivedownloadhex %s %s\n",argv[cmdi+1],hx); }
+    else if(!strcmp(argv[cmdi],"getdomainpreflight") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),cmdi+2<argc?"getdomainpreflight %s %s\n":"getdomainpreflight %s\n",argv[cmdi+1],cmdi+2<argc?argv[cmdi+2]:"");
+    else if(!strcmp(argv[cmdi],"registerdomain") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),cmdi+3<argc?"registerdomain %s %s %s\n":"registerdomain %s %s\n",argv[cmdi+1],argv[cmdi+2],cmdi+3<argc?argv[cmdi+3]:"");
+    else if(!strcmp(argv[cmdi],"renewdomain") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"renewdomain %s %s\n",argv[cmdi+1],argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"updatedomain") && cmdi+7<argc) snprintf(cmd,sizeof(cmd),"updatedomain %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7]);
+    else if(!strcmp(argv[cmdi],"transferdomain") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"transferdomain %s %s\n",argv[cmdi+1],argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"listdomains")) snprintf(cmd,sizeof(cmd),cmdi+1<argc?"listdomains %s\n":"listdomains\n",cmdi+1<argc?argv[cmdi+1]:"");
+    else if(!strcmp(argv[cmdi],"getdomainhistory") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getdomainhistory %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"getadpolicy")) snprintf(cmd,sizeof(cmd),"getadpolicy\n");
+    else if(!strcmp(argv[cmdi],"getadcampaign") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getadcampaign %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"getadrewards")) snprintf(cmd,sizeof(cmd),"getadrewards\n");
+    else if(!strcmp(argv[cmdi],"claimadrewards")) snprintf(cmd,sizeof(cmd),"claimadrewards\n");
+    else if(!strcmp(argv[cmdi],"createadcampaign") && cmdi+7<argc) snprintf(cmd,sizeof(cmd),cmdi+8<argc?"createadcampaign %s %s %s %s %s %s %s %s\n":"createadcampaign %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],cmdi+8<argc?argv[cmdi+8]:"");
+    else if(!strcmp(argv[cmdi],"prepareqrxsite") && cmdi+2<argc) { char hx[PATH_MAX*2+8]; if(qrx_hex_encode_text(argv[cmdi+2],hx,sizeof(hx))) return 1; snprintf(cmd,sizeof(cmd),"prepareqrxsitehex %s %s\n",argv[cmdi+1],hx); }
+    else if(!strcmp(argv[cmdi],"getqrxsitepublish") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"getqrxsitepublish %s %s\n",argv[cmdi+1],argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"listqrxsiteversions") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"listqrxsiteversions %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"rollbackqrxsite") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"rollbackqrxsite %s %s\n",argv[cmdi+1],argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"advanceqrxsite") && cmdi+2<argc) { if(cmdi+4<argc) snprintf(cmd,sizeof(cmd),"advanceqrxsite %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4]); else if(cmdi+3<argc) snprintf(cmd,sizeof(cmd),"advanceqrxsite %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3]); else snprintf(cmd,sizeof(cmd),"advanceqrxsite %s %s\n",argv[cmdi+1],argv[cmdi+2]); }
+    else if(!strcmp(argv[cmdi],"getdomain") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getdomain %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"resolvebrowserinput") && cmdi+1<argc) { char hx[4096]; if(qrx_hex_encode_text(argv[cmdi+1],hx,sizeof(hx))) return 1; snprintf(cmd,sizeof(cmd),"resolvebrowserinputhex %s\n",hx); }
+    else if(!strcmp(argv[cmdi],"fetchqrxsite") && cmdi+1<argc) { const char *path=cmdi+2<argc?argv[cmdi+2]:"/"; char hx[4096]; if(qrx_hex_encode_text(path,hx,sizeof(hx))) return 1; snprintf(cmd,sizeof(cmd),"fetchqrxsitehex %s %s\n",argv[cmdi+1],hx); }
+    else if(!strcmp(argv[cmdi],"startdriveupload") && cmdi+2<argc) { char hx[PATH_MAX*2+8]; if(qrx_hex_encode_text(argv[cmdi+2],hx,sizeof(hx))) return 1; snprintf(cmd,sizeof(cmd),"startdriveuploadhex %s %s\n",argv[cmdi+1],hx); }
+    else if(!strcmp(argv[cmdi],"getdrivetransfer") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getdrivetransfer %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"listdrivetransfers")) snprintf(cmd,sizeof(cmd),"listdrivetransfers\n");
+    else if(!strcmp(argv[cmdi],"pausedrivetransfer") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"pausedrivetransfer %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"resumedrivetransfer") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"resumedrivetransfer %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"canceldrivetransfer") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"canceldrivetransfer %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"getdriveshardroutes") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getdriveshardroutes %s\n",argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"getblockcount")) snprintf(cmd,sizeof(cmd),"getblockcount\n");
+    else if(!strcmp(argv[cmdi],"getaddressnonce") && cmdi+1<argc) snprintf(cmd,sizeof(cmd), cmdi+2<argc ? "getaddressnonce %s %s\n" : "getaddressnonce %s\n", argv[cmdi+1], cmdi+2<argc?argv[cmdi+2]:"");
+    else if(!strcmp(argv[cmdi],"getnoncelanes") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getnoncelanes %s\n", argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"getagent") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getagent %s\n", argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"listagents")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "listagents %s\n" : "listagents\n", cmdi+1<argc?argv[cmdi+1]:"");
+    else if(!strcmp(argv[cmdi],"getagentlimits") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getagentlimits %s\n", argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"getorder") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getorder %s\n", argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"listorders")) { if(cmdi+2<argc) snprintf(cmd,sizeof(cmd),"listorders %s %s\n",argv[cmdi+1],argv[cmdi+2]); else if(cmdi+1<argc) snprintf(cmd,sizeof(cmd),"listorders %s\n",argv[cmdi+1]); else snprintf(cmd,sizeof(cmd),"listorders\n"); }
+    else if(!strcmp(argv[cmdi],"gettrade") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"gettrade %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"listtrades")) { if(cmdi+2<argc) snprintf(cmd,sizeof(cmd),"listtrades %s %s\n",argv[cmdi+1],argv[cmdi+2]); else if(cmdi+1<argc) snprintf(cmd,sizeof(cmd),"listtrades %s\n",argv[cmdi+1]); else snprintf(cmd,sizeof(cmd),"listtrades\n"); }
+    else if(!strcmp(argv[cmdi],"getorderbook") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),cmdi+2<argc?"getorderbook %s %s\n":"getorderbook %s\n",argv[cmdi+1],cmdi+2<argc?argv[cmdi+2]:"");
+    else if(!strcmp(argv[cmdi],"getassetbalance") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),cmdi+2<argc?"getassetbalance %s %s\n":"getassetbalance %s\n",argv[cmdi+1],cmdi+2<argc?argv[cmdi+2]:"");
+    else if(!strcmp(argv[cmdi],"listassets")) snprintf(cmd,sizeof(cmd),"listassets\n");
+    else if(!strcmp(argv[cmdi],"getassetinfo") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getassetinfo %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"getassettag") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"getassettag %s %s\n",argv[cmdi+1],argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"getassetrestriction") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"getassetrestriction %s %s\n",argv[cmdi+1],argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"getassetburnedfees")) snprintf(cmd,sizeof(cmd),"getassetburnedfees\n");
+    else if(!strcmp(argv[cmdi],"gettradinginfo")) snprintf(cmd,sizeof(cmd),"gettradinginfo\n");
+    else if(!strcmp(argv[cmdi],"getgateway") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getgateway %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"listgateways")) snprintf(cmd,sizeof(cmd),cmdi+1<argc?"listgateways %s\n":"listgateways\n",cmdi+1<argc?argv[cmdi+1]:"");
+    else if(!strcmp(argv[cmdi],"getexecutionreport") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getexecutionreport %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"getstateroot")) snprintf(cmd,sizeof(cmd),"getstateroot\n");
+    else if(!strcmp(argv[cmdi],"getsettlement") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getsettlement %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"getcrosschaininfo")) snprintf(cmd,sizeof(cmd),"getcrosschaininfo\n");
+    else if(!strcmp(argv[cmdi],"getcrosschainswap") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getcrosschainswap %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"listcrosschainswaps")) snprintf(cmd,sizeof(cmd),cmdi+1<argc?"listcrosschainswaps %s\n":"listcrosschainswaps\n",cmdi+1<argc?argv[cmdi+1]:"");
+    else if(!strcmp(argv[cmdi],"getcrosschainorderbook")) snprintf(cmd,sizeof(cmd),cmdi+1<argc?"getcrosschainorderbook %s\n":"getcrosschainorderbook\n",cmdi+1<argc?argv[cmdi+1]:"");
+    else if(!strcmp(argv[cmdi],"getbtchtlctemplate") && cmdi+4<argc) snprintf(cmd,sizeof(cmd),cmdi+5<argc?"getbtchtlctemplate %s %s %s %s %s\n":"getbtchtlctemplate %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],cmdi+5<argc?argv[cmdi+5]:"");
+    else if(!strcmp(argv[cmdi],"getbtcspvinfo")) snprintf(cmd,sizeof(cmd),"getbtcspvinfo\n");
+    else if(!strcmp(argv[cmdi],"getbtcbestheader")) snprintf(cmd,sizeof(cmd),"getbtcbestheader\n");
+    else if(!strcmp(argv[cmdi],"getbtcheader") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getbtcheader %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"verifybtcproof") && cmdi+4<argc) snprintf(cmd,sizeof(cmd),"verifybtcproof %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4]);
+    else if(!strcmp(argv[cmdi],"getbtcconfirmations") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getbtcconfirmations %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"verifycrosschainfunding") && cmdi+5<argc) snprintf(cmd,sizeof(cmd),"verifycrosschainfunding %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5]);
+    else if(!strcmp(argv[cmdi],"getcrosschainfunding") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getcrosschainfunding %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"getcrosschainsecurity") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"getcrosschainsecurity %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"getvelocityinfo")) snprintf(cmd,sizeof(cmd),"getvelocityinfo\n");
+    else if(!strcmp(argv[cmdi],"getvelocityengineinfo")) snprintf(cmd,sizeof(cmd),"getvelocityengineinfo\n");
+    else if(!strcmp(argv[cmdi],"getblockchaininfo")) snprintf(cmd,sizeof(cmd),"getblockchaininfo\n");
+    else if(!strcmp(argv[cmdi],"getnetworkinfo")) snprintf(cmd,sizeof(cmd),"getnetworkinfo\n");
+    else if(!strcmp(argv[cmdi],"getnodestatus")) snprintf(cmd,sizeof(cmd),"getnodestatus\n");
+    else if(!strcmp(argv[cmdi],"getmainnethealth")) snprintf(cmd,sizeof(cmd),"getmainnethealth\n");
+    /* Genesis hardening (Finding 11): readiness RPC parity. The wallet uses
+     * getdriveactivationreadiness and getprotocolreadiness, but qrx-cli had
+     * neither in its dispatch allowlist, so both fell through to usage() and
+     * an operator could not query staged-activation state from the CLI. */
+    else if(!strcmp(argv[cmdi],"getdriveactivationreadiness")) snprintf(cmd,sizeof(cmd),"getdriveactivationreadiness\n");
+    else if(!strcmp(argv[cmdi],"getprotocolreadiness")){
+        if(cmdi+1>=argc){ fprintf(stderr,"usage: getprotocolreadiness <DRIVE_V1|QRX_NET_V1|ADVERTISING_V1|COMPUTE_POUC_V1>\n"); return 1; }
+        snprintf(cmd,sizeof(cmd),"getprotocolreadiness %s\n",argv[cmdi+1]);
+    }
+    else if(!strcmp(argv[cmdi],"getuptime")) snprintf(cmd,sizeof(cmd),"getuptime\n");
+    else if(!strcmp(argv[cmdi],"getbuildinfo")) snprintf(cmd,sizeof(cmd),"getbuildinfo\n");
+    else if(!strcmp(argv[cmdi],"getmempoolinfo")) snprintf(cmd,sizeof(cmd),"getmempoolinfo\n");
+    else if(!strcmp(argv[cmdi],"getrecentblocks")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "getrecentblocks %s\n" : "getrecentblocks\n", cmdi+1<argc?argv[cmdi+1]:"");
+    else if(!strcmp(argv[cmdi],"getrecenttransactions")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "getrecenttransactions %s\n" : "getrecenttransactions\n", cmdi+1<argc?argv[cmdi+1]:"");
+    else if(!strcmp(argv[cmdi],"getvalidatorstatus")) snprintf(cmd,sizeof(cmd),"getvalidatorstatus\n");
+    else if(!strcmp(argv[cmdi],"getblockproducerinfo")) snprintf(cmd,sizeof(cmd),"getblockproducerinfo\n");
+    else if(!strcmp(argv[cmdi],"setvalidatorfleet") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"setvalidatorfleet %s\n", argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"getfeeinfo")) snprintf(cmd,sizeof(cmd),"getfeeinfo\n");
     else if(!strcmp(argv[cmdi],"getpeerinfo")) snprintf(cmd,sizeof(cmd),"getpeerinfo\n");
     else if(!strcmp(argv[cmdi],"getstakinginfo")) snprintf(cmd,sizeof(cmd),"getstakinginfo\n");
     else if(!strcmp(argv[cmdi],"getwalletinfo")) snprintf(cmd,sizeof(cmd),"getwalletinfo\n");
+    else if(!strcmp(argv[cmdi],"walletpassphrasehex") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"walletpassphrasehex %s\n", argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"walletpassphrasehexfor") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"walletpassphrasehexfor %s %s\n", argv[cmdi+1],argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"walletlock")) snprintf(cmd,sizeof(cmd),"walletlock\n");
+    else if(!strcmp(argv[cmdi],"walletlockfor") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"walletlockfor %s\n",argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"history")) {
         if(cmdi+2<argc) snprintf(cmd,sizeof(cmd),"history %s %s\n", argv[cmdi+1], argv[cmdi+2]);
         else if(cmdi+1<argc) snprintf(cmd,sizeof(cmd),"history %s\n", argv[cmdi+1]);
@@ -273,12 +396,15 @@ int main(int argc,char **argv){
     else if(!strcmp(argv[cmdi],"faucet") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"faucet %s %s\n", argv[cmdi+1], argv[cmdi+2]);
     else if(!strcmp(argv[cmdi],"getreward")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "getreward %s\n" : "getreward\n", cmdi+1<argc?argv[cmdi+1]:"");
     else if(!strcmp(argv[cmdi],"getparams")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "getparams %s\n" : "getparams\n", cmdi+1<argc?argv[cmdi+1]:"");
+    else if(!strcmp(argv[cmdi],"getprotocolinfo")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "getprotocolinfo %s\n" : "getprotocolinfo\n", cmdi+1<argc?argv[cmdi+1]:"");
     else if(!strcmp(argv[cmdi],"gethalving")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "gethalving %s\n" : "gethalving\n", cmdi+1<argc?argv[cmdi+1]:"");
     else if(!strcmp(argv[cmdi],"getforks")) snprintf(cmd,sizeof(cmd),"getforks\n");
     else if(!strcmp(argv[cmdi],"getactivefork")) snprintf(cmd,sizeof(cmd), cmdi+1<argc ? "getactivefork %s\n" : "getactivefork\n", cmdi+1<argc?argv[cmdi+1]:"");
     else if(!strcmp(argv[cmdi],"validator-set")) snprintf(cmd,sizeof(cmd),"validator-set\n");
     else if(!strcmp(argv[cmdi],"stake") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"stake %s\n", argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"delegate") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"delegate %s %s\n", argv[cmdi+1], argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"undelegate") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"undelegate %s %s\n", argv[cmdi+1], argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"claim-undelegated") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"claim-undelegated %s\n", argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"createswap") && cmdi+4<argc) {
         if(cmdi+5<argc) snprintf(cmd,sizeof(cmd),"createswap %s %s %s %s %s\n", argv[cmdi+1], argv[cmdi+2], argv[cmdi+3], argv[cmdi+4], argv[cmdi+5]);
         else snprintf(cmd,sizeof(cmd),"createswap %s %s %s %s\n", argv[cmdi+1], argv[cmdi+2], argv[cmdi+3], argv[cmdi+4]);
@@ -302,14 +428,120 @@ int main(int argc,char **argv){
         else snprintf(cmd,sizeof(cmd),"stealth-send %s %s\n", argv[cmdi+1], argv[cmdi+2]);
     }
     else if(!strcmp(argv[cmdi],"stealth-scan")) snprintf(cmd,sizeof(cmd),"stealth-scan\n");
+    else if(!strcmp(argv[cmdi],"stealth-spend") && cmdi+3<argc) snprintf(cmd,sizeof(cmd),"stealth-spend %s %s %s\n", argv[cmdi+1], argv[cmdi+2], argv[cmdi+3]);
     else if(!strcmp(argv[cmdi],"stealth-history")) snprintf(cmd,sizeof(cmd),"stealth-history\n");
+    else if(!strcmp(argv[cmdi],"privacy-credential-status")) snprintf(cmd,sizeof(cmd),"privacy-credential-status\n");
+    else if(!strcmp(argv[cmdi],"hidden-balance")) snprintf(cmd,sizeof(cmd),"hidden-balance\n");
+    else if(!strcmp(argv[cmdi],"verified-shield") && cmdi+1<argc) { if(cmdi+2<argc) snprintf(cmd,sizeof(cmd),"verified-shield %s %s\n",argv[cmdi+1],argv[cmdi+2]); else snprintf(cmd,sizeof(cmd),"verified-shield %s\n",argv[cmdi+1]); }
+    else if(!strcmp(argv[cmdi],"verified-shielded-send") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"verified-shielded-send %s %s\n",argv[cmdi+1],argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"verified-unshield") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"verified-unshield %s %s\n",argv[cmdi+1],argv[cmdi+2]);
     else if(!strcmp(argv[cmdi],"privacy-feature-status")) snprintf(cmd,sizeof(cmd),"privacy-feature-status\n");
+    else if(!strcmp(argv[cmdi],"createrawtransaction") && cmdi+5<argc) {
+        if(cmdi+8<argc) snprintf(cmd,sizeof(cmd),"createrawtransaction %s %s %s %s %s %s %s %s\n", argv[cmdi+1], argv[cmdi+2], argv[cmdi+3], argv[cmdi+4], argv[cmdi+5], argv[cmdi+6], argv[cmdi+7], argv[cmdi+8]);
+        else if(cmdi+7<argc) snprintf(cmd,sizeof(cmd),"createrawtransaction %s %s %s %s %s %s %s\n", argv[cmdi+1], argv[cmdi+2], argv[cmdi+3], argv[cmdi+4], argv[cmdi+5], argv[cmdi+6], argv[cmdi+7]);
+        else if(cmdi+6<argc) snprintf(cmd,sizeof(cmd),"createrawtransaction %s %s %s %s %s %s\n", argv[cmdi+1], argv[cmdi+2], argv[cmdi+3], argv[cmdi+4], argv[cmdi+5], argv[cmdi+6]);
+        else snprintf(cmd,sizeof(cmd),"createrawtransaction %s %s %s %s %s\n", argv[cmdi+1], argv[cmdi+2], argv[cmdi+3], argv[cmdi+4], argv[cmdi+5]);
+    }
+    else if(!strcmp(argv[cmdi],"createvelocitytransaction") && cmdi+9<argc) {
+        if(cmdi+11<argc) snprintf(cmd,sizeof(cmd),"createvelocitytransaction %s %s %s %s %s %s %s %s %s %s %s\n", argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11]);
+        else if(cmdi+10<argc) snprintf(cmd,sizeof(cmd),"createvelocitytransaction %s %s %s %s %s %s %s %s %s %s\n", argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10]);
+        else snprintf(cmd,sizeof(cmd),"createvelocitytransaction %s %s %s %s %s %s %s %s %s\n", argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9]);
+    }
+    else if(!strcmp(argv[cmdi],"createagentregistertransaction") && cmdi+13<argc) {
+        if(cmdi+15<argc) snprintf(cmd,sizeof(cmd),"createagentregistertransaction %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n", argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13],argv[cmdi+14],argv[cmdi+15]);
+        else if(cmdi+14<argc) snprintf(cmd,sizeof(cmd),"createagentregistertransaction %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n", argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13],argv[cmdi+14]);
+        else snprintf(cmd,sizeof(cmd),"createagentregistertransaction %s %s %s %s %s %s %s %s %s %s %s %s %s\n", argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13]);
+    }
+    else if(!strcmp(argv[cmdi],"createagentupdatetransaction") && cmdi+11<argc) {
+        if(cmdi+13<argc) snprintf(cmd,sizeof(cmd),"createagentupdatetransaction %s %s %s %s %s %s %s %s %s %s %s %s %s\n", argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13]);
+        else if(cmdi+12<argc) snprintf(cmd,sizeof(cmd),"createagentupdatetransaction %s %s %s %s %s %s %s %s %s %s %s %s\n", argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12]);
+        else snprintf(cmd,sizeof(cmd),"createagentupdatetransaction %s %s %s %s %s %s %s %s %s %s %s\n", argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11]);
+    }
+    else if(!strcmp(argv[cmdi],"createagentrevoketransaction") && cmdi+6<argc) {
+        if(cmdi+8<argc) snprintf(cmd,sizeof(cmd),"createagentrevoketransaction %s %s %s %s %s %s %s %s\n", argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8]);
+        else if(cmdi+7<argc) snprintf(cmd,sizeof(cmd),"createagentrevoketransaction %s %s %s %s %s %s %s\n", argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7]);
+        else snprintf(cmd,sizeof(cmd),"createagentrevoketransaction %s %s %s %s %s %s\n", argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6]);
+    }
+    else if(!strcmp(argv[cmdi],"createordertransaction") && cmdi+12<argc) {
+        if(cmdi+14<argc) snprintf(cmd,sizeof(cmd),"createordertransaction %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13],argv[cmdi+14]);
+        else if(cmdi+13<argc) snprintf(cmd,sizeof(cmd),"createordertransaction %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13]);
+        else snprintf(cmd,sizeof(cmd),"createordertransaction %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12]);
+    }
+    else if(!strcmp(argv[cmdi],"createexternalordertransaction") && cmdi+13<argc) {
+        if(cmdi+15<argc) snprintf(cmd,sizeof(cmd),"createexternalordertransaction %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13],argv[cmdi+14],argv[cmdi+15]);
+        else if(cmdi+14<argc) snprintf(cmd,sizeof(cmd),"createexternalordertransaction %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13],argv[cmdi+14]);
+        else snprintf(cmd,sizeof(cmd),"createexternalordertransaction %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13]);
+    }
+    else if(!strcmp(argv[cmdi],"createarbitragehedgetransaction") && cmdi+11<argc) {
+        if(cmdi+13<argc) snprintf(cmd,sizeof(cmd),"createarbitragehedgetransaction %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13]);
+        else if(cmdi+12<argc) snprintf(cmd,sizeof(cmd),"createarbitragehedgetransaction %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12]);
+        else snprintf(cmd,sizeof(cmd),"createarbitragehedgetransaction %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11]);
+    }
+    else if(!strcmp(argv[cmdi],"creategatewayregistertransaction") && cmdi+11<argc) {
+        if(cmdi+13<argc) snprintf(cmd,sizeof(cmd),"creategatewayregistertransaction %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13]);
+        else if(cmdi+12<argc) snprintf(cmd,sizeof(cmd),"creategatewayregistertransaction %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12]);
+        else snprintf(cmd,sizeof(cmd),"creategatewayregistertransaction %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11]);
+    }
+    else if(!strcmp(argv[cmdi],"creategatewayrevoketransaction") && cmdi+6<argc) {
+        if(cmdi+8<argc) snprintf(cmd,sizeof(cmd),"creategatewayrevoketransaction %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8]);
+        else if(cmdi+7<argc) snprintf(cmd,sizeof(cmd),"creategatewayrevoketransaction %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7]);
+        else snprintf(cmd,sizeof(cmd),"creategatewayrevoketransaction %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6]);
+    }
+    else if(!strcmp(argv[cmdi],"createexecutionreporttransaction") && cmdi+13<argc) {
+        if(cmdi+15<argc) snprintf(cmd,sizeof(cmd),"createexecutionreporttransaction %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13],argv[cmdi+14],argv[cmdi+15]);
+        else if(cmdi+14<argc) snprintf(cmd,sizeof(cmd),"createexecutionreporttransaction %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13],argv[cmdi+14]);
+        else snprintf(cmd,sizeof(cmd),"createexecutionreporttransaction %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13]);
+    }
+    else if(!strcmp(argv[cmdi],"createcrosschainbuytransaction") && cmdi+12<argc) {
+        if(cmdi+14<argc) snprintf(cmd,sizeof(cmd),"createcrosschainbuytransaction %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13],argv[cmdi+14]);
+        else if(cmdi+13<argc) snprintf(cmd,sizeof(cmd),"createcrosschainbuytransaction %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13]);
+        else snprintf(cmd,sizeof(cmd),"createcrosschainbuytransaction %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12]);
+    }
+    else if(!strcmp(argv[cmdi],"createcrosschainselltransaction") && cmdi+11<argc) {
+        if(cmdi+13<argc) snprintf(cmd,sizeof(cmd),"createcrosschainselltransaction %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13]);
+        else if(cmdi+12<argc) snprintf(cmd,sizeof(cmd),"createcrosschainselltransaction %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12]);
+        else snprintf(cmd,sizeof(cmd),"createcrosschainselltransaction %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11]);
+    }
+    else if(!strcmp(argv[cmdi],"createcrosschainredeemtransaction") && cmdi+7<argc) {
+        if(cmdi+9<argc) snprintf(cmd,sizeof(cmd),"createcrosschainredeemtransaction %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9]);
+        else if(cmdi+8<argc) snprintf(cmd,sizeof(cmd),"createcrosschainredeemtransaction %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8]);
+        else snprintf(cmd,sizeof(cmd),"createcrosschainredeemtransaction %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7]);
+    }
+    else if(!strcmp(argv[cmdi],"createcrosschainrefundtransaction") && cmdi+6<argc) {
+        if(cmdi+8<argc) snprintf(cmd,sizeof(cmd),"createcrosschainrefundtransaction %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8]);
+        else if(cmdi+7<argc) snprintf(cmd,sizeof(cmd),"createcrosschainrefundtransaction %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7]);
+        else snprintf(cmd,sizeof(cmd),"createcrosschainrefundtransaction %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6]);
+    }
+    else if(!strcmp(argv[cmdi],"createbtcspvheadertransaction") && cmdi+6<argc) {
+        if(cmdi+8<argc) snprintf(cmd,sizeof(cmd),"createbtcspvheadertransaction %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8]);
+        else if(cmdi+7<argc) snprintf(cmd,sizeof(cmd),"createbtcspvheadertransaction %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7]);
+        else snprintf(cmd,sizeof(cmd),"createbtcspvheadertransaction %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6]);
+    }
+    else if(!strcmp(argv[cmdi],"createbtcspvfundingprooftransaction") && cmdi+10<argc) {
+        if(cmdi+12<argc) snprintf(cmd,sizeof(cmd),"createbtcspvfundingprooftransaction %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12]);
+        else if(cmdi+11<argc) snprintf(cmd,sizeof(cmd),"createbtcspvfundingprooftransaction %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11]);
+        else snprintf(cmd,sizeof(cmd),"createbtcspvfundingprooftransaction %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10]);
+    }
+    else if(!strcmp(argv[cmdi],"createordercanceltransaction") && cmdi+7<argc) {
+        if(cmdi+9<argc) snprintf(cmd,sizeof(cmd),"createordercanceltransaction %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9]);
+        else if(cmdi+8<argc) snprintf(cmd,sizeof(cmd),"createordercanceltransaction %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8]);
+        else snprintf(cmd,sizeof(cmd),"createordercanceltransaction %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7]);
+    }
+    else if(!strcmp(argv[cmdi],"createorderreplacetransaction") && cmdi+13<argc) {
+        if(cmdi+15<argc) snprintf(cmd,sizeof(cmd),"createorderreplacetransaction %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13],argv[cmdi+14],argv[cmdi+15]);
+        else if(cmdi+14<argc) snprintf(cmd,sizeof(cmd),"createorderreplacetransaction %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13],argv[cmdi+14]);
+        else snprintf(cmd,sizeof(cmd),"createorderreplacetransaction %s %s %s %s %s %s %s %s %s %s %s %s %s\n",argv[cmdi+1],argv[cmdi+2],argv[cmdi+3],argv[cmdi+4],argv[cmdi+5],argv[cmdi+6],argv[cmdi+7],argv[cmdi+8],argv[cmdi+9],argv[cmdi+10],argv[cmdi+11],argv[cmdi+12],argv[cmdi+13]);
+    }
+    else if(!strcmp(argv[cmdi],"signrawtransactionwithwallet") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"signrawtransactionwithwallet %s %s\n", argv[cmdi+1], argv[cmdi+2]);
+    else if(!strcmp(argv[cmdi],"decoderawtransaction") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"decoderawtransaction %s\n", argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"gettxid") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"gettxid %s\n", argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"sendtoaddress") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"sendtoaddress %s %s %s\n", argv[cmdi+1], argv[cmdi+2], cmdi+3<argc?argv[cmdi+3]:"payment");
+    else if(!strcmp(argv[cmdi],"sendfromaddress") && cmdi+3<argc) snprintf(cmd,sizeof(cmd),"sendfromaddress %s %s %s %s\n", argv[cmdi+1], argv[cmdi+2], argv[cmdi+3], cmdi+4<argc?argv[cmdi+4]:"payment");
     else if(!strcmp(argv[cmdi],"sendrawtransaction") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"sendrawtransaction %s\n", argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"stop")) snprintf(cmd,sizeof(cmd),"stop\n");
     else { usage(); return 1; }
 
-    char out[65536];
+    char out[131072];
     if(socket_call(sock, cmd, out, sizeof(out)) == 0){ fputs(out, stdout); return 0; }
     fprintf(stderr, "qrx-cli: daemon control socket unavailable at %s\n", sock);
     return 1;

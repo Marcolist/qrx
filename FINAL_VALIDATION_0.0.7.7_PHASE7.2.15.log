@@ -1,0 +1,24 @@
+QRX 0.0.7.7 Phase 7.2.15 — Final Validation
+Date: 2026-09-06
+
+Fresh Core configure/build (QRX_REQUIRE_PQC=OFF, QRX_BUILD_TESTS=ON): PASS
+CTest: 7/7 PASS
+Phase 7.2.12 static security assertions: PASS
+Phase 7.2.13 home-validator safety assertions: PASS
+Phase 7.2.12 adversarial staking model: 10,000 cases PASS
+Phase 7.2.15 consensus red-team assertions: PASS
+ASAN/UBSAN fresh build: PASS
+ASAN/UBSAN CTest: 7/7 PASS
+Multi-target build-plan regression: 6/6 PASS
+
+Main remediations:
+- previous_block_hash binding
+- parent finalized state-root binding
+- exact-next-finalized-height enforcement
+- finalization-only QRXDB block ingest
+- deterministic weighted proposer enforcement
+- SAFE PAUSE removed from snapshots/quorum and rejected for proposing/voting/delegation
+- Mainnet genesis-time verification enforcement
+- timestamp future/parent bounds
+- signature authentication before double-sign evidence mutation
+- native directory enumeration for consensus vote/inbox paths

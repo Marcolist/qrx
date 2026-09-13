@@ -1,0 +1,17 @@
+Unknown option: --plan-only
+Usage:
+  ./scripts/build-all-targets.sh [--target host|TARGET] [--plan]
+  ./scripts/build-all-targets.sh --all [--plan]
+  ./scripts/build-all-targets.sh --list-targets
+
+Targets:
+  host          Auto-detect the current operating system and CPU architecture
+  linux-x64     Linux x86-64: Core, CLI, tools, BTC service, DEB, AppImage
+  linux-arm64   Linux ARM64: Core, CLI, tools, BTC service, DEB, AppImage
+  macos-x64     macOS Intel: Core, CLI, tools, BTC service, APP, DMG
+  macos-arm64   macOS Apple Silicon: Core, CLI, tools, BTC service, APP, DMG
+  windows-x64   Windows x86-64 MSVC: Core, CLI, tools, BTC service, MSI, NSIS
+
+Use --plan to validate and print the dependency order without compiling.
+All five targets are built concurrently by .github/workflows/build-all-targets.yml.
+With --all, this script dispatches that native runner matrix through GitHub CLI.

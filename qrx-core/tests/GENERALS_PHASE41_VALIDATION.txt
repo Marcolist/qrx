@@ -1,0 +1,13 @@
+QRX Generals 0.0.7.7 Phase 4.1 validation
+PASS: clean CMake build (with existing project warnings)
+PASS: Phase 1 regression
+PASS: Phase 2 regression
+PASS: Phase 3 regression
+PASS: Phase 3.1 regression
+PASS: Phase 4 regression
+PASS: Phase 4.1 deterministic logistics inventory
+PASS: owned-territory infrastructure construction
+PASS: deterministic material debit
+PASS: factory unit production with supply/fuel/material debit
+PASS: duplicate infrastructure rejection without resource loss
+NOTE: graph-based supply connectivity, road movement bonus, infrastructure destruction and per-shot ammo consumption are follow-up scope.

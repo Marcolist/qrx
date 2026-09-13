@@ -48,3 +48,15 @@ Wallet UI
 - Chat history remains local.
 - On continuation, the wallet can send the local conversation payload to the Cloudflare backend.
 - The backend should not store chat history unless explicitly required.
+
+
+## Validator status terminology
+
+AURA Local Help now explains `tombstoned` and `jailed` directly.
+
+- **Jailed**: temporary exclusion from active consensus.
+- **Tombstoned**: permanent exclusion of that validator identity after a provable severe consensus violation, especially double-signing/equivocation.
+- Current QRX default double-sign slash: **5000 bps = 50%** of slashable stake.
+- Merely being offline does **not** by itself tombstone a validator.
+
+Example questions: `What does tombstoned mean?`, `Was heißt tombstoned?`, `What is the difference between jailed and tombstoned?`.

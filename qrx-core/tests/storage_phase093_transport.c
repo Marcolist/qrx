@@ -1,0 +1,4 @@
+#include "storage/qrx_storage_transport.h"
+#include <assert.h>
+#include <string.h>
+int main(void){QrxShardSource s[14];for(int i=0;i<14;i++){s[i].shard_index=i;s[i].expected_latency_ms=100-i*3;s[i].throughput_bps=(uint64_t)(i+1)*10000000;s[i].reliability_bps=9000+i*50;}QrxShardFetchPlan p;assert(qrx_storage_fetch_plan(s,14,10,2,&p)==0);assert(p.required_successes==10&&p.initial_parallel==12&&p.cancel_remaining_after_k);QrxShardRangeRequest r;memset(&r,0,sizeof(r));for(int i=0;i<64;i++)r.object_id[i]=(uint8_t)i;r.shard_index=7;r.offset=123456;r.length=131072;uint8_t wire[88];assert(qrx_storage_range_serialize(&r,wire)==0);QrxShardRangeRequest q;assert(qrx_storage_range_parse(wire,&q)==0);assert(q.shard_index==r.shard_index&&q.offset==r.offset&&q.length==r.length&&memcmp(q.object_id,r.object_id,64)==0);wire[0]^=1;assert(qrx_storage_range_parse(wire,&q)!=0);return 0;}

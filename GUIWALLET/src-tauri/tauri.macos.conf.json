@@ -2,12 +2,17 @@
   "tauri": {
     "bundle": {
       "targets": [
-        "app",
-        "dmg"
+        "app"
       ],
       "macOS": {
         "minimumSystemVersion": "11.0"
-      }
+      },
+      "resources": [
+        "resources/qrx-gateway-kraken.py",
+        "resources/qrx-arbitrage-engine.py",
+        "resources/qrx-complete-ledger-export.py",
+        "resources/aura/*"
+      ]
     }
   }
 }

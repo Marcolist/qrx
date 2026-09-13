@@ -1,0 +1,118 @@
+QRX 0.0.9 Phase 190 i18n audit
+UTC 2026-09-13T09:16:55Z
+QRX i18n audit: 55 locales, 885 keys
+PASS: complete key parity across all locale catalogs
+en: 885 keys, 885 English-identical, editorial_status=complete
+de: 885 keys, 114 English-identical, editorial_status=complete
+fr: 885 keys, 110 English-identical, editorial_status=complete
+es: 885 keys, 96 English-identical, editorial_status=complete
+it: 885 keys, 115 English-identical, editorial_status=complete
+pt: 885 keys, 97 English-identical, editorial_status=complete
+nl: 885 keys, 139 English-identical, editorial_status=complete
+pl: 885 keys, 110 English-identical, editorial_status=complete
+cs: 885 keys, 110 English-identical, editorial_status=complete
+sk: 885 keys, 110 English-identical, editorial_status=complete
+sl: 885 keys, 88 English-identical, editorial_status=complete
+hr: 885 keys, 91 English-identical, editorial_status=complete
+hu: 885 keys, 91 English-identical, editorial_status=complete
+ro: 885 keys, 100 English-identical, editorial_status=complete
+bg: 885 keys, 88 English-identical, editorial_status=complete
+el: 885 keys, 89 English-identical, editorial_status=complete
+sv: 885 keys, 119 English-identical, editorial_status=complete
+da: 885 keys, 131 English-identical, editorial_status=complete
+fi: 885 keys, 95 English-identical, editorial_status=complete
+et: 885 keys, 97 English-identical, editorial_status=complete
+lv: 885 keys, 100 English-identical, editorial_status=complete
+lt: 885 keys, 100 English-identical, editorial_status=complete
+ga: 885 keys, 96 English-identical, editorial_status=complete
+mt: 885 keys, 107 English-identical, editorial_status=complete
+is: 885 keys, 94 English-identical, editorial_status=complete
+no: 885 keys, 115 English-identical, editorial_status=complete
+uk: 885 keys, 99 English-identical, editorial_status=complete
+tr: 885 keys, 103 English-identical, editorial_status=complete
+id: 885 keys, 105 English-identical, editorial_status=complete
+th: 885 keys, 95 English-identical, editorial_status=complete
+zh-CN: 885 keys, 93 English-identical, editorial_status=complete
+zh-TW: 885 keys, 93 English-identical, editorial_status=complete
+ja: 885 keys, 93 English-identical, editorial_status=complete
+ar: 885 keys, 92 English-identical, editorial_status=complete
+af: 885 keys, 103 English-identical, editorial_status=complete
+am: 885 keys, 144 English-identical, editorial_status=complete
+sw: 885 keys, 104 English-identical, editorial_status=complete
+so: 885 keys, 139 English-identical, editorial_status=complete
+ti: 885 keys, 230 English-identical, editorial_status=complete
+rw: 885 keys, 165 English-identical, editorial_status=complete
+rn: 885 keys, 165 English-identical, editorial_status=complete
+st: 885 keys, 120 English-identical, editorial_status=complete
+tn: 885 keys, 121 English-identical, editorial_status=complete
+ss: 885 keys, 106 English-identical, editorial_status=complete
+zu: 885 keys, 105 English-identical, editorial_status=complete
+xh: 885 keys, 105 English-identical, editorial_status=complete
+mg: 885 keys, 189 English-identical, editorial_status=complete
+ny: 885 keys, 180 English-identical, editorial_status=complete
+sn: 885 keys, 230 English-identical, editorial_status=complete
+nd: 885 keys, 105 English-identical, editorial_status=complete
+nso: 885 keys, 121 English-identical, editorial_status=complete
+ts: 885 keys, 171 English-identical, editorial_status=complete
+ve: 885 keys, 171 English-identical, editorial_status=complete
+nr: 885 keys, 105 English-identical, editorial_status=complete
+ber: 885 keys, 141 English-identical, editorial_status=complete
+PASS: key parity and declared editorial-completion gates are consistent, including mixed-English checks for complete locales.
+de: 0 mixed-English candidates
+fr: 0 mixed-English candidates
+es: 0 mixed-English candidates
+it: 0 mixed-English candidates
+pt: 0 mixed-English candidates
+nl: 0 mixed-English candidates
+pl: 0 mixed-English candidates
+cs: 0 mixed-English candidates
+sk: 0 mixed-English candidates
+sl: 0 mixed-English candidates
+hr: 0 mixed-English candidates
+hu: 0 mixed-English candidates
+ro: 0 mixed-English candidates
+bg: 0 mixed-English candidates
+el: 0 mixed-English candidates
+sv: 0 mixed-English candidates
+da: 0 mixed-English candidates
+fi: 0 mixed-English candidates
+et: 0 mixed-English candidates
+lv: 0 mixed-English candidates
+lt: 0 mixed-English candidates
+ga: 0 mixed-English candidates
+mt: 0 mixed-English candidates
+is: 0 mixed-English candidates
+no: 0 mixed-English candidates
+uk: 0 mixed-English candidates
+tr: 0 mixed-English candidates
+id: 0 mixed-English candidates
+th: 0 mixed-English candidates
+zh-CN: 0 mixed-English candidates
+zh-TW: 0 mixed-English candidates
+ja: 0 mixed-English candidates
+ar: 0 mixed-English candidates
+af: 0 mixed-English candidates
+am: 0 mixed-English candidates
+sw: 0 mixed-English candidates
+so: 0 mixed-English candidates
+ti: 0 mixed-English candidates
+rw: 0 mixed-English candidates
+rn: 0 mixed-English candidates
+st: 0 mixed-English candidates
+tn: 0 mixed-English candidates
+ss: 0 mixed-English candidates
+zu: 0 mixed-English candidates
+xh: 0 mixed-English candidates
+mg: 0 mixed-English candidates
+ny: 0 mixed-English candidates
+sn: 0 mixed-English candidates
+nd: 0 mixed-English candidates
+nso: 0 mixed-English candidates
+ts: 0 mixed-English candidates
+ve: 0 mixed-English candidates
+nr: 0 mixed-English candidates
+ber: 0 mixed-English candidates
+PASS: no mixed-English candidates in audited complete locales.
+PASS: 55 locales, 885 total keys, translated Apps/Upscaler/App Host UX and full-width workspaces
+Node JS syntax:
+PASS: JavaScript syntax

@@ -1,0 +1,17 @@
+PASS phase label
+PASS reachable hex UX
+PASS route preview
+PASS commit validation
+PASS pending route persistence
+PASS reveal resolution
+PASS demo movement state
+PASS control-click
+PASS music absolute URL
+PASS music explicit load
+PASS music error feedback
+PASS next track starts
+PASS audio grid-aurora-drift.mp3
+PASS audio grid-relay.mp3
+PASS audio gridfall-charge.mp3
+PASS audio digital-crown.mp3
+PASS JavaScript syntax

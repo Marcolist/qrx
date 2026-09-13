@@ -1,0 +1,10 @@
+Internal ctest changing into directory: /mnt/data/qrx_app_foundation_work/build-sanitize
+Test project /mnt/data/qrx_app_foundation_work/build-sanitize
+    Start 117: apps_phase187_upscaler
+1/2 Test #117: apps_phase187_upscaler ................   Passed    0.01 sec
+    Start 118: apps_phase188_upscaler_capabilities
+2/2 Test #118: apps_phase188_upscaler_capabilities ...   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.02 sec

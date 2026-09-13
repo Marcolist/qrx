@@ -1,0 +1,21 @@
+QRX Generals 0.0.7.7 Phase 4 validation
+
+PASS: clean/incremental CMake Core build (compiler warnings remain; build is not warning-free)
+PASS: generals_combat_strategic_movement_phase4_0077.sh
+  - separate support detachment: RECON / ARTILLERY / MISSILE_BATTERY
+  - long-range ATTACK commit/reveal v2
+  - pending simultaneous damage
+  - next-turn GAME_TURN_RESOLVE
+  - territory ownership
+  - legacy starter unit_count compatibility
+PASS: generals_deterministic_world_orders_phase3_0077.sh
+PASS: generals_adaptive_world_chunking_phase31_0077.sh
+PASS: generals_serverless_phase1_0077.sh
+PASS: generals_serverless_phase2_0077.sh
+PASS: native_assets_mainnet_consensus_0076.sh
+
+UI:
+- Separate Tauri Generals window retained.
+- Neon / tactical grid visual direction strengthened.
+- Local A* hex pathfinder included in Generals webview.
+- Native Tauri bundle not built in this Linux environment because cargo is unavailable.

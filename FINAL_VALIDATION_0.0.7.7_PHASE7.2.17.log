@@ -1,0 +1,32 @@
+QRX 0.0.7.7 Phase 7.2.17 — Mainnet Observatory & Emergency Upgrade Framework
+Validation date: 2026-09-06
+
+Fresh CMake configure: PASS (QRX_REQUIRE_PQC=OFF, QRX_BUILD_TESTS=ON)
+Fresh Core build: PASS
+CTest: 7/7 PASS
+Phase 7.2.12 static security assertions: PASS
+Phase 7.2.12 adversarial staking accounting model: 10,000/10,000 PASS
+Phase 7.2.13 home-validator safety assertions: PASS
+Phase 7.2.15 consensus red-team assertions: PASS
+Phase 7.2.16 Byzantine multi-node dress rehearsal: 14 scenario groups PASS, including 5,000 randomized Byzantine partition/quorum cases
+Phase 7.2.17 observatory static assertions: PASS
+Python scripts py_compile: PASS
+Emergency upgrade readiness positive case: PASS
+Emergency upgrade fail-closed negative case: PASS
+
+Added:
+- authenticated RPC method getmainnethealth
+- qrx-cli getmainnethealth
+- multi-node observatory with same-height block hash/state-root disagreement detection
+- supply invariant and protocol upgrade alerting
+- atomic qrxscan-friendly mainnet-health.json output + JSONL event log
+- peer viewer for peer/known-peer/seed domains, IPs, ports, endpoint type/scope and optional DNS resolution
+- explicit warning against publishing validator IP inventory publicly
+- emergency activation-height readiness checker requiring lead blocks and >2/3 observed upgraded voting power
+- operator documentation and example config
+
+Known caveats:
+- Existing compiler warnings remain and were not introduced by this phase.
+- Observatory example intentionally queries local authenticated RPC/datadirs. Cross-host report transport must use a secure authenticated channel; do not expose rpc.token over plaintext HTTP.
+- Peer viewer does not perform third-party GeoIP/ASN lookups; this avoids an external dependency and privacy leak. ASN/diversity can be added server-side using a vetted offline database.
+- Operational monitoring does not replace independent consensus/cryptography audit or real multi-host testing.

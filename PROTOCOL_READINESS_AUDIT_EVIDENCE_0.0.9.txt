@@ -1,0 +1,17 @@
+QRX 0.0.9 - Protocol Readiness Framework Audit Evidence
+Date: 2026-09-12
+
+Registered Core tests: 116
+Full CTest result: 116/116 PASS
+Targeted phases 181/182/183: 3/3 PASS
+ASan+UBSan phase181: PASS
+ASan+UBSan phase182: PASS
+ASan+UBSan phase183: PASS
+Wallet inline JavaScript syntax (node --check): PASS
+Native Tauri/Rust build: NOT RUN in this Linux environment (Rust toolchain absent); must run on native/CI release runners.
+
+Phase181: DRIVE preflight/readiness/maturity.
+Phase182: Mainnet on-chain 3-of-5 protocol governance; local upgrade file non-authoritative; duplicate signer rejection; replay resistance.
+Phase183: common readiness state machine for DRIVE_V1, QRX_NET_V1, ADVERTISING_V1 and COMPUTE_POUC_V1.
+
+This is internal engineering test evidence, not an independent third-party security certification.

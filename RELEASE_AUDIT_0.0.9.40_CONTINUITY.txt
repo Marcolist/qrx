@@ -1,0 +1,39 @@
+QRX 0.0.9.40 FULL-TREE CONTINUITY AUDIT
+Date: 2026-09-11
+Baseline: qrx-core-0.0.9.39-autonomous-provider-durable-secure-moe.zip
+Build directories excluded from comparison.
+baseline_regular_files=1140
+current_regular_files_pre_manifest=1155
+removed_baseline_files=0
+added_files=15
+changed_files=7
+
+REMOVED
+
+ADDED
+IMPLEMENTATION_0.0.9.40.md
+RELEASE_AUDIT_0.0.9.40.md
+RELEASE_AUDIT_0.0.9.40_BUILD.log
+RELEASE_AUDIT_0.0.9.40_CONTINUITY.txt
+RELEASE_AUDIT_0.0.9.40_CTEST_98_OF_98_PASS.log
+qrx-core/IMPLEMENTATION_0.0.9.40.md
+qrx-core/RELEASE_AUDIT_0.0.9.40.md
+qrx-core/src/compute/qrx_aura_moe_aggregate.c
+qrx-core/src/compute/qrx_aura_moe_aggregate.h
+qrx-core/src/compute/qrx_aura_provider_bootstrap.c
+qrx-core/src/compute/qrx_aura_provider_bootstrap.h
+qrx-core/src/compute/qrx_aura_runtime_plugin.c
+qrx-core/src/compute/qrx_aura_runtime_plugin.h
+qrx-core/tests/compute_phase165_aura_autobootstrap_pq_runtime_moe.c
+qrx-core/tests/qrx_aura_test_runtime_plugin.c
+
+CHANGED
+QRX_0.0.8_0.0.10_ROADMAP_STORAGE_COMPUTE_OUROBOROS.txt
+qrx-core/CMakeLists.txt
+qrx-core/QRX_0.0.8_0.0.10_ROADMAP_STORAGE_COMPUTE_OUROBOROS.txt
+qrx-core/src/compute/qrx_aura_provider_service.c
+qrx-core/src/compute/qrx_aura_provider_service.h
+qrx-core/src/compute/qrx_aura_remote_dispatch.c
+qrx-core/src/compute/qrx_aura_remote_dispatch.h
+
+RESULT=PASS

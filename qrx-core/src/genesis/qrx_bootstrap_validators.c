@@ -1,4 +1,6 @@
 #include "qrx_bootstrap_validators.h"
+#include <string.h>
+#include <ctype.h>
 
 const qrx_bootstrap_validator_t QRX_BOOTSTRAP_VALIDATORS[QRX_BOOTSTRAP_VALIDATOR_COUNT] = {
     {"qrx1bootstrap010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101", QRX_BOOTSTRAP_VALIDATOR_ATOMS, QRX_BOOTSTRAP_LOCK_UNTIL_HEIGHT, 1, 0},
@@ -52,3 +54,18 @@ const qrx_bootstrap_validator_t QRX_BOOTSTRAP_VALIDATORS[QRX_BOOTSTRAP_VALIDATOR
     {"qrx1bootstrap494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949", QRX_BOOTSTRAP_VALIDATOR_ATOMS, QRX_BOOTSTRAP_LOCK_UNTIL_HEIGHT, 1, 0},
     {"qrx1bootstrap505050505050505050505050505050505050505050505050505050505050505050505050505050505050505050505050", QRX_BOOTSTRAP_VALIDATOR_ATOMS, QRX_BOOTSTRAP_LOCK_UNTIL_HEIGHT, 1, 0},
 };
+
+
+static int qrx_genesis_address_sane(const char *s){
+    if(!s || strncmp(s,"qrx1",4) || strlen(s)!=124 || strstr(s,"bootstrap")) return 0;
+    for(const char *p=s+4;*p;p++) if(!isxdigit((unsigned char)*p)) return 0;
+    return 1;
+}
+int qrx_bootstrap_validators_material_ready(void){
+    for(size_t i=0;i<QRX_BOOTSTRAP_VALIDATOR_COUNT;i++){
+        const qrx_bootstrap_validator_t *v=&QRX_BOOTSTRAP_VALIDATORS[i];
+        if(!qrx_genesis_address_sane(v->address) || v->amount_atoms!=QRX_BOOTSTRAP_VALIDATOR_ATOMS || v->locked_until_height!=QRX_BOOTSTRAP_LOCK_UNTIL_HEIGHT || !v->staking_allowed || v->transfer_allowed_before_unlock) return 0;
+        for(size_t j=0;j<i;j++) if(!strcmp(v->address,QRX_BOOTSTRAP_VALIDATORS[j].address)) return 0;
+    }
+    return 1;
+}

@@ -22,17 +22,13 @@
         "all": true
       },
       "path": {
-        "all": true
+        "all": false
       },
       "fs": {
-        "all": true,
+        "all": false,
         "scope": [
-          "$APPLOCALDATA/*",
           "$APPLOCALDATA/**",
-          "$RESOURCE/*",
-          "$RESOURCE/**",
-          "$HOME/*",
-          "$HOME/**"
+          "$RESOURCE/**"
         ]
       }
     },
@@ -48,17 +44,19 @@
         "deb"
       ],
       "externalBin": [
-  "bin/qrx",
-  "bin/qrx-cli",
-  "bin/qrxd"
-],
-"icon": [
-  "icons/32x32.png",
-  "icons/128x128.png",
-  "icons/128x128@2x.png",
-  "icons/icon.icns",
-  "icons/icon.ico"
-],
+        "bin/qrx",
+        "bin/qrx-cli",
+        "bin/qrxd",
+        "bin/qrx-btc-wallet-service",
+        "bin/qrx-upscaler"
+      ],
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
       "category": "Finance",
       "shortDescription": "QRX desktop GUI wallet",
       "longDescription": "A lightweight QUB desktop GUI wallet with bundled QUBITCOIN Core sidecars.",
@@ -69,10 +67,16 @@
         "wix": {
           "language": "en-US"
         }
-      }
+      },
+      "resources": [
+        "resources/qrx-gateway-kraken.py",
+        "resources/qrx-arbitrage-engine.py",
+        "resources/qrx-complete-ledger-export.py",
+        "resources/aura/*"
+      ]
     },
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; img-src 'self' data: blob:; media-src 'self' asset: https://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost"
     },
     "windows": [
       {
