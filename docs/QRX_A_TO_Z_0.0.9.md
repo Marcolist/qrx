@@ -539,7 +539,7 @@ The current source executes the external media tool as a **separate process with
 
 ### AI model/runtime status
 
-The current source prepares capability-aware AI selection but does **not** yet bundle model weights. Candidate permissive runtimes include ncnn (BSD-3-Clause) and ONNX Runtime (MIT); each model's weights have their own license/provenance and must pass the normal QRX model governance rules. The preferred offline-photo direction discussed for the app is a Real-ESRGAN-class model through a permissive runtime, but the handbook distinguishes that planned runtime delivery from what the present source archive actually contains.
+As of 0.0.9.58, the source includes a real fail-closed local AI adapter: `qrx-upscaler ai-image` executes a SHA-256 verified 2×/4× Real-ESRGAN-class model through a `realesrgan-ncnn-vulkan` compatible runtime, and `ai-status` separates runtime/model/readiness state. 0.0.9.60 extends verified AI packaging across the complete desktop target matrix: macOS ARM64/x64, Windows x64, Linux x64, and Linux ARM64. Official Real-ESRGAN v0.2.5.0 portable assets are used where upstream publishes them; Linux ARM64 builds the pinned Real-ESRGAN-ncnn-vulkan v0.2.0 source and combines it with the same SHA-256 verified model bytes. Apple Silicon uses ncnn Vulkan through MoltenVK/Metal; x64 Windows/Linux use native Vulkan, including NVIDIA P40-class GPUs when the installed driver exposes Vulkan. Raspberry Pi 5/ARM64 is supported as a build target, while Vulkan acceleration remains explicitly experimental/driver-dependent upstream.
 
 ### Distributed mode
 
@@ -1596,7 +1596,7 @@ For the final 0.0.9 branch close:
 - **DONE:** Unified `apple-silicon` Upscaler compatibility profile with M-generation/variant metadata
 - **DONE:** Phase 190 multilingual Apps/Upscaler/App Host UX across all 55 locale catalogs (885-key parity) + full-width Apps/Upscaler workspaces
 - **DONE:** Raspberry Pi 5 supported and ODROID-N2/N2+ experimental Vulkan profiles with safe fallback
-- **OPEN:** Native AI upscaler runtime/model bundle on every release target (separate runtime-delivery gate)
+- **PARTIAL 0.0.9.58:** Local AI adapter/model verification/UI implemented; signed native runtime/model artifact delivery remains an open release-packaging gate
 - **OPEN:** 0.0.10 developer signatures / QRX Drive / QRX-Net / App Directory / app compute capabilities
 - **OPEN:** Native Tauri builds on each release OS/architecture in CI
 - **OPEN:** Public-release code signing/notarization where applicable
@@ -1670,3 +1670,7 @@ Zero-touch for the end user still requires the release operator to prepare the t
 5. Seed the verified runtime artifacts into the release origin and, where available, QRX Drive.
 
 The private runtime signing key must never be included in the source tree or wallet.
+
+### 0.0.9.61 Core wallet safety and Linux upgrade hardening
+
+`qrxd` now distinguishes wallet unlocking from recovery explicitly. Direct `--wallet-passphrase PASS` remains compatibility-only and prints a process-argument exposure warning. New `--wallet-passphrase-file PATH` (0600 required on POSIX) and `--wallet-passphrase-stdin` inputs avoid placing the secret in argv. None of these inputs accepts a recovery phrase: QRX recovery remains the separate recovery-phrase + matching `recovery.qrxseed` workflow. See `docs/LINUX_BUILD_AND_WALLET_UPGRADE.md` for the fail-safe existing-wallet upgrade procedure.
