@@ -601,6 +601,7 @@ a1a41b50bbef97d1fa8b52b6f8b525c33b0be651c09fafc8a9daf575672c0527  ./QRX_0.0.9.76
 d72af8aec5fbe5346c80386768d66cb26a037ae1b8a292c32eb66e1d5714215a  ./QRX_0.0.9.77_MAINNET_GENESIS_FINALIZATION.md
 d5f64cfac5fe4eecd5bbbaf0203753b02882382723dc5d0fba237885a9e8c6a6  ./QRX_0.0.9.78_MACOS_DUAL_ARCH_BUILD_HARDENING.md
 87dbf8fcbbb71f453f8adc2303a6fa21786ded98edfc6737bcc27d2b1dfef64a  ./QRX_0.0.9.79_MACOS_THIN_ARCH_VERIFICATION_FIX.md
+cc0b6b759386be957b48ee133efa2d6bf0d67a090c0c99db0b158911dde8dbe2  ./QRX_0.0.9.80_NATIVE_WINDOWS_BUILD_PIPELINE.md
 75af825ed9c0a1e77ebbe51737a37cbf8ee99a47aed3d5d81195db41372bbd02  ./QRX_APP_PLATFORM_0.0.9_0.0.10.md
 345ce11d1dc6a6271f8c6187a3e01e1faab459385e3ea971ca416b41e985ef60  ./QRX_A_TO_Z_DOCUMENTATION_PLAN_0.0.9.49.md
 963c2dc1b5036d361c0959bcd8935253439bd3896c35c3fd888cd0b9e523fcfc  ./QRX_CORE_0.0.7_VELOCITY_TARGET.md
@@ -1326,6 +1327,7 @@ f8cd8f625bb33cedd430062da160ba3e47a54b73f0d23c9b7934371f39935f4c  ./qrx-core/tes
 952c79c9dd03e1810ecd65c30fde80ba05fdacda27992fd99e6c457a867842c9  ./qrx-core/tests/velocity_phase4f_scheduler.c
 75bfd3e3ca6d19d1be2fc2ed2560471bdae4c0c359717491db4501c928b47c17  ./qrx-core/tools/qrx-complete-ledger-export.py
 7398ca4964be40b04b3b2bda99928fb79c28e738a5fdd96b10513a79bc9efcf5  ./qrx-core/tools/qrx-wallet-cli.py
+aacfe9fac99ba1dbab10fe6baa7517371f193b636e8bb0611b0131157a127ce2  ./scripts/__pycache__/verify-upscaler-ai-bundle.cpython-313.pyc
 d0c0650a17a8be2585c1e5ade2c0f27d1d18e4899909668da124557ffe8400a2  ./scripts/apply-i18n-matrix.py
 ee3842628c5528735287b478d2be7b1111669bd6210d71a7fd87c94aae0d83af  ./scripts/apply-locale-index-patch.py
 d7da05acd9bf1907144432e209640b48af6b54932253f44f3bbd2b6ce8d37b44  ./scripts/audit-0.0.9.69-async-upscaler.py
@@ -1339,7 +1341,7 @@ fad529dbe680b6b3047133330e6ece07c36c3f12fd2d8df49fdf6fb069c371ed  ./scripts/audi
 e6b45823364afde2679a921416732359bfd1ece12af70768f89614f2428da5f8  ./scripts/audit-gui-polish.py
 de2b52146b1993e00dfd813a42a90fbfd9a2e045f8e00445a22bd16b63a06b09  ./scripts/audit-tauri2-browser.py
 12a685066078af76593b4dcf05683d585ed342ec81f9fa595c337323a929a773  ./scripts/audit-untrusted-abort-reachability.py
-e7a2dd461de53756fe4626e2d0fa3088f863e5f9b5b814945e6115d652f5deea  ./scripts/build-all-targets.ps1
+0c902f574c124304804fc6985848b3ea366c4c304f97d366f227739e86d68605  ./scripts/build-all-targets.ps1
 fed97ef36faec7b8867224fa19445d64b7829472e355bbe4b20103ab364d717f  ./scripts/build-all-targets.sh
 0da0a33b95e644f67101a6146b15d0a07a58fa439bc94ccfbc78318e845ebc99  ./scripts/build-aura-runtime.sh
 ab1f0f28239eaa84aa04b1c47f1f66b791db511746d69a3b9b0509f067554add  ./scripts/final-release-audit.sh
@@ -1347,6 +1349,7 @@ ab1f0f28239eaa84aa04b1c47f1f66b791db511746d69a3b9b0509f067554add  ./scripts/fina
 ae3181a7681b51476ab377ff6e7e6b632991b593a6448cbe6087a601ac927819  ./scripts/generate-mainnet-governance-keys.sh
 b3584f33e529f9755d3576234890633803e2b6823a558094dcc1ec0fd29905f6  ./scripts/install-upscaler-ai-local.sh
 8489c30c5d2b56a84adecb24f1c58ec1f7f9df1600f6e9eaba5a012001a27d8a  ./scripts/package-target-release.py
+f60762a3bf0f1e74176133ab89ee9ae198f882b91730c4f3da2bc425f8756cfa  ./scripts/prepare-upscaler-ai-bundle-windows.ps1
 729a37f8443d6626db7e8bca45f3abe757aa77aaa0c5f4f38678d9c259ea485f  ./scripts/prepare-upscaler-ai-bundle.sh
 234b277946748403213c4e403296544d941ebbb032eefc621ff5dd088431a766  ./scripts/qrx-emergency-upgrade-check.py
 edeba61b64eea66543a375cad6c5b2e67dfe2b274190a9fc0c82b51fb6f9d0a8  ./scripts/qrx-i18n-audit.py
@@ -1375,6 +1378,7 @@ abbd737af1eb6ffc6dff345d4d8b9073ab064ceade880e4daf05e50d912c11fb  ./scripts/test
 e85c216f652b8a3482f4d7f7ea3d7edc411c1e99ed6e43601703d9cd138f8894  ./scripts/test_upscaler_async_jobs_067.sh
 84e22a5882d09f30554f64e9598aa11c4f8c7b479dbf55ae0c15414dac932166  ./scripts/test_verified_wallet_unlock_00974.py
 709667398ab11459b240ba002dc010aec6582dd2f1cd1ccebf1e09c605102a58  ./scripts/upscaler-ai-archives.sha256
+42189c45e9ff7e0fd6960197242a56a9a5357a9de217d1d1842d6092ad26673b  ./scripts/verify-upscaler-ai-bundle.py
 0256bed342792d63b0bcbdfbfd67a5245ec28810b87bbb60bf92dbeccfeab8fa  ./scripts/verify-upscaler-ai-bundle.sh
 a41ff51ed53116ac212214243dfcaff9fcd78673c64c7b85917b1b7fcd0eef4a  ./tests/hybrid_signatures.sh
 25d475a3c652c516b3ba3da69747f3a9b59f796d07355916799cf10db31586f1  ./tests/rc1_crash_recovery.sh
