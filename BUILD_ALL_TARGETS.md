@@ -50,6 +50,7 @@ bash scripts/build-all-targets.sh --target linux-x64
 bash scripts/build-all-targets.sh --target linux-arm64
 bash scripts/build-all-targets.sh --target macos-arm64
 bash scripts/build-all-targets.sh --target macos-x64
+bash scripts/build-all-targets.sh --target macos-both
 bash scripts/build-all-targets.sh --target windows-x64
 ```
 
@@ -58,6 +59,8 @@ From Windows PowerShell, the equivalent native command is:
 ```powershell
 .\scripts\build-all-targets.ps1 -Target windows-x64
 ```
+
+On Apple Silicon, `--target macos-x64` cross-builds the Intel release using QRX's pinned x86_64 dependency prefix; Rust `openssl-sys` is pointed at that prefix explicitly and does not use ARM Homebrew/pkg-config. `--target macos-both` builds isolated arm64 and x86_64 releases sequentially and writes them to `dist/macos-arm64/` and `dist/macos-x64/`.
 
 With `host`, Linux ARM64/aarch64, Linux x86-64, macOS Intel/ARM and Windows x64 are detected automatically. Validate the complete order without compiling:
 
