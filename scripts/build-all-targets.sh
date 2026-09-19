@@ -29,6 +29,7 @@ Targets:
   linux-arm64   Linux ARM64: Core, CLI, tools, BTC service, DEB, AppImage
   macos-x64     macOS Intel: Core, CLI, tools, BTC service, APP, DMG
   macos-arm64   macOS Apple Silicon: Core, CLI, tools, BTC service, APP, DMG
+  macos-both    macOS: build both Apple Silicon and Intel (Intel cross-build supported on Apple Silicon)
   windows-x64   Windows x86-64 MSVC: Core, CLI, tools, BTC service, MSI, NSIS
 
 Use --plan to validate and print the dependency order without compiling.
@@ -42,7 +43,7 @@ while [[ $# -gt 0 ]]; do
     --target) [[ $# -ge 2 ]] || { echo "--target needs a value" >&2; exit 2; }; TARGET="$2"; shift 2 ;;
     --all) ALL_TARGETS=1; shift ;;
     --plan) PLAN_ONLY=1; shift ;;
-    --list-targets) printf '%s\n' host linux-x64 linux-arm64 macos-x64 macos-arm64 windows-x64; exit 0 ;;
+    --list-targets) printf '%s\n' host linux-x64 linux-arm64 macos-x64 macos-arm64 macos-both windows-x64; exit 0 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -67,6 +68,25 @@ if [[ "$ALL_TARGETS" -eq 1 ]]; then
 fi
 
 TARGET="${TARGET:-host}"
+
+# On an Apple Silicon Mac, build both native arm64 and cross-compiled Intel x64
+# releases in one command. Each child build keeps its own Core/Tauri/dependency
+# directories and therefore cannot accidentally package the other architecture.
+if [[ "$TARGET" == "macos-both" ]]; then
+  [[ "$(uname -s)" == "Darwin" ]] || { echo "macos-both requires macOS" >&2; exit 3; }
+  if [[ "$PLAN_ONLY" -eq 1 ]]; then
+    bash "$0" --target macos-arm64 --plan
+    bash "$0" --target macos-x64 --plan
+  else
+    bash "$0" --target macos-arm64
+    bash "$0" --target macos-x64
+    echo "Both macOS QRX releases completed:"
+    echo "  $DIST_ROOT/macos-arm64"
+    echo "  $DIST_ROOT/macos-x64"
+  fi
+  exit 0
+fi
+
 if [[ "$TARGET" == "host" ]]; then
   detected_os="$(uname -s)"; detected_arch="$(uname -m)"
   case "$detected_os:$detected_arch" in
@@ -163,6 +183,23 @@ case "$TARGET" in
     arch="x86_64"; [[ "$TARGET" == "macos-arm64" ]] && arch="arm64"
     QRX_NATIVE_DEPS_PREFIX="${QRX_NATIVE_DEPS_PREFIX:-$BUILD_ROOT/deps/macos-$arch}"
     QRX_NATIVE_DEPS_PREFIX="$QRX_NATIVE_DEPS_PREFIX" BUILD_DIR="$CORE_BUILD" JOBS="$JOBS" bash "$CORE/scripts/build-macos-static.sh" "$arch"
+
+    # Rust openssl-sys does not infer a cross-architecture OpenSSL installation
+    # from pkg-config on Apple Silicon. Reuse QRX's already verified hermetic
+    # OpenSSL prefix and expose it with Cargo's target-specific variables.
+    [[ -f "$QRX_NATIVE_DEPS_PREFIX/lib/libcrypto.a" ]] || { echo "Missing target OpenSSL libcrypto: $QRX_NATIVE_DEPS_PREFIX" >&2; exit 6; }
+    [[ -f "$QRX_NATIVE_DEPS_PREFIX/lib/libssl.a" ]] || { echo "Missing target OpenSSL libssl: $QRX_NATIVE_DEPS_PREFIX" >&2; exit 6; }
+    [[ -f "$QRX_NATIVE_DEPS_PREFIX/include/openssl/ssl.h" ]] || { echo "Missing target OpenSSL headers: $QRX_NATIVE_DEPS_PREFIX" >&2; exit 6; }
+    export OPENSSL_STATIC=1
+    if [[ "$TARGET" == "macos-x64" ]]; then
+      export X86_64_APPLE_DARWIN_OPENSSL_DIR="$QRX_NATIVE_DEPS_PREFIX"
+      export X86_64_APPLE_DARWIN_OPENSSL_LIB_DIR="$QRX_NATIVE_DEPS_PREFIX/lib"
+      export X86_64_APPLE_DARWIN_OPENSSL_INCLUDE_DIR="$QRX_NATIVE_DEPS_PREFIX/include"
+    else
+      export AARCH64_APPLE_DARWIN_OPENSSL_DIR="$QRX_NATIVE_DEPS_PREFIX"
+      export AARCH64_APPLE_DARWIN_OPENSSL_LIB_DIR="$QRX_NATIVE_DEPS_PREFIX/lib"
+      export AARCH64_APPLE_DARWIN_OPENSSL_INCLUDE_DIR="$QRX_NATIVE_DEPS_PREFIX/include"
+    fi
     ;;
   windows-x64)
     QRX_NATIVE_DEPS_PREFIX="${QRX_NATIVE_DEPS_PREFIX:-$BUILD_ROOT/deps/windows-x64}"
@@ -175,6 +212,28 @@ CORE_BIN_DIR="$CORE_BUILD"
 for binary in qrx qrx-cli qrxd qrx-upscaler qrxdb_verify qrxdb_salvage qrxdb_compact qrxdb_snapshot; do
   [[ -f "$CORE_BIN_DIR/$binary$CORE_EXT" ]] || { echo "Core output missing: $CORE_BIN_DIR/$binary$CORE_EXT" >&2; exit 6; }
 done
+if [[ "$TARGET" == macos-* ]]; then
+  command -v lipo >/dev/null 2>&1 || { echo "lipo is required to verify macOS release architecture" >&2; exit 4; }
+  expected_arch="x86_64"; [[ "$TARGET" == "macos-arm64" ]] && expected_arch="arm64"
+  for binary in qrx qrx-cli qrxd qrx-upscaler qrxdb_verify qrxdb_salvage qrxdb_compact qrxdb_snapshot; do
+    binary_path="$CORE_BIN_DIR/$binary"
+    # lipo -verify_arch can report failure for a valid thin Mach-O on some
+    # macOS/Xcode combinations (while -info correctly reports the arch).
+    # -archs works for both thin and universal Mach-O files, so inspect the
+    # actual architecture list instead of treating thin files as invalid.
+    binary_archs="$(lipo -archs "$binary_path" 2>/dev/null || true)"
+    arch_ok=0
+    for found_arch in $binary_archs; do
+      [[ "$found_arch" == "$expected_arch" ]] && arch_ok=1
+    done
+    if [[ "$arch_ok" -ne 1 ]]; then
+      echo "Architecture mismatch: $binary does not contain $expected_arch (found: ${binary_archs:-unknown})" >&2
+      lipo -info "$binary_path" >&2 || true
+      exit 6
+    fi
+    echo "Architecture OK: $binary -> $binary_archs"
+  done
+fi
 
 echo "[2/8] Staging complete CLI and Python tool set"
 mkdir -p "$TARGET_OUT/core" "$TARGET_OUT/tools" "$TARGET_OUT/wallet"
