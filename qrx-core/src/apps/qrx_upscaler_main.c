@@ -19,6 +19,7 @@
 
 #include "apps/qrx_upscaler.h"
 #include "apps/qrx_upscaler_capabilities.h"
+#include "apps/qrx_upscaler_ai.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,6 +45,9 @@ static void usage(void) {
      "  qrx-upscaler batch  <in-dir> <out-dir> [--scale N] [--filter F]\n"
      "                      [--shard I --shards N]\n"
      "  qrx-upscaler video  <in> <out> [--scale N] [--filter F] [--work DIR]\n"
+     "  qrx-upscaler ai-image <in> <out> --scale 2|4 [--tile N] [--model ID]\n"
+     "  qrx-upscaler ai-status\n"
+     "  qrx-upscaler verify-model <manifest.qrxmodel>\n"
      "  qrx-upscaler capabilities\n"
      "  qrx-upscaler selftest\n"
      "\n"
@@ -194,13 +198,24 @@ static int cmd_video(const char *in, const char *out, Opts *o) {
     return 0;
 }
 
+static int cmd_ai_status(void) {
+    QrxUpsAiStatus a; if(qrx_ups_ai_status(&a)) return 1;
+    printf("{\n  \"backend\": \"%s\",\n  \"runtime_installed\": %s,\n  \"runtime_verified\": %s,\n  \"runtime_path\": \"%s\",\n  \"model_dir\": \"%s\",\n  \"model_x2_installed\": %s,\n  \"model_x2_verified\": %s,\n  \"model_x2_id\": \"%s\",\n  \"model_x4_installed\": %s,\n  \"model_x4_verified\": %s,\n  \"model_x4_id\": \"%s\",\n  \"ai_ready\": %s,\n  \"status\": \"%s\"\n}\n",
+      a.backend,a.runtime_installed?"true":"false",a.runtime_verified?"true":"false",a.runtime_path,a.model_dir,
+      a.model_x2_installed?"true":"false",a.model_x2_verified?"true":"false",a.model_x2_id,
+      a.model_x4_installed?"true":"false",a.model_x4_verified?"true":"false",a.model_x4_id,
+      a.ai_ready?"true":"false",a.status); return 0;
+}
+static int cmd_verify_model(const char*p){char e[256];int rc=qrx_ups_ai_verify_manifest(p,e,sizeof(e));if(rc){fprintf(stderr,"qrx-upscaler: model verification failed: %s\n",e);return 2;}puts("model_verified=true");return 0;}
+static int cmd_ai_image(int argc,char**argv){if(argc<5){usage();return 2;}int scale=0;unsigned tile=0;const char*model=NULL;for(int i=4;i<argc;i++){if(!strcmp(argv[i],"--scale")&&i+1<argc){if(parse_int(argv[++i],2,4,&scale)||!(scale==2||scale==4))return 2;}else if(!strcmp(argv[i],"--tile")&&i+1<argc){int x=0;if(parse_int(argv[++i],0,2048,&x))return 2;tile=(unsigned)x;}else if(!strcmp(argv[i],"--model")&&i+1<argc)model=argv[++i];else{fprintf(stderr,"qrx-upscaler: unknown AI option %s\n",argv[i]);return 2;}}if(!scale){fputs("qrx-upscaler: ai-image requires --scale 2 or 4\n",stderr);return 2;}if(tile==0){QrxUpsCapabilities c;if(qrx_ups_capabilities_probe(&c)==0)tile=c.recommended_tile;}int rc=qrx_ups_ai_run_image(argv[2],argv[3],scale,tile,model);if(rc){fprintf(stderr,"qrx-upscaler: AI inference unavailable/failed (code %d). Run 'qrx-upscaler ai-status'.\n",rc);return 7;}return 0;}
+
 /* ---------------------------------------------------------------- */
 /* selftest: proves the pixel path works and is deterministic        */
 /* ---------------------------------------------------------------- */
 
 static int cmd_capabilities(void) {
-    QrxUpsCapabilities c;
-    if (qrx_ups_capabilities_probe(&c) != 0) {
+    QrxUpsCapabilities c; QrxUpsAiStatus a;
+    if (qrx_ups_capabilities_probe(&c) != 0 || qrx_ups_ai_status(&a) != 0) {
         fputs("qrx-upscaler: capability probe failed\n", stderr);
         return 1;
     }
@@ -221,6 +236,13 @@ static int cmd_capabilities(void) {
            "  \"vulkan_mode\": \"%s\",\n"
            "  \"accelerator\": \"%s\",\n"
            "  \"ai_runtime_ready\": %s,\n"
+           "  \"runtime_installed\": %s,\n"
+           "  \"runtime_verified\": %s,\n"
+           "  \"model_x2_verified\": %s,\n"
+           "  \"model_x4_verified\": %s,\n"
+           "  \"ai_ready\": %s,\n"
+           "  \"ai_backend\": \"%s\",\n"
+           "  \"model_dir\": \"%s\",\n"
            "  \"classical_available\": %s,\n"
            "  \"recommended_tile\": %u,\n"
            "  \"recommended_threads\": %u,\n"
@@ -235,6 +257,7 @@ static int cmd_capabilities(void) {
            c.native_metal_present?"true":"false",
            c.metal_version_major,c.vulkan_mode,c.accelerator,
            c.ai_runtime_ready?"true":"false",
+           a.runtime_installed?"true":"false",a.runtime_verified?"true":"false",a.model_x2_verified?"true":"false",a.model_x4_verified?"true":"false",a.ai_ready?"true":"false",a.backend,a.model_dir,
            c.classical_available?"true":"false",
            c.recommended_tile,c.recommended_threads,c.status);
     return 0;
@@ -310,6 +333,9 @@ int main(int argc, char **argv) {
     if (argc < 2) { usage(); return 2; }
 
     if (!strcmp(argv[1], "capabilities")) return cmd_capabilities();
+    if (!strcmp(argv[1], "ai-status")) return cmd_ai_status();
+    if (!strcmp(argv[1], "verify-model") && argc == 3) return cmd_verify_model(argv[2]);
+    if (!strcmp(argv[1], "ai-image") && argc >= 4) return cmd_ai_image(argc, argv);
     if (!strcmp(argv[1], "selftest")) return cmd_selftest();
 
     if (!strcmp(argv[1], "image") && argc >= 4) {

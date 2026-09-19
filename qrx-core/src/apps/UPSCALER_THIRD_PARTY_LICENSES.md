@@ -71,10 +71,12 @@ to the same policy plus the existing AURA model rules:
 | ONNX Runtime | MIT | permissive |
 | ncnn | BSD-3-Clause | permissive |
 
-Model **weights** carry their own licence, independent of the runtime. Any
+Model **weights** carry their own licence/provenance obligations, independent of the runtime. Any
 model reaching the governed QRX catalog must pass the existing provenance and
 licence policy checks; a governance approval cannot override a licence deny
-rule. No model weights are bundled with QRX.
+rule.
+
+Starting with 0.0.9.59, the macOS Apple-Silicon release bundle stages two reviewed models from the official Real-ESRGAN `v0.2.5.0` release: `realesr-animevideov3-x2` and `realesrgan-x4plus`. Their exact `.param`/`.bin` SHA-256 values and the source archive SHA-256 are written into QRX model/provenance manifests at packaging time. Real-ESRGAN is distributed under BSD-3-Clause; the exact upstream license material from the pinned release bundle is copied into the wallet resources. GFPGAN weights are deliberately not bundled.
 
 ## Algorithms
 
@@ -97,3 +99,7 @@ libpng and zlib both require their copyright notices to be preserved in
 distributed binaries. A release that links them must ship the corresponding
 notice text alongside the QRX licence. Neither requires source disclosure of
 QRX itself.
+
+
+## 0.0.9.60 multi-platform packaging
+The verified bundle now covers macOS ARM64/x64, Windows x64, Linux x64 and Linux ARM64. Portable binaries are taken only from the official Real-ESRGAN v0.2.5.0 release where an upstream artifact exists. Linux ARM64 has no official portable artifact in that release, so QRX builds the runtime from the pinned Real-ESRGAN-ncnn-vulkan v0.2.0 tag (commit prefix `37026f4`) with its pinned git submodules. All targets use the same reviewed x2/x4 model bytes from the official Ubuntu release asset and record model/runtime SHA-256 plus provenance in the bundle.

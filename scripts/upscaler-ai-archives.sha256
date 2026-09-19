@@ -1,0 +1,12 @@
+# QRX 0.0.9.65 Real-ESRGAN v0.2.5.0 immutable archive locks.
+# Format: <sha256>  <exact upstream release asset>
+# Policy: build accepts only exact asset name + pinned release URL + SHA-256.
+# The macOS digest was captured from the canonical pinned GitHub release asset
+# (51,817,124 bytes) after deterministic single-fetch diagnostics in 0.0.9.64.
+# Upstream project documentation and an independent SourceForge project mirror
+# corroborate the exact v0.2.5.0 asset identity/size/date. The digest itself is
+# treated as the QRX reviewed release lock from 0.0.9.65 onward, not discovered
+# dynamically during a build.
+e5aa6eb131234b87c0c51f82b89390f5e3e642b7b70f2b9bbe95b6a285a40c96  realesrgan-ncnn-vulkan-20220424-ubuntu.zip
+e0ad05580abfeb25f8d8fb55aaf7bedf552c375b5b4d9bd3c8d59764d2cc333a  realesrgan-ncnn-vulkan-20220424-macos.zip
+# Windows remains fail-closed until QRX records and reviews its exact digest.

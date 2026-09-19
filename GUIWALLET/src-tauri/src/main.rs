@@ -7,11 +7,12 @@ use tauri::Manager;
 use serde_json::Value;
 use std::{
     fs::{self, File, OpenOptions},
-    io::Write,
+    io::{Write, BufRead, BufReader},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::Mutex,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    sync::{Mutex, OnceLock, Arc, atomic::{AtomicBool, Ordering}},
+    time::{Duration, SystemTime, UNIX_EPOCH, Instant},
+    collections::HashMap,
 };
 use thiserror::Error;
 use std::str::FromStr;
@@ -1032,7 +1033,7 @@ fn sign_raw_to_text(app:&tauri::AppHandle,network:&str,wallet:&str,raw:&str,pass
 
 #[tauri::command]
 fn generals_prepare_offline_reveal(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,payload:String,not_before_height:i64,expires_height:i64,passphrase:Option<String>)->Result<Value,String>{
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     if not_before_height<1||expires_height<not_before_height{return Err("Invalid offline reveal height window".into())} if payload.len()>8192{return Err("Reveal payload too large".into())}
     let ctx=ensure_context(&network,&wallet).map_err(String::from)?; let address=generals_address(&network,&wallet)?; let (ed,ml)=generals_public_keys(&network,&wallet)?;
     let expiry=expires_height.to_string(); let created=run_cli(Some(&app),&network,&wallet,&["createvelocitytransaction",&address,&address,"0",&ed,&ml,"GAME_ORDER_REVEAL","7",&expiry,&payload],passphrase.as_deref()).map_err(String::from)?;
@@ -1045,13 +1046,13 @@ fn generals_prepare_offline_reveal(app:tauri::AppHandle,network:Option<String>,w
 fn broadcast_created_transaction(app:&tauri::AppHandle,network:&str,wallet:&str,created:CommandResult,passphrase:Option<&str>,action:&str,agent:&str)->Result<AgentManagerResult,String>{ let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return a raw transaction".to_string())?; let broadcast=sign_and_broadcast_raw(app,network,wallet,raw,passphrase,"agent-manager")?; Ok(AgentManagerResult{action:action.into(),agent:agent.into(),venue:"KRAKEN".into(),raw_transaction_created:true,broadcast}) }
 
 #[tauri::command]
-fn agent_manager_list(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,owner:Option<String>,passphrase:Option<String>)->Result<CommandResult,String>{ let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?; let owner=owner.unwrap_or_default(); let args=if owner.trim().is_empty(){vec!["listagents"]}else{vec!["listagents",owner.trim()]}; run_cli(Some(&app),&network,&wallet,&args,passphrase.as_deref()).map_err(|e|e.to_string()) }
+fn agent_manager_list(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,owner:Option<String>,passphrase:Option<String>)->Result<CommandResult,String>{ let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?; let owner=owner.unwrap_or_default(); let args=if owner.trim().is_empty(){vec!["listagents"]}else{vec!["listagents",owner.trim()]}; run_cli(Some(&app),&network,&wallet,&args,passphrase.as_deref()).map_err(|e|e.to_string()) }
 
 #[tauri::command]
-fn agent_manager_register(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,owner:String,agent:String,agent_ed_pub:String,agent_mldsa_pub:String,max_trade_atoms:String,daily_limit_atoms:String,markets:String,expires_height:String,owner_ed_pub:String,owner_mldsa_pub:String,lane:String,tx_expiry:String,allow_arbitrage:bool,passphrase:Option<String>)->Result<AgentManagerResult,String>{ let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?; let owner=required_clean(&owner,"Owner address")?; let agent=required_clean(&agent,"Agent address")?; let markets=markets.split(',').map(str::trim).filter(|v|!v.is_empty()).collect::<Vec<_>>().join(","); if markets.is_empty()||markets.split(',').any(|m|!m.contains('/')){return Err("Enter at least one market like BTC/EUR".into());} let max_trade=positive_u64(&max_trade_atoms,"Maximum per trade")?; let daily=positive_u64(&daily_limit_atoms,"Daily limit")?; let expires=positive_u64(&expires_height,"Agent expiry height")?; let tx_expiry=positive_u64(&tx_expiry,"Transaction expiry height")?; let permissions=if allow_arbitrage{"TRADE_EXTERNAL,ARBITRAGE_CROSS_VENUE"}else{"TRADE_EXTERNAL"}; let created=run_cli(Some(&app),&network,&wallet,&["createagentregistertransaction",&owner,&agent,agent_ed_pub.trim(),agent_mldsa_pub.trim(),permissions,&max_trade,&daily,&markets,&expires,owner_ed_pub.trim(),owner_mldsa_pub.trim(),lane.trim(),&tx_expiry],passphrase.as_deref()).map_err(|e|e.to_string())?; broadcast_created_transaction(&app,&network,&wallet,created,passphrase.as_deref(),"register",&agent) }
+fn agent_manager_register(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,owner:String,agent:String,agent_ed_pub:String,agent_mldsa_pub:String,max_trade_atoms:String,daily_limit_atoms:String,markets:String,expires_height:String,owner_ed_pub:String,owner_mldsa_pub:String,lane:String,tx_expiry:String,allow_arbitrage:bool,passphrase:Option<String>)->Result<AgentManagerResult,String>{ let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?; let owner=required_clean(&owner,"Owner address")?; let agent=required_clean(&agent,"Agent address")?; let markets=markets.split(',').map(str::trim).filter(|v|!v.is_empty()).collect::<Vec<_>>().join(","); if markets.is_empty()||markets.split(',').any(|m|!m.contains('/')){return Err("Enter at least one market like BTC/EUR".into());} let max_trade=positive_u64(&max_trade_atoms,"Maximum per trade")?; let daily=positive_u64(&daily_limit_atoms,"Daily limit")?; let expires=positive_u64(&expires_height,"Agent expiry height")?; let tx_expiry=positive_u64(&tx_expiry,"Transaction expiry height")?; let permissions=if allow_arbitrage{"TRADE_EXTERNAL,ARBITRAGE_CROSS_VENUE"}else{"TRADE_EXTERNAL"}; let created=run_cli(Some(&app),&network,&wallet,&["createagentregistertransaction",&owner,&agent,agent_ed_pub.trim(),agent_mldsa_pub.trim(),permissions,&max_trade,&daily,&markets,&expires,owner_ed_pub.trim(),owner_mldsa_pub.trim(),lane.trim(),&tx_expiry],passphrase.as_deref()).map_err(|e|e.to_string())?; broadcast_created_transaction(&app,&network,&wallet,created,passphrase.as_deref(),"register",&agent) }
 
 #[tauri::command]
-fn agent_manager_revoke(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,owner:String,agent:String,owner_ed_pub:String,owner_mldsa_pub:String,lane:String,tx_expiry:String,passphrase:Option<String>)->Result<AgentManagerResult,String>{ let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?; let owner=required_clean(&owner,"Owner address")?; let agent=required_clean(&agent,"Agent address")?; let tx_expiry=positive_u64(&tx_expiry,"Transaction expiry height")?; let created=run_cli(Some(&app),&network,&wallet,&["createagentrevoketransaction",&owner,&agent,owner_ed_pub.trim(),owner_mldsa_pub.trim(),lane.trim(),&tx_expiry],passphrase.as_deref()).map_err(|e|e.to_string())?; broadcast_created_transaction(&app,&network,&wallet,created,passphrase.as_deref(),"revoke",&agent) }
+fn agent_manager_revoke(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,owner:String,agent:String,owner_ed_pub:String,owner_mldsa_pub:String,lane:String,tx_expiry:String,passphrase:Option<String>)->Result<AgentManagerResult,String>{ let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?; let owner=required_clean(&owner,"Owner address")?; let agent=required_clean(&agent,"Agent address")?; let tx_expiry=positive_u64(&tx_expiry,"Transaction expiry height")?; let created=run_cli(Some(&app),&network,&wallet,&["createagentrevoketransaction",&owner,&agent,owner_ed_pub.trim(),owner_mldsa_pub.trim(),lane.trim(),&tx_expiry],passphrase.as_deref()).map_err(|e|e.to_string())?; broadcast_created_transaction(&app,&network,&wallet,created,passphrase.as_deref(),"revoke",&agent) }
 
 fn child_pid(child: &Child) -> u32 {
     child.id()
@@ -1297,13 +1298,13 @@ fn inspect_wallet_inner(network: &str, wallet: &str) -> Result<WalletInspection,
 
 #[tauri::command]
 fn inspect_wallet(network: Option<String>, wallet: String) -> Result<WalletInspection, String> {
-    inspect_wallet_inner(network.as_deref().unwrap_or("alpha"), &wallet).map_err(String::from)
+    inspect_wallet_inner(network.as_deref().unwrap_or("mainnet"), &wallet).map_err(String::from)
 }
 
 
 #[tauri::command]
 fn verify_wallet_passphrase(app: tauri::AppHandle, network: Option<String>, wallet: String, passphrase: String) -> Result<bool, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(&wallet).map_err(String::from)?;
     let inspection = inspect_wallet_inner(&network, &wallet).map_err(String::from)?;
     if inspection.private_key_encryption == "unencrypted" { return Ok(true); }
@@ -1358,8 +1359,21 @@ fn verify_wallet_passphrase(app: tauri::AppHandle, network: Option<String>, wall
 }
 
 #[tauri::command]
+fn detect_legacy_default_passphrase(network: Option<String>, wallet: String) -> Result<bool, String> {
+    let network=network.unwrap_or_else(||"mainnet".into());
+    let wallet=sanitize_wallet_name(&wallet).map_err(String::from)?;
+    let dir=wallet_dir(&network,&wallet).map_err(String::from)?;
+    let ed=dir.join("ed25519_priv.pem");
+    if !ed.is_file() || pem_encryption_state(&ed)!=Some("encrypted") { return Ok(false); }
+    // Historical alpha/testnet/regtest auto-created wallets used this fixed
+    // development credential. Detection is a local decryption probe only; the
+    // value is never returned to JavaScript, logs, metadata or configuration.
+    Ok(encrypted_pem_accepts_passphrase(&ed,"change-me"))
+}
+
+#[tauri::command]
 fn change_wallet_passphrase(app: tauri::AppHandle, network: Option<String>, wallet: String, current_passphrase: String, new_passphrase: String) -> Result<WalletPassphraseChangeResult, String> {
-    let network=network.unwrap_or_else(||"alpha".into());
+    let network=network.unwrap_or_else(||"mainnet".into());
     let wallet=sanitize_wallet_name(&wallet).map_err(String::from)?;
     if new_passphrase.is_empty(){ return Err("New passphrase must not be empty. Use a real passphrase; empty-passphrase legacy wallets are supported for reading but should be upgraded.".into()); }
     if new_passphrase.len()<8 { return Err("New wallet passphrase must be at least 8 characters.".into()); }
@@ -1376,6 +1390,8 @@ fn change_wallet_passphrase(app: tauri::AppHandle, network: Option<String>, wall
         } else { PKey::private_key_from_pem(&pem).map_err(|_|format!("Could not parse private key {}",path.display()))? };
         keys.push(key);
     }
+    let address_before=fs::read(dir.join("address.txt")).map_err(|e|format!("Could not read canonical wallet address before migration: {e}"))?;
+    let public_before:Vec<Vec<u8>>=keys.iter().map(|k|k.public_key_to_der().map_err(|e|format!("Could not fingerprint wallet identity before migration: {e}"))).collect::<Result<_,_>>()?;
     let backup_path=create_wallet_security_backup(&network,&wallet,"pre-passphrase-change").map_err(String::from)?;
     let nonce=SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e|e.to_string())?.as_nanos();
     let mut temps=Vec::new();
@@ -1392,6 +1408,16 @@ fn change_wallet_passphrase(app: tauri::AppHandle, network: Option<String>, wall
     let install = (|| -> Result<(),String>{ fs::rename(&temps[0],&paths[0]).map_err(|e|e.to_string())?; fs::rename(&temps[1],&paths[1]).map_err(|e|e.to_string())?; Ok(()) })();
     if let Err(e)=install { let _=fs::remove_file(&paths[0]); let _=fs::remove_file(&paths[1]); let _=fs::rename(&olds[0],&paths[0]); let _=fs::rename(&olds[1],&paths[1]); for t in &temps{let _=fs::remove_file(t);} return Err(format!("Could not install re-encrypted keys; original keys restored: {e}")); }
     if !encrypted_pem_accepts_passphrase(&paths[0],&new_passphrase) || !encrypted_pem_accepts_passphrase(&paths[1],&new_passphrase){ let _=fs::remove_file(&paths[0]); let _=fs::remove_file(&paths[1]); let _=fs::rename(&olds[0],&paths[0]); let _=fs::rename(&olds[1],&paths[1]); return Err("Post-write verification failed; original keys restored.".into()); }
+    let identity_ok=(|| -> Result<bool,String>{
+        if fs::read(dir.join("address.txt")).map_err(|e|e.to_string())? != address_before { return Ok(false); }
+        for (idx,path) in paths.iter().enumerate(){
+            let pem=fs::read(path).map_err(|e|e.to_string())?;
+            let key=PKey::private_key_from_pem_passphrase(&pem,new_passphrase.as_bytes()).map_err(|e|e.to_string())?;
+            if key.public_key_to_der().map_err(|e|e.to_string())? != public_before[idx] { return Ok(false); }
+        }
+        Ok(true)
+    })().unwrap_or(false);
+    if !identity_ok { let _=fs::remove_file(&paths[0]); let _=fs::remove_file(&paths[1]); let _=fs::rename(&olds[0],&paths[0]); let _=fs::rename(&olds[1],&paths[1]); return Err("Identity verification failed after re-encryption; original keys restored.".into()); }
     let _=fs::remove_file(&olds[0]); let _=fs::remove_file(&olds[1]);
     let passphrase_hex:String=new_passphrase.as_bytes().iter().map(|b|format!("{b:02x}")).collect();
     run_cli(Some(&app),&network,&wallet,&["walletpassphrasehexfor",&wallet,&passphrase_hex],None).map_err(|e|format!("Keys were re-encrypted, but the daemon signer session could not be refreshed: {e}"))?;
@@ -1399,8 +1425,28 @@ fn change_wallet_passphrase(app: tauri::AppHandle, network: Option<String>, wall
 }
 
 #[tauri::command]
+fn migrate_legacy_default_passphrase(app: tauri::AppHandle, network: Option<String>, wallet: String, new_passphrase: String) -> Result<WalletPassphraseChangeResult, String> {
+    let net=network.unwrap_or_else(||"mainnet".into());
+    let wallet=sanitize_wallet_name(&wallet).map_err(String::from)?;
+    if !detect_legacy_default_passphrase(Some(net.clone()),wallet.clone())? {
+        return Err("This wallet was not verified as a historical default-passphrase wallet; no migration was performed.".into());
+    }
+    change_wallet_passphrase(app,Some(net),wallet,"change-me".into(),new_passphrase)
+}
+
+#[tauri::command]
+fn wallet_session_status(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>) -> Result<bool, String> {
+    let network = network.unwrap_or_else(|| "mainnet".into());
+    let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    match run_cli(Some(&app), &network, &wallet, &["walletsessionstatusfor", &wallet], None) {
+        Ok(r) => Ok(r.result.get("unlocked").and_then(Value::as_bool).unwrap_or(false)),
+        Err(_) => Ok(false),
+    }
+}
+
+#[tauri::command]
 fn lock_wallet_session(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>) -> Result<bool, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     // An offline daemon is already effectively locked.
     let _ = run_cli(Some(&app), &network, &wallet, &["walletlockfor", &wallet], None);
@@ -1409,7 +1455,7 @@ fn lock_wallet_session(app: tauri::AppHandle, network: Option<String>, wallet: O
 
 #[tauri::command]
 fn import_key_set_directory(network: Option<String>, wallet: String, source_dir: String) -> Result<KeySetImportResult, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(&wallet).map_err(String::from)?;
     let source = PathBuf::from(source_dir);
     if !source.is_dir() { return Err("Key-set source directory not found".into()); }
@@ -1451,7 +1497,7 @@ fn legacy_gui_data_roots() -> Vec<PathBuf> {
 
 #[tauri::command]
 fn list_legacy_gui_wallets(network: Option<String>) -> Result<Vec<LegacyGuiWalletCandidate>, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let shared = wallet_root(&network).map_err(String::from)?;
     let mut out = Vec::new();
     for base in legacy_gui_data_roots() {
@@ -1480,7 +1526,7 @@ fn list_legacy_gui_wallets(network: Option<String>) -> Result<Vec<LegacyGuiWalle
 
 #[tauri::command]
 async fn import_legacy_gui_wallet(network: Option<String>, wallet: String, source_dir: String) -> Result<ImportResult, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(&wallet).map_err(String::from)?;
     let source = PathBuf::from(&source_dir);
     let canonical_source = source.canonicalize().map_err(|e| format!("Legacy wallet source is unavailable: {e}"))?;
@@ -1580,7 +1626,7 @@ fn parse_qrx_kv(text: &str) -> std::collections::HashMap<String,String> {
 
 #[tauri::command]
 fn validator_fleet_status(app: tauri::AppHandle, network: Option<String>) -> Result<Vec<ValidatorFleetItem>, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallets = list_wallets(Some(network.clone()))?;
     let chain_dir = app_data_dir().map_err(String::from)?.join(&network).join("chain");
     let mut out = Vec::with_capacity(wallets.len());
@@ -1626,7 +1672,7 @@ fn validator_fleet_status(app: tauri::AppHandle, network: Option<String>) -> Res
 
 #[tauri::command]
 fn set_validator_fleet_modes(app: tauri::AppHandle, state: tauri::State<DaemonState>, network: Option<String>, wallets: Vec<String>, enabled: bool) -> Result<ValidatorFleetModeResult, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let mut changed = 0usize;
     for wallet in wallets {
         let wallet = sanitize_wallet_name(&wallet).map_err(String::from)?;
@@ -1654,7 +1700,7 @@ fn set_validator_fleet_modes(app: tauri::AppHandle, state: tauri::State<DaemonSt
 #[tauri::command]
 fn get_context(network: Option<String>, wallet: Option<String>) -> Result<WalletContext, String> {
     ensure_context(
-        network.as_deref().unwrap_or("alpha"),
+        network.as_deref().unwrap_or("mainnet"),
         wallet.as_deref().unwrap_or("node1"),
     )
     .map_err(Into::into)
@@ -1662,7 +1708,7 @@ fn get_context(network: Option<String>, wallet: Option<String>) -> Result<Wallet
 
 #[tauri::command]
 fn list_wallets(network: Option<String>) -> Result<Vec<WalletListItem>, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let root = wallet_root(&network).map_err(String::from)?;
     fs::create_dir_all(&root).map_err(|e| e.to_string())?;
 
@@ -1696,7 +1742,7 @@ async fn prepare_existing_wallet(
     network: Option<String>,
     wallet: String,
 ) -> Result<ExistingWalletPrepareResult, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(&wallet).map_err(String::from)?;
 
     tauri::async_runtime::spawn_blocking(move || {
@@ -1746,7 +1792,7 @@ fn create_wallet(
     wallet: String,
     passphrase: String,
 ) -> Result<CreateWalletResult, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(&wallet).map_err(String::from)?;
     if passphrase.trim().is_empty() {
         return Err("Passphrase is required".into());
@@ -1788,7 +1834,7 @@ fn refresh_recovery_backup(
     wallet: String,
     passphrase: String,
 ) -> Result<RecoveryRefreshResult, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(&wallet).map_err(String::from)?;
     let dir = wallet_dir(&network, &wallet).map_err(String::from)?;
     if !dir.is_dir() { return Err("Wallet directory does not exist".into()); }
@@ -1817,7 +1863,7 @@ fn export_recovery_file(
     wallet: String,
     destination_file: String,
 ) -> Result<String, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(&wallet).map_err(String::from)?;
     let source = wallet_dir(&network, &wallet).map_err(String::from)?.join("recovery.qrxseed");
     if !source.is_file() { return Err("This wallet has no recovery.qrxseed yet".into()); }
@@ -1839,7 +1885,7 @@ fn restore_wallet_from_recovery(
     recovery_phrase: String,
     passphrase: String,
 ) -> Result<WalletContext, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(&wallet).map_err(String::from)?;
     let target = wallet_dir(&network, &wallet).map_err(String::from)?;
 
@@ -1879,7 +1925,7 @@ fn import_wallet_directory_blocking(
     wallet: String,
     source_dir: String,
 ) -> Result<ImportResult, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(&wallet).map_err(String::from)?;
     let source = PathBuf::from(&source_dir);
     if !source.exists() || !source.is_dir() {
@@ -1926,7 +1972,7 @@ fn export_wallet_directory(
     wallet: Option<String>,
     destination_dir: String,
 ) -> Result<String, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let source = wallet_dir(&network, &wallet).map_err(String::from)?;
     if !source.exists() {
@@ -1948,7 +1994,7 @@ fn daemon_health(
     wallet: Option<String>,
     passphrase: Option<String>,
 ) -> Result<DaemonHealth, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     daemon_health_inner(Some(&app), &state, &network, &wallet, passphrase.as_deref()).map_err(String::from)
 }
@@ -1962,7 +2008,7 @@ fn start_daemon(
     passphrase: Option<String>,
     validator_enabled: Option<bool>,
 ) -> Result<WalletContext, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let requested_validator_mode = validator_enabled.unwrap_or(read_validator_mode(&network, &wallet).unwrap_or(false));
     write_validator_mode(&network, &wallet, requested_validator_mode).map_err(String::from)?;
@@ -2010,7 +2056,7 @@ fn stop_daemon(
     wallet: Option<String>,
     passphrase: Option<String>,
 ) -> Result<bool, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let _ = run_cli(Some(&app), &network, &wallet, &["stop"], passphrase.as_deref());
 
@@ -2024,7 +2070,7 @@ fn stop_daemon(
 
 #[tauri::command]
 fn get_validator_mode(network: Option<String>, wallet: Option<String>) -> Result<ValidatorModeStatus, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let enabled = read_validator_mode(&network, &wallet).map_err(String::from)?;
     Ok(ValidatorModeStatus {
@@ -2039,7 +2085,7 @@ fn get_validator_mode(network: Option<String>, wallet: Option<String>) -> Result
 
 #[tauri::command]
 fn set_validator_mode(network: Option<String>, wallet: Option<String>, enabled: bool) -> Result<ValidatorModeStatus, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     write_validator_mode(&network, &wallet, enabled).map_err(String::from)?;
     get_validator_mode(Some(network), Some(wallet))
@@ -2055,7 +2101,7 @@ fn get_wallet_info(
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     Ok(run_cli(
         Some(&app),
-        network.as_deref().unwrap_or("alpha"),
+        network.as_deref().unwrap_or("mainnet"),
         &wallet,
         &["getwalletinfo"],
         passphrase.as_deref(),
@@ -2074,7 +2120,7 @@ fn get_balance(
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     Ok(run_cli(
         Some(&app),
-        network.as_deref().unwrap_or("alpha"),
+        network.as_deref().unwrap_or("mainnet"),
         &wallet,
         &["getbalance"],
         passphrase.as_deref(),
@@ -2093,7 +2139,7 @@ fn get_new_address(
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     Ok(run_cli(
         Some(&app),
-        network.as_deref().unwrap_or("alpha"),
+        network.as_deref().unwrap_or("mainnet"),
         &wallet,
         &["getnewaddress"],
         passphrase.as_deref(),
@@ -2112,7 +2158,7 @@ fn list_addresses(
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     Ok(run_cli(
         Some(&app),
-        network.as_deref().unwrap_or("alpha"),
+        network.as_deref().unwrap_or("mainnet"),
         &wallet,
         &["listaddresses"],
         passphrase.as_deref(),
@@ -2128,7 +2174,7 @@ fn get_wallet_address_set(
     wallet: Option<String>,
     passphrase: Option<String>,
 ) -> Result<WalletAddressSet, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let dir = wallet_dir(&network, &wallet).map_err(String::from)?;
     if !dir.is_dir() { return Err("Wallet directory does not exist".into()); }
@@ -2167,7 +2213,7 @@ fn get_address_privacy_context(
     wallet: Option<String>,
     passphrase: Option<String>,
 ) -> Result<Value, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let aset = get_wallet_address_set(app.clone(), Some(network.clone()), Some(wallet.clone()), passphrase.clone())?;
     let mut rows = Vec::<Value>::new();
@@ -2211,7 +2257,7 @@ fn get_history(
     limit: Option<u32>,
     passphrase: Option<String>,
 ) -> Result<Value, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let limit = limit.unwrap_or(20);
     let res = if limit == 20 {
@@ -2236,7 +2282,7 @@ fn get_staking_info(
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     Ok(run_cli(
         Some(&app),
-        network.as_deref().unwrap_or("alpha"),
+        network.as_deref().unwrap_or("mainnet"),
         &wallet,
         &["getstakinginfo"],
         passphrase.as_deref(),
@@ -2255,7 +2301,7 @@ fn get_validators(
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     Ok(run_cli(
         Some(&app),
-        network.as_deref().unwrap_or("alpha"),
+        network.as_deref().unwrap_or("mainnet"),
         &wallet,
         &["validator-set"],
         passphrase.as_deref(),
@@ -2274,7 +2320,7 @@ fn get_tokenomics(
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     Ok(run_cli(
         Some(&app),
-        network.as_deref().unwrap_or("alpha"),
+        network.as_deref().unwrap_or("mainnet"),
         &wallet,
         &["tokenomics"],
         passphrase.as_deref(),
@@ -2293,7 +2339,7 @@ fn get_protocol_info(
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     Ok(run_cli(
         Some(&app),
-        network.as_deref().unwrap_or("alpha"),
+        network.as_deref().unwrap_or("mainnet"),
         &wallet,
         &["getprotocolinfo"],
         passphrase.as_deref(),
@@ -2304,7 +2350,7 @@ fn get_protocol_info(
 
 #[tauri::command]
 fn markets_snapshot(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, market: String, depth: Option<u32>, trade_limit: Option<u32>, passphrase: Option<String>) -> Result<Value, String> {
-    let network=network.unwrap_or_else(||"alpha".into());
+    let network=network.unwrap_or_else(||"mainnet".into());
     let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let market=required_clean(&market,"Market")?; if !market.contains('/') { return Err("Market must look like ASSET/QUB".into()); }
     let depth=depth.unwrap_or(30).clamp(1,200).to_string(); let limit=trade_limit.unwrap_or(500).clamp(1,5000).to_string();
@@ -2315,7 +2361,7 @@ fn markets_snapshot(app: tauri::AppHandle, network: Option<String>, wallet: Opti
 
 #[tauri::command]
 fn markets_place_order(app:tauri::AppHandle, network:Option<String>, wallet:Option<String>, agent:String, owner:String, market:String, side:String, quantity_atoms:String, limit_price_atoms:String, order_expiry_height:String, agent_ed_pub:String, agent_mldsa_pub:String, lane:String, tx_expiry:String, passphrase:Option<String>) -> Result<CommandResult,String> {
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let side=side.trim().to_uppercase(); if side!="BUY"&&side!="SELL" {return Err("Side must be BUY or SELL".into())} if !market.contains('/') {return Err("Invalid market".into())}
     positive_u64(&quantity_atoms,"Quantity atoms")?; positive_u64(&limit_price_atoms,"Limit price atoms")?; positive_u64(&order_expiry_height,"Order expiry")?; positive_u64(&tx_expiry,"Transaction expiry")?;
     let created=run_cli(Some(&app),&network,&wallet,&["createordertransaction",agent.trim(),owner.trim(),market.trim(),&side,"LIMIT",quantity_atoms.trim(),limit_price_atoms.trim(),order_expiry_height.trim(),agent_ed_pub.trim(),agent_mldsa_pub.trim(),lane.trim(),tx_expiry.trim()],passphrase.as_deref()).map_err(String::from)?;
@@ -2325,7 +2371,7 @@ fn markets_place_order(app:tauri::AppHandle, network:Option<String>, wallet:Opti
 
 #[tauri::command]
 fn markets_cancel_order(app:tauri::AppHandle, network:Option<String>, wallet:Option<String>, agent:String, owner:String, order_id:String, agent_ed_pub:String, agent_mldsa_pub:String, lane:String, tx_expiry:String, passphrase:Option<String>) -> Result<CommandResult,String> {
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let created=run_cli(Some(&app),&network,&wallet,&["createordercanceltransaction",agent.trim(),owner.trim(),order_id.trim(),agent_ed_pub.trim(),agent_mldsa_pub.trim(),lane.trim(),tx_expiry.trim()],passphrase.as_deref()).map_err(String::from)?;
     let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?;
     sign_and_broadcast_raw(&app,&network,&wallet,raw,passphrase.as_deref(),"native-market-cancel")
@@ -2341,7 +2387,7 @@ fn get_node_info(
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     Ok(run_cli(
         Some(&app),
-        network.as_deref().unwrap_or("alpha"),
+        network.as_deref().unwrap_or("mainnet"),
         &wallet,
         &["getinfo"],
         passphrase.as_deref(),
@@ -2379,7 +2425,7 @@ fn get_peer_info(
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     Ok(run_cli(
         Some(&app),
-        network.as_deref().unwrap_or("alpha"),
+        network.as_deref().unwrap_or("mainnet"),
         &wallet,
         &["getpeerinfo"],
         passphrase.as_deref(),
@@ -2398,7 +2444,7 @@ fn list_peers(
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     Ok(run_cli(
         Some(&app),
-        network.as_deref().unwrap_or("alpha"),
+        network.as_deref().unwrap_or("mainnet"),
         &wallet,
         &["listpeers"],
         passphrase.as_deref(),
@@ -2421,7 +2467,7 @@ fn send_to_address(
     if to.trim().is_empty() {
         return Err("Recipient address is required".into());
     }
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let amount = parse_amount(&amount).map_err(String::from)?;
     let memo = memo.unwrap_or_default();
@@ -2454,7 +2500,7 @@ fn stake(
     amount: String,
     passphrase: Option<String>,
 ) -> Result<Value, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     if !read_validator_mode(&network, &wallet).unwrap_or(false) {
         return Err("Validator Mode is disabled. Enable Validator Mode first and confirm the slashing/uptime risks.".into());
@@ -2465,13 +2511,13 @@ fn stake(
 
 #[tauri::command]
 fn validator_safe_pause(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, passphrase: Option<String>) -> Result<Value,String> {
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     staking_consensus_broadcast(&app,&network,&wallet,"VALIDATOR_PAUSE",None,"0",passphrase.as_deref())
 }
 
 #[tauri::command]
 fn validator_safe_resume(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, passphrase: Option<String>) -> Result<Value,String> {
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     staking_consensus_broadcast(&app,&network,&wallet,"VALIDATOR_RESUME",None,"0",passphrase.as_deref())
 }
 
@@ -2487,7 +2533,7 @@ fn delegate(
     if validator.trim().is_empty() {
         return Err("Validator address is required".into());
     }
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let amount = parse_amount(&amount).map_err(String::from)?;
     staking_consensus_broadcast(&app,&network,&wallet,"DELEGATE_BOND",Some(validator.trim()),&amount,passphrase.as_deref())
@@ -2503,7 +2549,7 @@ fn undelegate(
     passphrase: Option<String>,
 ) -> Result<Value, String> {
     if validator.trim().is_empty() { return Err("Validator address is required".into()); }
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let amount = parse_amount(&amount).map_err(String::from)?;
     staking_consensus_broadcast(&app,&network,&wallet,"DELEGATE_UNBOND",Some(validator.trim()),&amount,passphrase.as_deref())
@@ -2518,7 +2564,7 @@ fn claim_undelegated(
     passphrase: Option<String>,
 ) -> Result<Value, String> {
     if validator.trim().is_empty() { return Err("Validator address is required".into()); }
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     staking_consensus_broadcast(&app,&network,&wallet,"DELEGATE_CLAIM",Some(validator.trim()),"0",passphrase.as_deref())
 }
@@ -2531,7 +2577,7 @@ fn dashboard_snapshot(
     wallet: Option<String>,
     passphrase: Option<String>,
 ) -> Result<UiStatus, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let mut ctx = ensure_context(&network, &wallet).map_err(String::from)?;
     let daemon = daemon_health_inner(Some(&app), &state, &network, &wallet, passphrase.as_deref())
@@ -2888,14 +2934,14 @@ fn run_python_json(app: &tauri::AppHandle, script_name: &str, args: &[String], i
 
 #[tauri::command]
 fn arbitrage_evaluate(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, payload: Value, paper: bool) -> Result<Value, String> {
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
     let state=arbitrage_state_dir(&network,&wallet)?; let args=vec![if paper{"--paper-json".into()}else{"--evaluate-json".into()},"--state-dir".into(),state.to_string_lossy().to_string()];
     run_python_json(&app,"qrx-arbitrage-engine.py",&args,Some(&payload))
 }
 
 #[tauri::command]
 fn arbitrage_approve(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, arbitrage_id: String) -> Result<Value, String> {
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
     let state=arbitrage_state_dir(&network,&wallet)?; let args=vec!["--approve".into(),required_clean(&arbitrage_id,"Arbitrage ID")?,"--state-dir".into(),state.to_string_lossy().to_string()];
     run_python_json(&app,"qrx-arbitrage-engine.py",&args,None)
 }
@@ -2908,7 +2954,7 @@ fn plan_positive_integer(plan:&Value,path:&str,label:&str)->Result<String,String
 
 #[tauri::command]
 fn arbitrage_broadcast_hedge(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,arbitrage_id:String,source_buy_order_id:String,agent:String,owner:String,agent_ed_pub:String,agent_mldsa_pub:String,lane:String,order_expiry:String,tx_expiry:String,passphrase:Option<String>)->Result<Value,String>{
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
     let arb_id=required_clean(&arbitrage_id,"Arbitrage ID")?; let source=required_clean(&source_buy_order_id,"Matched cross-chain BUY order ID")?;
     let agent=required_clean(&agent,"Agent address")?; let owner=required_clean(&owner,"Owner address")?;
     let agent_ed=required_clean(&agent_ed_pub,"Agent Ed25519 public key")?; let agent_ml=required_clean(&agent_mldsa_pub,"Agent ML-DSA public key")?;
@@ -2931,7 +2977,7 @@ fn arbitrage_broadcast_hedge(app:tauri::AppHandle,network:Option<String>,wallet:
 
 #[tauri::command]
 fn arbitrage_list(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>) -> Result<Value, String> {
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
     let state=arbitrage_state_dir(&network,&wallet)?; let args=vec!["--list".into(),"--state-dir".into(),state.to_string_lossy().to_string()];
     run_python_json(&app,"qrx-arbitrage-engine.py",&args,None)
 }
@@ -2943,14 +2989,14 @@ fn arbitrage_fetch_kraken_book(app: tauri::AppHandle) -> Result<Value, String> {
 
 #[tauri::command]
 fn arbitrage_get_order(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, order_id: String, passphrase: Option<String>) -> Result<CommandResult, String> {
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
     let order_id=required_clean(&order_id,"Cross-chain order ID")?;
     run_cli(Some(&app),&network,&wallet,&["getorder",&order_id],passphrase.as_deref()).map_err(|e|e.to_string())
 }
 
 #[tauri::command]
 fn export_complete_ledger(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, profile: String, from_date: Option<String>, to_date: Option<String>, year: Option<u32>, quarter: Option<u8>) -> Result<Value, String> {
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
     let profile=if profile=="international"{"international"}else{"de"};
     let epoch=SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e|e.to_string())?.as_millis();
     let export_root=wallet_settings_dir(&network,&wallet).map_err(|e|e.to_string())?.join("exports"); fs::create_dir_all(&export_root).map_err(|e|e.to_string())?;
@@ -2985,7 +3031,7 @@ fn resolve_python_launcher() -> Result<(String, Vec<String>), String> {
 
 #[tauri::command]
 fn kraken_credentials_status(network: Option<String>, wallet: Option<String>) -> Result<KrakenCredentialStatus, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = wallet.unwrap_or_else(|| "node1".into());
     let path = kraken_vault_file(&network, &wallet)?;
     Ok(KrakenCredentialStatus { configured: path.exists(), encrypted_at_rest: path.exists(), venue: "KRAKEN".into(), storage: "Argon2id + AES-256-GCM local vault; no plaintext API secret config".into() })
@@ -2993,7 +3039,7 @@ fn kraken_credentials_status(network: Option<String>, wallet: Option<String>) ->
 
 #[tauri::command]
 fn kraken_store_credentials(network: Option<String>, wallet: Option<String>, api_key: String, api_secret: String, passphrase: String) -> Result<KrakenCredentialStatus, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = wallet.unwrap_or_else(|| "node1".into());
     let vault = encrypt_kraken_credentials(&api_key, &api_secret, &passphrase)?;
     let path = kraken_vault_file(&network, &wallet)?;
@@ -3009,7 +3055,7 @@ fn kraken_store_credentials(network: Option<String>, wallet: Option<String>, api
 
 #[tauri::command]
 fn kraken_delete_credentials(network: Option<String>, wallet: Option<String>) -> Result<KrakenCredentialStatus, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = wallet.unwrap_or_else(|| "node1".into());
     let path = kraken_vault_file(&network, &wallet)?;
     if path.exists() { fs::remove_file(path).map_err(|e| e.to_string())?; }
@@ -3018,7 +3064,7 @@ fn kraken_delete_credentials(network: Option<String>, wallet: Option<String>) ->
 
 #[tauri::command]
 fn kraken_gateway_status(state: tauri::State<KrakenGatewayState>, network: Option<String>, wallet: Option<String>) -> Result<KrakenGatewayStatus, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = wallet.unwrap_or_else(|| "node1".into());
     let mut guard = state.child.lock().map_err(|_| "Kraken gateway state lock poisoned".to_string())?;
     let mut running = false; let mut pid = None;
@@ -3036,7 +3082,7 @@ fn kraken_gateway_status(state: tauri::State<KrakenGatewayState>, network: Optio
 
 #[tauri::command]
 fn kraken_start_gateway(app: tauri::AppHandle, state: tauri::State<KrakenGatewayState>, network: Option<String>, wallet: Option<String>, passphrase: String, use_saved_credentials: bool, api_key: Option<String>, api_secret: Option<String>) -> Result<KrakenGatewayStatus, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(&wallet.unwrap_or_else(|| "node1".into())).map_err(|e| e.to_string())?;
     let mut guard = state.child.lock().map_err(|_| "Kraken gateway state lock poisoned".to_string())?;
     if let Some(child) = guard.as_mut() {
@@ -3142,7 +3188,7 @@ fn btc_send(app:tauri::AppHandle,to_address: String, amount_sats: u64, fee_rate_
 
 #[tauri::command]
 fn crosschain_place_buy(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,owner:String,btc_sats:String,max_qub_per_btc_atoms:String,order_expiry_height:String,hashlock_hex:String,btc_receive_pubkey_hex:String,qrx_refund_height:String,lane:Option<String>,tx_expiry_height:String,passphrase:Option<String>)->Result<CommandResult,String>{
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let agent=generals_address(&network,&wallet)?; if owner.trim().is_empty()||owner.trim()==agent{return Err("Cross-chain orders require a distinct delegated owner address; the active wallet is the authorized agent wallet.".into());}
     positive_u64(&btc_sats,"BTC sats")?; positive_u64(&max_qub_per_btc_atoms,"Max QUB/BTC price atoms")?; positive_u64(&order_expiry_height,"Order expiry")?; positive_u64(&qrx_refund_height,"QUB refund height")?; positive_u64(&tx_expiry_height,"Transaction expiry")?;
     if hashlock_hex.trim().len()!=64||!hashlock_hex.trim().chars().all(|c|c.is_ascii_hexdigit()){return Err("Hashlock must be a 32-byte SHA-256 hex value".into());}
@@ -3153,7 +3199,7 @@ fn crosschain_place_buy(app:tauri::AppHandle,network:Option<String>,wallet:Optio
 
 #[tauri::command]
 fn crosschain_place_sell(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,owner:String,btc_sats:String,min_qub_per_btc_atoms:String,order_expiry_height:String,btc_refund_pubkey_hex:String,btc_refund_csv_blocks:String,lane:Option<String>,tx_expiry_height:String,passphrase:Option<String>)->Result<CommandResult,String>{
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let agent=generals_address(&network,&wallet)?; if owner.trim().is_empty()||owner.trim()==agent{return Err("Cross-chain orders require a distinct delegated owner address; the active wallet is the authorized agent wallet.".into());}
     for (v,l) in [(&btc_sats,"BTC sats"),(&min_qub_per_btc_atoms,"Min QUB/BTC price atoms"),(&order_expiry_height,"Order expiry"),(&btc_refund_csv_blocks,"BTC refund CSV blocks"),(&tx_expiry_height,"Transaction expiry")] {positive_u64(v,l)?;}
     let (ed,ml)=generals_public_keys(&network,&wallet)?; let lane=lane.unwrap_or_else(||"5".into());
@@ -3163,25 +3209,25 @@ fn crosschain_place_sell(app:tauri::AppHandle,network:Option<String>,wallet:Opti
 
 #[tauri::command]
 fn crosschain_redeem(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,session_id:String,secret_hex:String,lane:Option<String>,tx_expiry_height:String,passphrase:Option<String>)->Result<CommandResult,String>{
-    let network=network.unwrap_or_else(||"alpha".into());let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;let owner=generals_address(&network,&wallet)?;let(ed,ml)=generals_public_keys(&network,&wallet)?;let lane=lane.unwrap_or_else(||"5".into());
+    let network=network.unwrap_or_else(||"mainnet".into());let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;let owner=generals_address(&network,&wallet)?;let(ed,ml)=generals_public_keys(&network,&wallet)?;let lane=lane.unwrap_or_else(||"5".into());
     let created=run_cli(Some(&app),&network,&wallet,&["createcrosschainredeemtransaction",&owner,session_id.trim(),secret_hex.trim(),&ed,&ml,lane.trim(),tx_expiry_height.trim()],passphrase.as_deref()).map_err(String::from)?;let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?;sign_and_broadcast_raw(&app,&network,&wallet,raw,passphrase.as_deref(),"crosschain-redeem")
 }
 
 #[tauri::command]
 fn crosschain_refund(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,session_id:String,lane:Option<String>,tx_expiry_height:String,passphrase:Option<String>)->Result<CommandResult,String>{
-    let network=network.unwrap_or_else(||"alpha".into());let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;let owner=generals_address(&network,&wallet)?;let(ed,ml)=generals_public_keys(&network,&wallet)?;let lane=lane.unwrap_or_else(||"5".into());
+    let network=network.unwrap_or_else(||"mainnet".into());let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;let owner=generals_address(&network,&wallet)?;let(ed,ml)=generals_public_keys(&network,&wallet)?;let lane=lane.unwrap_or_else(||"5".into());
     let created=run_cli(Some(&app),&network,&wallet,&["createcrosschainrefundtransaction",&owner,session_id.trim(),&ed,&ml,lane.trim(),tx_expiry_height.trim()],passphrase.as_deref()).map_err(String::from)?;let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?;sign_and_broadcast_raw(&app,&network,&wallet,raw,passphrase.as_deref(),"crosschain-refund")
 }
 
 #[tauri::command]
 fn crosschain_submit_funding_proof(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,session_id:String,rawtx_hex:String,block_hash:String,tx_index:String,branch_csv:String,lane:Option<String>,tx_expiry_height:String,passphrase:Option<String>)->Result<CommandResult,String>{
-    let network=network.unwrap_or_else(||"alpha".into());let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;let address=generals_address(&network,&wallet)?;let(ed,ml)=generals_public_keys(&network,&wallet)?;let lane=lane.unwrap_or_else(||"5".into());
+    let network=network.unwrap_or_else(||"mainnet".into());let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;let address=generals_address(&network,&wallet)?;let(ed,ml)=generals_public_keys(&network,&wallet)?;let lane=lane.unwrap_or_else(||"5".into());
     let created=run_cli(Some(&app),&network,&wallet,&["createbtcspvfundingprooftransaction",&address,session_id.trim(),rawtx_hex.trim(),block_hash.trim(),tx_index.trim(),branch_csv.trim(),&ed,&ml,lane.trim(),tx_expiry_height.trim()],passphrase.as_deref()).map_err(String::from)?;let raw=created.result.get("raw_tx").and_then(Value::as_str).ok_or_else(||"QRX Core did not return raw_tx".to_string())?;sign_and_broadcast_raw(&app,&network,&wallet,raw,passphrase.as_deref(),"btc-spv-funding-proof")
 }
 
 #[tauri::command]
 fn crosschain_status(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,session_id:Option<String>,passphrase:Option<String>)->Result<Value,String>{
-    let network=network.unwrap_or_else(||"alpha".into());let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into());let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let res=if let Some(sid)=session_id.filter(|s|!s.trim().is_empty()){run_cli(Some(&app),&network,&wallet,&["getcrosschainswap",sid.trim()],passphrase.as_deref())}else{run_cli(Some(&app),&network,&wallet,&["listcrosschainswaps"],passphrase.as_deref())}.map_err(String::from)?;Ok(res.result)
 }
 
@@ -3334,7 +3380,7 @@ fn exchange_ready_status() -> Result<ExchangeReadyStatus, String> {
 
 #[tauri::command]
 fn shielded_pool_status(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, passphrase: Option<String>) -> Result<ShieldedPoolStatus, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     let wallet = sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let status = run_cli_raw(Some(&app), &network, &wallet, &["privacy-feature-status"], passphrase.as_deref()).map_err(|e| e.to_string())?;
     Ok(ShieldedPoolStatus {
@@ -3354,7 +3400,7 @@ fn extract_core_kv(raw:&str,key:&str)->Option<String>{
 
 #[tauri::command]
 fn privacy_action_execute(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, action: String, amount: Option<String>, destination: Option<String>, passphrase: Option<String>) -> Result<Value,String> {
-    let network=network.unwrap_or_else(||"alpha".into());
+    let network=network.unwrap_or_else(||"mainnet".into());
     let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let action_l=action.trim().to_lowercase();
     let action_core=match action_l.as_str(){"shield"|"privacy_shield"=>"SHIELD","shielded-send"|"privacy_transfer"=>"TRANSFER","unshield"|"privacy_unshield"=>"UNSHIELD",_=>return Err("Unsupported privacy action".into())};
@@ -3383,7 +3429,7 @@ fn privacy_action_execute(app: tauri::AppHandle, network: Option<String>, wallet
 
 #[tauri::command]
 fn shielded_address_create(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>, passphrase: Option<String>) -> Result<String,String>{
- let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+ let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
  run_cli_raw(Some(&app),&network,&wallet,&["shielded-address"],passphrase.as_deref()).map_err(|e|e.to_string())
 }
 
@@ -3409,6 +3455,30 @@ fn privacy_set_mode(mode: String) -> Result<PrivacyStatus, String> {
  let clean=match mode.as_str(){"standard"|"coin_control"|"shielded"=>mode,_=>"standard".into()}; write_setting("privacy_mode.txt",&clean).map_err(String::from)?; privacy_get_status()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WalletCliPolicy { ReadOnly, ConfirmOnly, Signing }
+
+fn wallet_cli_policy(command: &str) -> WalletCliPolicy {
+    if wallet_cli_is_read_only(command) { return WalletCliPolicy::ReadOnly; }
+    // Mutations that do not consume a private wallet key. They still require an
+    // explicit confirmation, but never a wallet passphrase merely because they
+    // change node/test-chain state.
+    if matches!(command,
+        "faucet"|"addnode"|"walletlock"|"walletlockfor"|"stop"|
+        "createrawtransaction"|"createagentregistertransaction"|
+        "createagentupdatetransaction"|"createagentrevoketransaction"|
+        "createordertransaction"|"createexternalordertransaction"|
+        "createarbitragehedgetransaction"|"creategatewayregistertransaction"|
+        "creategatewayrevoketransaction"|"createexecutionreporttransaction"|
+        "createbtcspvheadertransaction"|"createbtcspvfundingprooftransaction"|
+        "createcrosschainbuytransaction"|"createcrosschainselltransaction"|
+        "createcrosschainredeemtransaction"|"createcrosschainrefundtransaction"|
+        "createordercanceltransaction"|"createorderreplacetransaction"|
+        "createvelocitytransaction"
+    ) { return WalletCliPolicy::ConfirmOnly; }
+    WalletCliPolicy::Signing
+}
+
 fn wallet_cli_is_read_only(command: &str) -> bool {
     matches!(command,
         "getinfo"|"address"|"receive"|"listaddresses"|"getbalance"|"getblockcount"|
@@ -3430,29 +3500,60 @@ fn wallet_cli_is_read_only(command: &str) -> bool {
     )
 }
 
+// The GUI already supplies network/datadir/wallet to qrx-cli. Accept those
+// familiar global flags in the command box for CLI parity, but strip them before
+// command classification/execution so `--network alpha getwalletinfo` is still
+// recognised as read-only and cannot override the selected GUI context.
+fn wallet_cli_normalize_arguments(arguments: &[String], selected_network: &str, selected_wallet: &str) -> Result<Vec<String>,String> {
+    let mut out=Vec::new(); let mut i=0usize;
+    while i<arguments.len() {
+        match arguments[i].as_str() {
+            "--network" => {
+                let v=arguments.get(i+1).ok_or_else(||"--network requires a value".to_string())?;
+                if v!=selected_network { return Err(format!("Command network '{}' does not match selected GUI network '{}'",v,selected_network)); }
+                i+=2;
+            },
+            "--wallet" => {
+                let v=arguments.get(i+1).ok_or_else(||"--wallet requires a value".to_string())?;
+                if v!=selected_wallet { return Err(format!("Command wallet '{}' does not match selected GUI wallet '{}'",v,selected_wallet)); }
+                i+=2;
+            },
+            "--datadir" => { if arguments.get(i+1).is_none(){return Err("--datadir requires a value".into());} i+=2; },
+            _ => { out.extend_from_slice(&arguments[i..]); break; }
+        }
+    }
+    if out.is_empty(){return Err("Enter a qrx-cli command after global options".into());}
+    Ok(out)
+}
+
 #[tauri::command]
 fn wallet_cli_capabilities() -> Value {
     serde_json::json!({
         "surface":"qrx-cli",
         "coverage":"all qrx-cli commands",
+        "policy":"read-only / confirm-only / signing",
         "mutations_require_confirmation":true,
-        "mutations_require_wallet_passphrase":true,
+        "signing_commands_require_wallet_passphrase":true,
+        "confirm_only_examples":["faucet","addnode","walletlock","stop"],
+        "human_unlock_command":"walletpassphrase (normal words; GUI uses masked Wallet Security field; terminal qrx-cli prompts with echo disabled)",
+        "advanced_unlock_transport":"walletpassphrasehex is retained for low-level compatibility only; users do not manually convert passphrases to hex",
         "complete_trade_selector":"qrx list-trades <chain-dir> * all",
         "complete_ledger_command":"qrx-wallet-cli export-ledger",
-        "note":"The desktop command center passes argument arrays directly without a shell."
+        "note":"Global --network/--wallet/--datadir arguments are normalized; the desktop command center passes command arguments directly without a shell."
     })
 }
 
 #[tauri::command]
 fn wallet_cli_execute(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,arguments:Vec<String>,confirmed:bool,passphrase:Option<String>)->Result<CommandResult,String>{
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.unwrap_or_else(||"node1".into()).as_str()).map_err(String::from)?;
     if arguments.is_empty(){return Err("Enter a qrx-cli command".into());}
     if arguments.len()>64{return Err("Too many command arguments".into());}
     for value in &arguments{if value.contains('\0')||value.len()>131072{return Err("Invalid or oversized command argument".into());}}
-    let read_only=wallet_cli_is_read_only(arguments[0].as_str());
-    if !read_only&&!confirmed{return Err("This command can change wallet or chain state. Confirm it explicitly first.".into());}
-    if !read_only&&passphrase.as_deref().unwrap_or("").is_empty(){return Err("Unlock the wallet before executing a state-changing command".into());}
-    let refs=arguments.iter().map(String::as_str).collect::<Vec<_>>();
+    let normalized=wallet_cli_normalize_arguments(&arguments,&network,&wallet)?;
+    let policy=wallet_cli_policy(normalized[0].as_str());
+    if policy!=WalletCliPolicy::ReadOnly&&!confirmed{return Err("This command can change wallet, node or chain state. Confirm it explicitly first.".into());}
+    if policy==WalletCliPolicy::Signing&&passphrase.as_deref().unwrap_or("").is_empty(){return Err("This command requires wallet signing. Unlock the wallet first.".into());}
+    let refs=normalized.iter().map(String::as_str).collect::<Vec<_>>();
     run_cli(Some(&app),&network,&wallet,&refs,passphrase.as_deref()).map_err(|e|e.to_string())
 }
 
@@ -3603,7 +3704,7 @@ fn generals_order_commitment(canonical:String)->Result<String,String>{
 
 #[tauri::command]
 fn generals_snapshot(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>)->Result<Value,String>{
-    let network=network.unwrap_or_else(||"alpha".into());
+    let network=network.unwrap_or_else(||"mainnet".into());
     let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     let ctx=ensure_context(&network,&wallet).map_err(String::from)?;
     let address=generals_address(&network,&wallet)?;
@@ -3641,7 +3742,7 @@ fn generals_snapshot(app:tauri::AppHandle,network:Option<String>,wallet:Option<S
 
 #[tauri::command]
 fn generals_submit_action(app:tauri::AppHandle,network:Option<String>,wallet:Option<String>,tx_type:String,payload:String,amount_atoms:Option<String>,passphrase:Option<String>)->Result<Value,String>{
-    let network=network.unwrap_or_else(||"alpha".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
+    let network=network.unwrap_or_else(||"mainnet".into()); let wallet=sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?;
     if !tx_type.starts_with("GAME_"){return Err("Only GAME_* transactions are allowed from Generals".into());}
     if payload.len()>8192{return Err("Generals payload too large".into());}
     let address=generals_address(&network,&wallet)?; let (ed,ml)=generals_public_keys(&network,&wallet)?;
@@ -3665,7 +3766,7 @@ fn open_aura_window(app: tauri::AppHandle, network: Option<String>, wallet: Opti
     tauri::WindowBuilder::new(
         &app,
         "qrx-aura",
-        tauri::WindowUrl::App(format!("aura/index.html?network={}&wallet={}", network.unwrap_or_else(|| "alpha".into()), sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?).into()),
+        tauri::WindowUrl::App(format!("aura/index.html?network={}&wallet={}", network.unwrap_or_else(|| "mainnet".into()), sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?).into()),
     )
     .title("AURA · QRX Assistant")
     .inner_size(980.0, 760.0)
@@ -3687,7 +3788,7 @@ fn open_generals_window(app: tauri::AppHandle, network: Option<String>, wallet: 
     tauri::WindowBuilder::new(
         &app,
         "qrx-generals",
-        tauri::WindowUrl::App(format!("generals/index.html?network={}&wallet={}&demo={}", network.unwrap_or_else(|| "alpha".into()), sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?, if demo.unwrap_or(false) { "1" } else { "0" }).into()),
+        tauri::WindowUrl::App(format!("generals/index.html?network={}&wallet={}&demo={}", network.unwrap_or_else(|| "mainnet".into()), sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?, if demo.unwrap_or(false) { "1" } else { "0" }).into()),
     )
     .title("QRX Generals")
     .inner_size(1440.0, 900.0)
@@ -3730,7 +3831,7 @@ fn qrx_family_policy_status(network:String,wallet:String)->Result<Value,String>{
 
 #[tauri::command]
 fn open_qrx_browser_window(app: tauri::AppHandle, network: Option<String>, wallet: Option<String>) -> Result<String, String> {
-    let network = network.unwrap_or_else(|| "alpha".into());
+    let network = network.unwrap_or_else(|| "mainnet".into());
     if !matches!(network.as_str(), "mainnet" | "alpha" | "testnet" | "regtest") {
         return Err("Unsupported QRX Browser network".into());
     }
@@ -3769,7 +3870,7 @@ fn open_qrx_upscaler_window(app: tauri::AppHandle, network: Option<String>, wall
     tauri::WindowBuilder::new(
         &app,
         "qrx-upscaler",
-        tauri::WindowUrl::App(format!("upscaler/index.html?network={}&wallet={}", network.unwrap_or_else(|| "alpha".into()), sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?).into()),
+        tauri::WindowUrl::App(format!("upscaler/index.html?network={}&wallet={}", network.unwrap_or_else(|| "mainnet".into()), sanitize_wallet_name(wallet.as_deref().unwrap_or("node1")).map_err(String::from)?).into()),
     )
     .title("QRX Upscaler")
     .inner_size(1280.0, 820.0)
@@ -3782,30 +3883,133 @@ fn open_qrx_upscaler_window(app: tauri::AppHandle, network: Option<String>, wall
 }
 
 
+fn apply_packaged_upscaler_ai_env(app: &tauri::AppHandle, cmd: &mut Command) {
+    if let Some(resource_dir) = app.path_resolver().resource_dir() {
+        let roots = [resource_dir.join("upscaler"), resource_dir.join("resources").join("upscaler")];
+        for root in roots {
+            let runtime = root.join("runtime").join(if cfg!(target_os = "windows") { "realesrgan-ncnn-vulkan.exe" } else { "realesrgan-ncnn-vulkan" });
+            let models = root.join("models");
+            let runtime_hash = root.join("runtime").join("runtime.sha256");
+            if runtime.is_file() && models.is_dir() {
+                cmd.env("QRX_UPSCALER_NCNN_RUNTIME", &runtime);
+                cmd.env("QRX_UPSCALER_MODEL_DIR", &models);
+                if let Ok(v) = fs::read_to_string(runtime_hash) {
+                    let h = v.trim();
+                    if h.len() == 64 && h.bytes().all(|b| b.is_ascii_hexdigit()) {
+                        cmd.env("QRX_UPSCALER_RUNTIME_SHA256", h);
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Clone)]
+struct UpscalerJobView {
+    id: String,
+    state: String,
+    phase: String,
+    progress: u8,
+    indeterminate: bool,
+    elapsed_ms: u64,
+    last_activity_ms: u64,
+    output: String,
+    error: String,
+    log: Vec<String>,
+    cancel_requested: bool,
+}
+
+struct UpscalerJob {
+    view: UpscalerJobView,
+    started: Instant,
+    last_activity: Instant,
+    cancel: Arc<AtomicBool>,
+}
+
+static UPSCALER_JOBS: OnceLock<Mutex<HashMap<String, UpscalerJob>>> = OnceLock::new();
+fn upscaler_jobs() -> &'static Mutex<HashMap<String, UpscalerJob>> { UPSCALER_JOBS.get_or_init(|| Mutex::new(HashMap::new())) }
+
+fn upscaler_job_update(id: &str, f: impl FnOnce(&mut UpscalerJob)) {
+    if let Ok(mut jobs) = upscaler_jobs().lock() { if let Some(j) = jobs.get_mut(id) { f(j); } }
+}
+
 #[tauri::command]
-fn upscaler_run_local(app: tauri::AppHandle, input: String, output: String, scale: u8, filter: String) -> Result<Value, String> {
-    if !(1..=8).contains(&scale) { return Err("Upscaler scale must be between 1 and 8.".into()); }
-    let filter = filter.trim().to_ascii_lowercase();
-    if !matches!(filter.as_str(), "nearest" | "bilinear" | "bicubic" | "lanczos3") { return Err("Unsupported Upscaler filter.".into()); }
+fn upscaler_start_local(app: tauri::AppHandle, input: String, output: String, scale: u8, filter: String, engine: Option<String>, tile: Option<u32>, model: Option<String>) -> Result<Value, String> {
+    let engine = engine.unwrap_or_else(|| "classical".into()).trim().to_ascii_lowercase();
     let input_path = PathBuf::from(&input);
     if !input_path.is_file() { return Err("Selected media file does not exist.".into()); }
     let output_path = PathBuf::from(&output);
     if input_path == output_path { return Err("Output must not overwrite the input file.".into()); }
     let ext = input_path.extension().and_then(|x| x.to_str()).unwrap_or("").to_ascii_lowercase();
-    let mode = if matches!(ext.as_str(), "mp4" | "mov" | "mkv" | "webm") { "video" } else { "image" };
+    let is_video = matches!(ext.as_str(), "mp4" | "mov" | "mkv" | "webm");
     let binary = resolve_binary(Some(&app), "qrx-upscaler").map_err(String::from)?;
-    let run = Command::new(binary).arg(mode).arg(&input_path).arg(&output_path)
-        .arg("--scale").arg(scale.to_string()).arg("--filter").arg(&filter)
-        .output().map_err(|e| format!("Could not run QRX Upscaler: {e}"))?;
-    if !run.status.success() { return Err(String::from_utf8_lossy(&run.stderr).trim().to_string()); }
-    Ok(serde_json::json!({"ok":true,"mode":mode,"input":input,"output":output,"scale":scale,"filter":filter,
-        "stderr":String::from_utf8_lossy(&run.stderr).trim()}))
+    let mut cmd = Command::new(binary);
+    apply_packaged_upscaler_ai_env(&app, &mut cmd);
+    if engine == "ai" {
+        if is_video { return Err("AI video uses the Video Pipeline planner in 0.0.9.67; local single-image AI jobs are enabled here.".into()); }
+        if !matches!(scale, 2 | 4) { return Err("AI Super Resolution supports 2× or 4×.".into()); }
+        let t = tile.unwrap_or(0).min(2048);
+        cmd.arg("ai-image").arg(&input_path).arg(&output_path).arg("--scale").arg(scale.to_string()).arg("--tile").arg(t.to_string());
+        if let Some(m) = model.as_deref().map(str::trim).filter(|x| !x.is_empty()) { cmd.arg("--model").arg(m); }
+    } else {
+        if !(1..=8).contains(&scale) { return Err("Upscaler scale must be between 1 and 8.".into()); }
+        let filter = filter.trim().to_ascii_lowercase();
+        if !matches!(filter.as_str(), "nearest" | "bilinear" | "bicubic" | "lanczos3") { return Err("Unsupported Upscaler filter.".into()); }
+        cmd.arg(if is_video { "video" } else { "image" }).arg(&input_path).arg(&output_path).arg("--scale").arg(scale.to_string()).arg("--filter").arg(&filter);
+    }
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+    let id = format!("ups-{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis());
+    let cancel = Arc::new(AtomicBool::new(false));
+    let now = Instant::now();
+    upscaler_jobs().lock().map_err(|_| "Upscaler job manager lock failed")?.insert(id.clone(), UpscalerJob { view: UpscalerJobView { id:id.clone(), state:"queued".into(), phase:"Starting runtime".into(), progress:3, indeterminate:true, elapsed_ms:0, last_activity_ms:0, output:output.clone(), error:String::new(), log:vec![format!("Queued {} {}× job", engine, scale)] , cancel_requested:false }, started:now, last_activity:now, cancel:cancel.clone() });
+    let jid=id.clone();
+    std::thread::spawn(move || {
+        upscaler_job_update(&jid, |j| { j.view.state="running".into(); j.view.phase=if engine=="ai"{"AI inference".into()}else{"Local processing".into()}; j.view.progress=10; });
+        let mut child=match cmd.spawn(){Ok(c)=>c,Err(e)=>{upscaler_job_update(&jid,|j|{j.view.state="failed".into();j.view.error=format!("Could not run QRX Upscaler: {e}");j.view.indeterminate=false;});return;}};
+        let (tx,rx)=std::sync::mpsc::channel::<String>();
+        if let Some(out)=child.stdout.take(){let tx=tx.clone();std::thread::spawn(move||for l in BufReader::new(out).lines().flatten(){let _=tx.send(l);});}
+        if let Some(err)=child.stderr.take(){let tx=tx.clone();std::thread::spawn(move||for l in BufReader::new(err).lines().flatten(){let _=tx.send(l);});}
+        loop {
+            while let Ok(line)=rx.try_recv(){upscaler_job_update(&jid,|j|{j.last_activity=Instant::now();j.view.log.push(line);if j.view.log.len()>120{j.view.log.remove(0);}});}
+            if cancel.load(Ordering::Relaxed){let _=child.kill();let _=child.wait();upscaler_job_update(&jid,|j|{j.view.state="cancelled".into();j.view.phase="Cancelled".into();j.view.indeterminate=false;j.view.cancel_requested=true;});break;}
+            match child.try_wait(){Ok(Some(st))=>{while let Ok(line)=rx.try_recv(){upscaler_job_update(&jid,|j|j.view.log.push(line));} if st.success(){upscaler_job_update(&jid,|j|{j.view.state="completed".into();j.view.phase="Complete".into();j.view.progress=100;j.view.indeterminate=false;j.last_activity=Instant::now();});}else{upscaler_job_update(&jid,|j|{j.view.state="failed".into();j.view.phase="Failed".into();j.view.indeterminate=false;j.view.error=format!("Upscaler exited with {st}");});}break;},Ok(None)=>std::thread::sleep(Duration::from_millis(150)),Err(e)=>{upscaler_job_update(&jid,|j|{j.view.state="failed".into();j.view.error=e.to_string();j.view.indeterminate=false;});break;}}
+        }
+    });
+    Ok(serde_json::json!({"ok":true,"job_id":id,"output":output}))
+}
+
+#[tauri::command]
+fn upscaler_job_status(job_id: String) -> Result<UpscalerJobView, String> {
+    let mut jobs=upscaler_jobs().lock().map_err(|_| "Upscaler job manager lock failed")?;
+    let j=jobs.get_mut(&job_id).ok_or_else(|| "Upscaler job not found".to_string())?;
+    j.view.elapsed_ms=j.started.elapsed().as_millis() as u64;
+    j.view.last_activity_ms=j.last_activity.elapsed().as_millis() as u64;
+    Ok(j.view.clone())
+}
+
+#[tauri::command]
+fn upscaler_cancel_job(job_id: String) -> Result<Value, String> {
+    let mut jobs=upscaler_jobs().lock().map_err(|_| "Upscaler job manager lock failed")?;
+    let j=jobs.get_mut(&job_id).ok_or_else(|| "Upscaler job not found".to_string())?;
+    j.cancel.store(true, Ordering::Relaxed); j.view.cancel_requested=true; j.view.phase="Cancelling…".into();
+    Ok(serde_json::json!({"ok":true,"job_id":job_id}))
+}
+
+#[tauri::command]
+fn upscaler_video_pipeline_plan(input: String, scale: u8, batch_frames: Option<u32>, distributed: Option<bool>) -> Result<Value, String> {
+    let p=PathBuf::from(&input); if !p.is_file(){return Err("Selected video does not exist.".into());}
+    if !matches!(scale,2|4){return Err("AI video pipeline supports 2× or 4×.".into());}
+    let batch=batch_frames.unwrap_or(120).clamp(16,2000); let dist=distributed.unwrap_or(false);
+    Ok(serde_json::json!({"version":1,"input":input,"scale":scale,"batch_frames":batch,"execution":if dist{"qrx-compute"}else{"local"},"stages":["probe","extract-frames","hash-manifest","batch","upscale","verify-results","ordered-merge","remux-original-audio"],"frame_identity":"sha256(input-id || frame-index || frame-bytes)","result_validation":"dimensions + frame-index + content hash + model id","audio":"copy original audio during final remux","resume":"completed batch journal","compute_protocol":"COMPUTE_POUC_V1","distributed_ready":false,"note":if dist{"Foundation is wired; provider dispatch remains activation-gated and requires explicit opt-in."}else{"Local orchestration foundation ready."}}))
 }
 
 #[tauri::command]
 fn upscaler_capabilities(app: tauri::AppHandle) -> Result<Value, String> {
     let binary = resolve_binary(Some(&app), "qrx-upscaler").map_err(String::from)?;
-    let output = Command::new(binary)
+    let mut cmd = Command::new(binary);
+    apply_packaged_upscaler_ai_env(&app, &mut cmd);
+    let output = cmd
         .arg("capabilities")
         .output()
         .map_err(|e| format!("Could not run QRX Upscaler capability probe: {e}"))?;
@@ -4025,7 +4229,10 @@ fn main() {
             open_qrx_browser_window,
             open_browser_www_window,
             open_qrx_upscaler_window,
-            upscaler_run_local,
+            upscaler_start_local,
+            upscaler_job_status,
+            upscaler_cancel_job,
+            upscaler_video_pipeline_plan,
             upscaler_capabilities,
             qrx_apps::qrx_app_inspect_package,
             qrx_apps::qrx_app_install,
@@ -4068,8 +4275,11 @@ fn main() {
             import_legacy_gui_wallet,
             inspect_wallet,
             verify_wallet_passphrase,
+            detect_legacy_default_passphrase,
+            migrate_legacy_default_passphrase,
             change_wallet_passphrase,
             lock_wallet_session,
+            wallet_session_status,
             import_key_set_directory,
             prepare_existing_wallet,
             create_wallet,

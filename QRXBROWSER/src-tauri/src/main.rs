@@ -15,12 +15,17 @@ use tauri::{
     AppHandle, LogicalPosition, LogicalSize, Manager, State, WebviewUrl,
 };
 
-const CHROME_HEIGHT: f64 = 112.0;
+const CHROME_HEIGHT: f64 = 128.0;
+const CHROME_HEIGHT_EXPANDED: f64 = 244.0;
 
 struct BrowserState {
     network: String,
     wallet: String,
     home_url: Mutex<Option<String>>,
+    privacy_url: Mutex<Option<String>>,
+    route_mode: Mutex<String>,
+    chrome_expanded: Mutex<bool>,
+    chrome_height: Mutex<f64>,
     meta: Mutex<BrowserMeta>,
 }
 
@@ -163,12 +168,16 @@ async fn browser_navigate(app: AppHandle, state: State<'_, BrowserState>, input:
     let raw = input.trim();
     if raw.is_empty() { return Err("Address is empty".into()); }
     let lower = raw.to_ascii_lowercase();
-    let is_qrx = lower.starts_with("qrx://") || lower.ends_with(".qrx") || lower.contains(".qrx/");
+    let explicit_qrx = lower.starts_with("qrx://") || lower.ends_with(".qrx") || lower.contains(".qrx/");
+    let explicit_www = lower.starts_with("https://") || lower.starts_with("http://");
+    let route_mode = state.route_mode.lock().map_err(|_| "Browser state lock poisoned".to_string())?.clone();
+    let is_qrx = explicit_qrx || (!explicit_www && route_mode == "qrx");
     let view = content(&app)?;
 
     if is_qrx {
         run_cli(&state, &["resolvebrowserinput", raw])?;
-        let without_scheme = raw.strip_prefix("qrx://").or_else(|| raw.strip_prefix("QRX://")).unwrap_or(raw);
+        let routed = if explicit_qrx { raw.to_string() } else { format!("qrx://{}", raw.trim_start_matches('/')) };
+        let without_scheme = routed.strip_prefix("qrx://").or_else(|| routed.strip_prefix("QRX://")).unwrap_or(routed.as_str());
         let (domain, path) = match without_scheme.split_once('/') {
             Some((d, p)) => (d.to_ascii_lowercase(), if p.is_empty() { "index.html" } else { p }),
             None => (without_scheme.to_ascii_lowercase(), "index.html"),
@@ -217,6 +226,71 @@ async fn browser_navigate(app: AppHandle, state: State<'_, BrowserState>, input:
 }
 
 #[tauri::command]
+async fn browser_new_tab(app: AppHandle, state: State<'_, BrowserState>) -> Result<BrowserMeta, String> {
+    browser_home(app, state).await
+}
+
+#[tauri::command]
+async fn browser_privacy(app: AppHandle, state: State<'_, BrowserState>) -> Result<BrowserMeta, String> {
+    let privacy = state.privacy_url.lock().map_err(|_| "Browser state lock poisoned".to_string())?.clone()
+        .ok_or_else(|| "Browser privacy URL not initialized".to_string())?;
+    let url: tauri::Url = privacy.parse().map_err(|e| format!("Invalid Browser privacy URL: {e}"))?;
+    content(&app)?.navigate(url).map_err(|e| e.to_string())?;
+    let meta = BrowserMeta {
+        route: "privacy".into(),
+        url: privacy,
+        display_url: "qrx://browser/privacy".into(),
+        title: "Privacy".into(),
+        status: "Privacy Center · QRX/WWW isolation and local browser controls".into(),
+    };
+    store_meta(&state, &meta);
+    Ok(meta)
+}
+
+#[tauri::command]
+async fn browser_clear_data(app: AppHandle, state: State<'_, BrowserState>) -> Result<BrowserMeta, String> {
+    content(&app)?.clear_all_browsing_data().map_err(|e| format!("Could not clear browsing data: {e}"))?;
+    browser_home(app, state).await
+}
+
+#[tauri::command]
+async fn browser_set_route_mode(state: State<'_, BrowserState>, mode: String) -> Result<String, String> {
+    let normalized = mode.trim().to_ascii_lowercase();
+    if normalized != "www" && normalized != "qrx" {
+        return Err("Route mode must be WWW or QRX".into());
+    }
+    *state.route_mode.lock().map_err(|_| "Browser state lock poisoned".to_string())? = normalized.clone();
+    Ok(normalized)
+}
+
+#[tauri::command]
+async fn browser_route_mode(state: State<'_, BrowserState>) -> Result<String, String> {
+    state.route_mode.lock().map_err(|_| "Browser state lock poisoned".to_string()).map(|m| m.clone())
+}
+
+#[tauri::command]
+async fn browser_set_chrome_expanded(app: AppHandle, state: State<'_, BrowserState>, expanded: bool) -> Result<(), String> {
+    *state.chrome_expanded.lock().map_err(|_| "Browser state lock poisoned".to_string())? = expanded;
+    let window = app.get_window("qrx-browser").ok_or_else(|| "Browser window unavailable".to_string())?;
+    let chrome = app.get_webview("browser-chrome").ok_or_else(|| "Browser chrome unavailable".to_string())?;
+    let content = app.get_webview("browser-content").ok_or_else(|| "Browser content unavailable".to_string())?;
+    resize_children(&window, &chrome, &content, if expanded { CHROME_HEIGHT_EXPANDED } else { CHROME_HEIGHT });
+    Ok(())
+}
+
+
+#[tauri::command]
+async fn browser_set_chrome_height(app: AppHandle, state: State<'_, BrowserState>, height: f64) -> Result<(), String> {
+    let h = height.clamp(CHROME_HEIGHT, 420.0);
+    *state.chrome_height.lock().map_err(|_| "Browser state lock poisoned".to_string())? = h;
+    let window = app.get_window("qrx-browser").ok_or_else(|| "Browser window unavailable".to_string())?;
+    let chrome = app.get_webview("browser-chrome").ok_or_else(|| "Browser chrome unavailable".to_string())?;
+    let content = app.get_webview("browser-content").ok_or_else(|| "Browser content unavailable".to_string())?;
+    resize_children(&window, &chrome, &content, h);
+    Ok(())
+}
+
+#[tauri::command]
 async fn browser_back(app: AppHandle) -> Result<(), String> {
     content(&app)?.eval("history.back()").map_err(|e| e.to_string())
 }
@@ -246,6 +320,18 @@ async fn browser_home(app: AppHandle, state: State<'_, BrowserState>) -> Result<
 async fn browser_state(app: AppHandle, state: State<'_, BrowserState>) -> Result<BrowserMeta, String> {
     let view = content(&app)?;
     let url = view.url().map_err(|e| e.to_string())?.to_string();
+    let privacy = state.privacy_url.lock().map_err(|_| "Browser state lock poisoned".to_string())?.clone();
+    if privacy.as_deref() == Some(url.as_str()) || url.ends_with("/privacy.html") {
+        let meta = BrowserMeta {
+            route: "privacy".into(),
+            url: url.clone(),
+            display_url: "qrx://browser/privacy".into(),
+            title: "Privacy".into(),
+            status: "Privacy Center · QRX/WWW isolation and local browser controls".into(),
+        };
+        store_meta(&state, &meta);
+        return Ok(meta);
+    }
     if url.starts_with("https://") {
         let meta = BrowserMeta {
             route: "www".into(),
@@ -273,14 +359,14 @@ async fn browser_state(app: AppHandle, state: State<'_, BrowserState>) -> Result
     Ok(meta)
 }
 
-fn resize_children(window: &tauri::Window, chrome: &tauri::Webview, content: &tauri::Webview) {
+fn resize_children(window: &tauri::Window, chrome: &tauri::Webview, content: &tauri::Webview, chrome_height: f64) {
     let Ok(size) = window.inner_size() else { return; };
     let Ok(scale) = window.scale_factor() else { return; };
     let logical = size.to_logical::<f64>(scale);
-    let content_h = (logical.height - CHROME_HEIGHT).max(1.0);
+    let content_h = (logical.height - chrome_height).max(1.0);
     let _ = chrome.set_position(LogicalPosition::new(0.0, 0.0));
-    let _ = chrome.set_size(LogicalSize::new(logical.width, CHROME_HEIGHT));
-    let _ = content.set_position(LogicalPosition::new(0.0, CHROME_HEIGHT));
+    let _ = chrome.set_size(LogicalSize::new(logical.width, chrome_height));
+    let _ = content.set_position(LogicalPosition::new(0.0, chrome_height));
     let _ = content.set_size(LogicalSize::new(logical.width, content_h));
 }
 
@@ -292,6 +378,10 @@ fn main() {
             network,
             wallet,
             home_url: Mutex::new(None),
+            privacy_url: Mutex::new(None),
+            route_mode: Mutex::new("www".into()),
+            chrome_expanded: Mutex::new(false),
+            chrome_height: Mutex::new(CHROME_HEIGHT),
             meta: Mutex::new(BrowserMeta {
                 route: "home".into(),
                 url: String::new(),
@@ -302,6 +392,13 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             browser_navigate,
+            browser_new_tab,
+            browser_privacy,
+            browser_clear_data,
+            browser_set_route_mode,
+            browser_route_mode,
+            browser_set_chrome_expanded,
+            browser_set_chrome_height,
             browser_back,
             browser_forward,
             browser_reload,
@@ -327,7 +424,10 @@ fn main() {
                 LogicalSize::new(1440.0, CHROME_HEIGHT),
             )?;
 
-            let content_builder = WebviewBuilder::new("browser-content", WebviewUrl::App("home.html".into()))
+            let content_builder = WebviewBuilder::new("browser-content", WebviewUrl::App("home.html".into()));
+            #[cfg(target_os = "macos")]
+            let content_builder = content_builder.data_store_identifier(*b"QRXBrowserStore1");
+            let content_builder = content_builder
                 .on_navigation(|url| {
                     matches!(url.scheme(), "tauri" | "https" | "data")
                         || url.host_str() == Some("tauri.localhost")
@@ -345,18 +445,25 @@ fn main() {
             )?;
 
             if let Ok(home) = content.url() {
+                let home_string = home.to_string();
                 if let Ok(mut slot) = app.state::<BrowserState>().home_url.lock() {
-                    *slot = Some(home.to_string());
+                    *slot = Some(home_string.clone());
+                }
+                if let Ok(mut slot) = app.state::<BrowserState>().privacy_url.lock() {
+                    *slot = Some(home_string.replace("home.html", "privacy.html"));
                 }
             }
 
-            resize_children(&window, &chrome, &content);
+            resize_children(&window, &chrome, &content, CHROME_HEIGHT);
             let w = window.clone();
             let c1 = chrome.clone();
             let c2 = content.clone();
+            let app_handle = app.handle().clone();
             window.on_window_event(move |event| {
                 if matches!(event, tauri::WindowEvent::Resized(_) | tauri::WindowEvent::ScaleFactorChanged { .. }) {
-                    resize_children(&w, &c1, &c2);
+                    let state = app_handle.state::<BrowserState>();
+                    let h = state.chrome_height.lock().map(|v| *v).unwrap_or(CHROME_HEIGHT);
+                    resize_children(&w, &c1, &c2, h);
                 }
             });
             Ok(())

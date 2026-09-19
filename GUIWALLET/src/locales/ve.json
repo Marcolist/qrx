@@ -336,7 +336,7 @@
   "wallet.auto.c05d1196b1d6": "QRX i thoma nthihi yo synchronized",
   "wallet.auto.d3d40d47ac02": "qrxd",
   "wallet.auto.6b731bf07e4c": "/ P2P / QRXDB runtime nahone i dzhenisa wallet iṅwe na iṅwe ya Validator-Mode sa signer identity yo fhambanaho. A i",
-  "wallet.auto.77c20fd45de7": "thomi 50 daemons. Proposal signing i shandukisana kha identities dzi shumaho nahone fleet identities dzoṱhe dzi shumaho dzi nga vote kha proposal nthihi. A hu na auto-stake. Fleet wallets dzi fanela u unlockea nga validator session passphrase ya zwino; identity yo locked kana i si na stake yo eḓanaho i pfukwa nṱhani ha u imisa node yoṱhe.",
+  "wallet.auto.77c20fd45de7": "thomi one daemon per validator. Proposal signing i shandukisana kha identities dzi shumaho nahone fleet identities dzoṱhe dzi shumaho dzi nga vote kha proposal nthihi. A hu na auto-stake. Fleet wallets dzi fanela u unlockea nga validator session passphrase ya zwino; identity yo locked kana i si na stake yo eḓanaho i pfukwa nṱhani ha u imisa node yoṱhe.",
   "wallet.auto.600a8ded9e9d": "Thengiselano & Ledger",
   "wallet.auto.5c9c30ef1e67": "QUB + BTC activity fhethu huthihi.",
   "wallet.auto.892ba528c8a5": "History ndi read-only. Shumisa filters u sedza activity; CSV export a i export seeds, khii dza tshiphiri kana passphrases.",

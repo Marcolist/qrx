@@ -163,3 +163,41 @@ The local classical Upscaler and hardware capability probe are shipped
 application functionality. AI model/runtime delivery and QRX Compute fan-out
 remain non-consensus app/runtime work, while paid distributed execution stays
 fail-closed behind `COMPUTE_POUC_V1`.
+
+---
+
+## 7. Local AI delivery — 0.0.9.58
+
+**Implemented foundation:** the QRX Upscaler now has a real fail-closed neural inference adapter in addition to the classical kernels. `ai-image` supports 2×/4× models through a `realesrgan-ncnn-vulkan` compatible runtime, verifies model `.param`/`.bin` bytes against pinned SHA-256 hashes, and uses RAM-aware tile recommendations. On Apple Silicon this backend is ncnn Vulkan → MoltenVK → Metal.
+
+The wallet reports `runtime_installed`, `model_x2_verified`, `model_x4_verified` and `ai_ready` separately. Accelerator detection alone never marks AI ready. Classical nearest/bilinear/bicubic/Lanczos3 remains available even when AI packages are absent.
+
+**Release-artifact gate still open:** exact third-party runtime binaries and model weights are separate signed/provenance-checked artifacts and are intentionally not invented or silently embedded in the source archive. 0.0.9.58 includes a local installer helper and model-manifest format so those artifacts can be installed and verified. Native Metal inference, one-click governed model delivery, AI-video, progress/cancel and additional hardware packages remain follow-ups.
+
+FHE remains complementary: it is not required for local AI, and later applies to supported encrypted distributed-compute workloads.
+
+
+## 8. Verified AI runtime/model packaging — 0.0.9.59
+
+**Implemented for macOS Apple Silicon.** The release builder pins the official Real-ESRGAN `v0.2.5.0` macOS asset, requires the GitHub release-asset SHA-256 digest, rejects unsafe archive paths, verifies that the runtime contains an arm64 Mach-O slice, and stages only the reviewed runtime plus 2×/4× models.
+
+The default 2× model is `realesr-animevideov3-x2`; the default 4× model is `realesrgan-x4plus`. `.qrxmodel` v2 binds model bytes to SHA-256 plus upstream source URL, release reference and source archive SHA-256. The runtime itself is SHA-256 pinned and `ai_ready` now also requires `runtime_verified=true`.
+
+The Tauri wallet packages these resources and injects their absolute packaged paths into the `qrx-upscaler` sidecar, so a correctly built macOS ARM64 wallet does not require manual model/runtime copying. Linux, Windows and P40/CUDA bundles remain separate target-specific follow-ups.
+
+
+## 9. Multi-platform verified AI packaging — 0.0.9.60
+
+Status: IMPLEMENTED IN SOURCE.
+
+- [x] macOS ARM64 packaged runtime/model bundle
+- [x] macOS x64 packaged runtime/model bundle
+- [x] Windows x64 packaged runtime/model bundle
+- [x] Linux x64 packaged runtime/model bundle
+- [x] Linux ARM64/Pi 5 native source-build bundle
+- [x] architecture verification for Mach-O/PE/ELF
+- [x] common SHA-256 verified x2/x4 model provenance
+- [x] P40-class NVIDIA support through native Vulkan driver path on Linux x64
+- [x] fail-closed asset digest policy on all portable targets
+- [ ] native hardware execution gate on every release runner before signing
+- [ ] Pi 5 performance benchmark / recommended tile profile

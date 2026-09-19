@@ -242,7 +242,10 @@ static int ensure_wallet(const char *base, const QrxProfile *profile, const char
             fprintf(stderr, "QRX mainnet wallet safety: refusing wallet creation without an explicit QRX_PASSPHRASE.\n");
             return -1;
         }
-        if(!pass || !*pass) setenv_qrx("QRX_PASSPHRASE","change-me",1);
+        if(!pass || !*pass){
+            fprintf(stderr, "QRX wallet safety: refusing wallet creation without an explicit QRX_PASSPHRASE. The historical development default is disabled in 0.0.9.75.\n");
+            return -1;
+        }
         argv_new[0]="qrx"; argv_new[1]="seed-new"; argv_new[2]=wdir;
         if(qrx_backend_call(3,argv_new)!=0) return -1;
     }
@@ -268,4 +271,4 @@ static int ensure_node_conf(const char *base, const QrxProfile *p, const char *w
  if(refresh_node_wallet_binding(nconf,wallet_dir)!=0) return -1;
  snprintf(peers,sizeof(peers),"%s/peers.txt",ndir); snprintf(seedf,sizeof(seedf),"%s/seednodes.txt",ndir); snprintf(self,sizeof(self),"%s:%s",host,port); for(int i=0;p->seednodes[i];++i){ snprintf(ep,sizeof(ep),"%s",p->seednodes[i]); if(strcmp(ep,self)!=0){ append_unique_line(peers,ep); append_unique_line(seedf,ep);} }
  for(int i=0;i<addnode_count;++i){ char h[128], prt[32]; char *argv_add[5]; if(qrx_parse_hostport(addnodes[i],h,sizeof(h),prt,sizeof(prt))!=0) continue; argv_add[0]="qrx"; argv_add[1]="add-peer"; argv_add[2]=ndir; argv_add[3]=h; argv_add[4]=prt; qrx_backend_call(5,argv_add);} snprintf(out_node,out_node_sz,"%s",ndir); return 0; }
-int qrx_ensure_node(const char *network, const char *datadir, const char *wallet, const char *listen, const char **addnodes, int addnode_count, char *out_base, size_t out_base_sz, char *out_chain, size_t out_chain_sz, char *out_wallet, size_t out_wallet_sz, char *out_node, size_t out_node_sz){ const QrxProfile *p=qrx_profile_by_name(network); if(!p) return -1; if(!strcmp(network,"mainnet") && !qrx_mainnet_genesis_material_ready()){ fprintf(stderr,"QRX mainnet release gate: fill the 50 bootstrap validator addresses and 5 developer-governance public keys; refusing to initialize or start Mainnet.\n"); return -1; } qrx_default_datadir(network,datadir,out_base,out_base_sz); if(mkdir_p(out_base)!=0) return -1; if(ensure_chain(out_base,p,out_chain,out_chain_sz)!=0) return -1; if(ensure_wallet(out_base,p,wallet,out_wallet,out_wallet_sz)!=0) return -1; if(ensure_node_conf(out_base,p,wallet,listen,addnodes,addnode_count,out_node,out_node_sz,out_chain,out_wallet)!=0) return -1; return 0; }
+int qrx_ensure_node(const char *network, const char *datadir, const char *wallet, const char *listen, const char **addnodes, int addnode_count, char *out_base, size_t out_base_sz, char *out_chain, size_t out_chain_sz, char *out_wallet, size_t out_wallet_sz, char *out_node, size_t out_node_sz){ const QrxProfile *p=qrx_profile_by_name(network); if(!p) return -1; if(!strcmp(network,"mainnet") && !qrx_mainnet_genesis_material_ready()){ fprintf(stderr,"QRX mainnet release gate: fill the 60 bootstrap validator addresses and 5 developer-governance public keys; refusing to initialize or start Mainnet.\n"); return -1; } qrx_default_datadir(network,datadir,out_base,out_base_sz); if(mkdir_p(out_base)!=0) return -1; if(ensure_chain(out_base,p,out_chain,out_chain_sz)!=0) return -1; if(ensure_wallet(out_base,p,wallet,out_wallet,out_wallet_sz)!=0) return -1; if(ensure_node_conf(out_base,p,wallet,listen,addnodes,addnode_count,out_node,out_node_sz,out_chain,out_wallet)!=0) return -1; return 0; }

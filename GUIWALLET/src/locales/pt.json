@@ -336,7 +336,7 @@
   "wallet.auto.c05d1196b1d6": "O QRX inicia um único",
   "wallet.auto.d3d40d47ac02": "qrxd",
   "wallet.auto.6b731bf07e4c": "/ runtime P2P / QRXDB e carrega cada carteira em modo Validador como uma identidade de assinatura separada. Não",
-  "wallet.auto.77c20fd45de7": "inicia 50 daemons. A assinatura de propostas roda entre identidades utilizáveis e todas as identidades utilizáveis da frota podem votar na mesma proposta. Nada recebe stake automaticamente. As carteiras da frota devem poder ser desbloqueadas pela frase-passe da sessão atual do validador; uma identidade bloqueada ou com stake insuficiente é ignorada em vez de bloquear todo o nó.",
+  "wallet.auto.77c20fd45de7": "inicia one daemon per validator. A assinatura de propostas roda entre identidades utilizáveis e todas as identidades utilizáveis da frota podem votar na mesma proposta. Nada recebe stake automaticamente. As carteiras da frota devem poder ser desbloqueadas pela frase-passe da sessão atual do validador; uma identidade bloqueada ou com stake insuficiente é ignorada em vez de bloquear todo o nó.",
   "wallet.auto.600a8ded9e9d": "Transações & Ledger",
   "wallet.auto.5c9c30ef1e67": "Atividade QUB + BTC num só lugar.",
   "wallet.auto.892ba528c8a5": "O histórico é apenas de leitura. Use filtros para inspecionar a atividade; a exportação CSV nunca exporta seeds, chaves privadas ou frases-passe.",

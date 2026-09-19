@@ -336,7 +336,7 @@
   "wallet.auto.c05d1196b1d6": "QRX starts one synchronized",
   "wallet.auto.d3d40d47ac02": "qrxd",
   "wallet.auto.6b731bf07e4c": "/ P2P / QRXDB runtime and loads every Validator-Mode wallet as a separate signer identity. It does",
-  "wallet.auto.77c20fd45de7": "start 50 daemons. Proposal signing rotates across usable identities and all usable fleet identities can vote on the same proposal. Nothing is auto-staked. Fleet wallets must be unlockable by the current validator session passphrase; a locked or under-staked identity is skipped instead of stalling the whole node.",
+  "wallet.auto.77c20fd45de7": "start one daemon per validator. Proposal signing rotates across usable identities and all usable fleet identities can vote on the same proposal. Nothing is auto-staked. Fleet wallets must be unlockable by the current validator session passphrase; a locked or under-staked identity is skipped instead of stalling the whole node.",
   "wallet.auto.600a8ded9e9d": "Transactions & Ledger",
   "wallet.auto.5c9c30ef1e67": "QUB + BTC activity in one place.",
   "wallet.auto.892ba528c8a5": "History is read-only. Use filters to inspect activity; CSV export never exports seeds, private keys or passphrases.",

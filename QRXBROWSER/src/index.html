@@ -3,7 +3,11 @@
 <title>QRX Browser</title><link rel="stylesheet" href="style.css"></head>
 <body>
 <div class="chrome">
-  <div class="tabs"><div class="tab"><span>◈</span><span class="tabTitle" id="tabTitle">New tab</span></div></div>
+  <div class="tabs">
+    <div class="tab"><span>◈</span><span class="tabTitle" id="tabTitle">New tab</span></div>
+    <button class="tabAction" id="newTab" title="New tab" aria-label="New tab">＋</button>
+    <button class="tabAction privacyTab" id="privacyTab" title="Privacy Center" aria-label="Privacy Center">🛡</button>
+  </div>
   <div class="toolbar">
     <button class="nav" id="back" title="Back">←</button>
     <button class="nav" id="forward" title="Forward">→</button>
@@ -11,9 +15,15 @@
     <button class="nav home" id="home" title="Home">⌂</button>
     <input class="address" id="address" autocomplete="off" spellcheck="false" placeholder="Search or enter example.qrx / https://example.com">
     <button class="go" id="go">Go</button>
-    <div class="route" id="route">HOME</div>
+    <button class="route" id="route" title="Active route">WWW</button>
+    <button class="menu" id="menu" title="Menu and privacy settings" aria-expanded="false">☰</button>
+  </div>
+  <div class="drawer" id="drawer" hidden>
+    <div class="drawerBlock"><span class="drawerLabel">Route</span><div class="segmented"><button id="modeWWW" data-mode="www">WWW</button><button id="modeQRX" data-mode="qrx">QRX</button></div></div>
+    <div class="drawerBlock"><span class="drawerLabel">Privacy</span><div class="badges"><span>HTTPS only</span><span>QRX no DNS fallback</span><span>isolated routes</span></div></div>
+    <div class="drawerActions"><button id="openPrivacy">Privacy Center</button><button id="clearData">Clear browsing data</button></div>
   </div>
 </div>
-<div class="status" id="status">QRX Browser · two isolated routes</div>
+<div class="status" id="status">QRX Browser · isolated QRX / WWW routes</div>
 <script src="app.js"></script>
 </body></html>
