@@ -336,7 +336,7 @@
   "wallet.auto.c05d1196b1d6": "QRX ad yessenker yiwen synchronized",
   "wallet.auto.d3d40d47ac02": "qrxd",
   "wallet.auto.6b731bf07e4c": "/ P2P / QRXDB runtime yerna ad d-yessali yal Validator-Mode wallet d signer identity iman-is. Ur",
-  "wallet.auto.77c20fd45de7": "yesnekren ara 50 daemons. Proposal signing yettuɣal gar usable identities, yerna akk usable fleet identities zemren ad voten ɣef yiwen proposal. Ulac auto-staked. Fleet wallets ilaq ad zemren ad ldint s current validator session passphrase; identity locked neɣ under-staked ad yettwazgel deg umkan ad isseḥbes node akk.",
+  "wallet.auto.77c20fd45de7": "yesnekren ara one daemon per validator. Proposal signing yettuɣal gar usable identities, yerna akk usable fleet identities zemren ad voten ɣef yiwen proposal. Ulac auto-staked. Fleet wallets ilaq ad zemren ad ldint s current validator session passphrase; identity locked neɣ under-staked ad yettwazgel deg umkan ad isseḥbes node akk.",
   "wallet.auto.600a8ded9e9d": "Transactions & Ledger",
   "wallet.auto.5c9c30ef1e67": "Armud QUB + BTC deg yiwen umkan.",
   "wallet.auto.892ba528c8a5": "History d read-only. Seqdec filters i tesleḍt n armud; CSV export ur yesuffuɣ ara seeds, private keys neɣ passphrases.",

@@ -52,7 +52,7 @@ if [[ "$ALL_TARGETS" -eq 1 ]]; then
   [[ -z "$TARGET" ]] || { echo "Use either --all or --target, not both" >&2; exit 2; }
   if [[ "$PLAN_ONLY" -eq 1 ]]; then
     for matrix_target in linux-x64 linux-arm64 macos-x64 macos-arm64 windows-x64; do
-      "$0" --target "$matrix_target" --plan
+      bash "$0" --target "$matrix_target" --plan
     done
     exit 0
   fi
@@ -103,7 +103,8 @@ QRX release plan: $TARGET
   5. Build isolated Tauri 2 QRX Browser multi-WebView sidecar
   6. Install target-suffixed Core/BTC/Browser sidecars
   7. Stage signed AURA runtime trust/catalog resources
-  8. Build Tauri wallet and verify/package the checksummed release
+  8. Stage verified local AI runtime/model bundle for the selected target
+  9. Build Tauri wallet and verify/package the checksummed release
 EOF
 [[ "$PLAN_ONLY" -eq 1 ]] && exit 0
 
@@ -246,7 +247,24 @@ else
   echo "Warning: AURA signed runtime resources not staged (development build; AUTO runtime remains pending)" >&2
 fi
 
-echo "[6/8] Building Tauri desktop wallet after its Core dependencies"
+echo "[5.5/9] Staging verified local AI Upscaler bundle for $TARGET"
+if bash "$ROOT/scripts/prepare-upscaler-ai-bundle.sh" "$TARGET" "$WALLET/src-tauri/resources/upscaler"; then
+  :
+else
+  rc=$?
+  rm -rf "$WALLET/src-tauri/resources/upscaler"
+  if [[ "${QRX_ALLOW_AI_PENDING:-0}" != "1" ]]; then
+    echo "Verified AI bundle is mandatory for normal/distribution builds; aborting." >&2
+    echo "For an explicit developer-only build without AI, set QRX_ALLOW_AI_PENDING=1." >&2
+    exit "$rc"
+  fi
+  echo "Warning: explicit developer opt-out QRX_ALLOW_AI_PENDING=1; AI Upscaler will be unavailable." >&2
+fi
+
+# Fail before Tauri if staging is incomplete.
+bash "$ROOT/scripts/verify-upscaler-ai-bundle.sh" "$WALLET/src-tauri/resources/upscaler" "$TARGET"
+
+echo "[6/9] Building Tauri desktop wallet after its Core dependencies"
 (
   cd "$WALLET"
   # Genesis hardening (Finding 10): reproducible dependency installation.
@@ -274,6 +292,33 @@ BUNDLE_DIR="$TAURI_TARGET_DIR/$RUST_TARGET/release/bundle"
 if [[ "$TARGET" == macos-* ]]; then
   APP_DIR="$BUNDLE_DIR/macos/GUI Wallet.app"
   [[ -d "$APP_DIR" ]] || { echo "macOS app bundle missing: $APP_DIR" >&2; exit 8; }
+
+  echo "[6.5/9] Verifying packaged AI resources inside macOS .app"
+  APP_RES="$APP_DIR/Contents/Resources"
+  PACKAGED_AI=""
+  for cand in "$APP_RES/upscaler" "$APP_RES/resources/upscaler"; do
+    if [[ -d "$cand" ]]; then PACKAGED_AI="$cand"; break; fi
+  done
+  if [[ -z "$PACKAGED_AI" ]]; then
+    if [[ "${QRX_ALLOW_AI_PENDING:-0}" != "1" ]]; then echo "AI resources missing from final .app bundle" >&2; exit 8; fi
+  else
+    bash "$ROOT/scripts/verify-upscaler-ai-bundle.sh" "$PACKAGED_AI" "$TARGET"
+
+    # 0.0.9.66: prove Tauri embedded the exact staged AI payload, not merely
+    # a structurally valid bundle. Compare a canonical SHA-256 inventory.
+    staged_inventory="$(mktemp)"
+    packaged_inventory="$(mktemp)"
+    (cd "$WALLET/src-tauri/resources/upscaler" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256) > "$staged_inventory"
+    (cd "$PACKAGED_AI" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256) > "$packaged_inventory"
+    if ! cmp -s "$staged_inventory" "$packaged_inventory"; then
+      echo "Packaged AI resources differ from verified staged resources" >&2
+      diff -u "$staged_inventory" "$packaged_inventory" >&2 || true
+      rm -f "$staged_inventory" "$packaged_inventory"
+      exit 8
+    fi
+    rm -f "$staged_inventory" "$packaged_inventory"
+    echo "AI bundle inside GUI Wallet.app: PASS (staged/package hashes identical)"
+  fi
 
   # Tauri 1.x can occasionally create the .app shell while omitting the main
   # executable when externalBin sidecars and an explicit Cargo target are used.

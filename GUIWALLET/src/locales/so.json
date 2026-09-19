@@ -336,7 +336,7 @@
   "wallet.auto.c05d1196b1d6": "QRX wuxuu bilaabaa hal synchronized",
   "wallet.auto.d3d40d47ac02": "qrxd",
   "wallet.auto.6b731bf07e4c": "/ P2P / QRXDB runtime oo wuxuu raraa Validator-Mode wallet kasta sidii signer identity gaar ah. Ma",
-  "wallet.auto.77c20fd45de7": "bilaabo 50 daemons. Proposal signing wuxuu ku wareegaa usable identities, dhammaan usable fleet identities-na waxay vote ku bixin karaan isla proposal-ka. Wax auto-staked ah ma jiro. Fleet wallets waa inay ku furmi karaan current validator session passphrase; identity locked ama under-staked ah waa la boodayaa halkii uu node-ka oo dhan joojin lahaa.",
+  "wallet.auto.77c20fd45de7": "bilaabo one daemon per validator. Proposal signing wuxuu ku wareegaa usable identities, dhammaan usable fleet identities-na waxay vote ku bixin karaan isla proposal-ka. Wax auto-staked ah ma jiro. Fleet wallets waa inay ku furmi karaan current validator session passphrase; identity locked ama under-staked ah waa la boodayaa halkii uu node-ka oo dhan joojin lahaa.",
   "wallet.auto.600a8ded9e9d": "Transactions & Ledger",
   "wallet.auto.5c9c30ef1e67": "Dhaqdhaqaaqa QUB + BTC hal meel.",
   "wallet.auto.892ba528c8a5": "History-gu waa read-only. Isticmaal filters si aad activity u eegto; CSV export ma dhoofiyo seeds, private keys ama passphrases.",

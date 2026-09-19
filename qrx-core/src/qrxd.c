@@ -225,7 +225,7 @@ static void stop_node_process(void) {
 }
 
 static void usage(void){
-    puts("qrxd [--network <alpha|testnet|regtest|mainnet>] [--datadir PATH] [--wallet NAME] [--listen host:port] [--addnode host:port]... [--seednode host:port]... [--rpc-bind host:port] [--allow-remote-rpc] [--rpc-user USER] [--rpc-password PASS] [--wallet-passphrase PASS] [--no-wallet-passphrase-default] [--blocktime SECONDS] [--commission-bps BPS] [--no-block-producer] [--validator-wallet NAME]...\nJSON-RPC is local-only by default on 127.0.0.1:3766x. Binding RPC outside IPv4 loopback is rejected unless --allow-remote-rpc is explicitly supplied AND both --rpc-user and --rpc-password are non-empty. P2P --listen is separate from wallet RPC and may be public. For validator/block-producer signing, set QRX_PASSPHRASE or pass --wallet-passphrase. Alpha/testnet/regtest keep backward compatibility with the auto-generated default passphrase unless --no-wallet-passphrase-default is used.");
+    puts("qrxd [--network <alpha|testnet|regtest|mainnet>] [--datadir PATH] [--wallet NAME] [--listen host:port] [--addnode host:port]... [--seednode host:port]... [--rpc-bind host:port] [--allow-remote-rpc] [--rpc-user USER] [--rpc-password PASS] [--wallet-passphrase PASS] [--wallet-passphrase-file PATH|--wallet-passphrase-stdin] [--no-wallet-passphrase-default] [--blocktime SECONDS] [--commission-bps BPS] [--no-block-producer] [--validator-wallet NAME]...\nJSON-RPC is local-only by default on 127.0.0.1:3766x. Binding RPC outside IPv4 loopback is rejected unless --allow-remote-rpc is explicitly supplied AND both --rpc-user and --rpc-password are non-empty. P2P --listen is separate from wallet RPC and may be public. SECURITY: --wallet-passphrase puts the secret in the process argument list and is deprecated for normal use. Prefer --wallet-passphrase-file PATH (0600) or --wallet-passphrase-stdin. QRX_PASSPHRASE remains supported for supervised deployments. A wallet passphrase is NOT a recovery phrase; never pass recovery words here. Alpha/testnet/regtest keep backward compatibility with the auto-generated default passphrase unless --no-wallet-passphrase-default is used.");
 }
 
 static void qrx_close_rpc_listener(void) {
@@ -298,6 +298,44 @@ static int qrx_hex_decode_text(const char *hex, char *out, size_t out_sz) {
     return 0;
 }
 
+static int load_wallet_passphrase_file(const char *path) {
+    FILE *f;
+    size_t n;
+#ifndef _WIN32
+    struct stat st;
+    if(stat(path, &st) != 0) { perror("wallet passphrase file"); return -1; }
+    if((st.st_mode & 077u) != 0u) {
+        fprintf(stderr,"Refusing wallet passphrase file with group/other permissions; chmod 600 '%s'\n", path);
+        return -1;
+    }
+#endif
+    f=fopen(path,"rb");
+    if(!f){ perror("wallet passphrase file"); return -1; }
+    n=fread(g_wallet_passphrase,1,sizeof(g_wallet_passphrase)-1,f);
+    if(ferror(f)){ fclose(f); OPENSSL_cleanse(g_wallet_passphrase,sizeof(g_wallet_passphrase)); return -1; }
+    fclose(f);
+    while(n && (g_wallet_passphrase[n-1]=='\n' || g_wallet_passphrase[n-1]=='\r')) --n;
+    g_wallet_passphrase[n]=0;
+    if(!n){ fprintf(stderr,"Wallet passphrase file is empty\n"); return -1; }
+    return 0;
+}
+
+static int load_wallet_passphrase_stdin(void) {
+    size_t n;
+#ifdef _WIN32
+    if(_isatty(_fileno(stdin))) { fprintf(stderr,"Refusing --wallet-passphrase-stdin on an interactive terminal because input would be echoed. Pipe from a protected secret source instead.\n"); return -1; }
+#else
+    if(isatty(STDIN_FILENO)) { fprintf(stderr,"Refusing --wallet-passphrase-stdin on an interactive terminal because input would be echoed. Pipe from a protected secret source instead.\n"); return -1; }
+#endif
+    if(!fgets(g_wallet_passphrase,sizeof(g_wallet_passphrase),stdin)) {
+        fprintf(stderr,"Could not read wallet passphrase from stdin\n"); return -1;
+    }
+    n=strlen(g_wallet_passphrase);
+    while(n && (g_wallet_passphrase[n-1]=='\n' || g_wallet_passphrase[n-1]=='\r')) g_wallet_passphrase[--n]=0;
+    if(!n){ fprintf(stderr,"Wallet passphrase from stdin is empty\n"); return -1; }
+    return 0;
+}
+
 static void configure_wallet_passphrase(const char *network) {
     if(getenv("QRX_PASSPHRASE")) return;
 
@@ -306,21 +344,11 @@ static void configure_wallet_passphrase(const char *network) {
         return;
     }
 
-    /*
-     * Backward compatibility:
-     * qrx_ensure_node() auto-created alpha/testnet/regtest wallets using
-     * QRX_PASSPHRASE=change-me when no passphrase was supplied.
-     * On restart the wallet already exists, so the old code no longer set
-     * the env var and block producer / vote signing prompted interactively.
-     *
-     * Keep this only for non-mainnet networks. Mainnet must use an explicit
-     * QRX_PASSPHRASE or --wallet-passphrase for signing.
-     */
-    if(!g_wallet_passphrase_default_disabled &&
-       network &&
-       strcmp(network, "mainnet") != 0) {
-        qrx_set_env("QRX_PASSPHRASE", "change-me", 0);
-    }
+    /* 0.0.9.75: never auto-unlock with the historical development
+     * passphrase. Existing legacy wallets remain readable and can be
+     * explicitly migrated by the GUI, but a daemon start without credentials
+     * must stay locked on every network. */
+    (void)network;
 }
 
 static EVP_PKEY *drive_load_pub(const char *name){char p[PATH_MAX];snprintf(p,sizeof(p),"%s/%s",g_wdir,name);FILE*f=fopen(p,"rb");if(!f)return NULL;EVP_PKEY*k=PEM_read_PUBKEY(f,NULL,NULL,NULL);fclose(f);return k;}
@@ -1315,6 +1343,10 @@ static int header_has_json_content_type(const char*r){ const char*end=strstr(r,"
 static int origin_allowed(const char*r){ const char*o=qrx_strcasestr_local(r,"Origin:"); if(!o)return 1; return !strncmp(o+7," http://localhost",17)||!strncmp(o+7," http://127.0.0.1",17)||!strncmp(o+7," tauri://localhost",18)||!strncmp(o+7," https://tauri.localhost",24);}
 static int host_allowed(const char*r){ char want[128];snprintf(want,sizeof(want),"Host: 127.0.0.1:%d",g_rpc_port); if(strstr(r,want))return 1;snprintf(want,sizeof(want),"Host: localhost:%d",g_rpc_port);return strstr(r,want)!=NULL;}
 static QrxSignerSession* signer_session(const char*w,int create){for(int i=0;i<g_signer_session_count;i++)if(!strcmp(g_signer_sessions[i].wallet,w))return &g_signer_sessions[i];if(!create||g_signer_session_count>=QRX_MAX_VALIDATOR_FLEET)return NULL;QrxSignerSession*s=&g_signer_sessions[g_signer_session_count++];memset(s,0,sizeof(*s));snprintf(s->wallet,sizeof(s->wallet),"%s",w);return s;}
+static int signer_wallet_name_safe(const char *w){if(!w||!*w||strlen(w)>=128)return 0;for(const unsigned char*p=(const unsigned char*)w;*p;p++)if(!(isalnum(*p)||*p=='_'||*p=='-'||*p=='.'))return 0;return strcmp(w,".")&&strcmp(w,"..");}
+static int signer_wallet_dir(const char*w,char*out,size_t cap){if(!signer_wallet_name_safe(w))return-1;const char*base=strrchr(g_wdir,'/');base=base?base+1:g_wdir;if(!strcmp(base,w)){snprintf(out,cap,"%s",g_wdir);return 0;}snprintf(out,cap,"%s/wallets/%s",g_base,w);return 0;}
+static int signer_verify_secret(const char*w,const char*secret){char wd[PATH_MAX],p[PATH_MAX];if(signer_wallet_dir(w,wd,sizeof(wd)))return-1;snprintf(p,sizeof(p),"%s/ed25519_priv.pem",wd);FILE*f=fopen(p,"rb");if(!f)return-1;EVP_PKEY*k=PEM_read_PrivateKey(f,NULL,NULL,(void*)(secret?secret:""));fclose(f);if(!k)return-1;EVP_PKEY_free(k);return 0;}
+
 static const char *http_status_text(int code) {
     if(code == 200) return "OK";
     if(code == 400) return "Bad Request";
@@ -2109,20 +2141,31 @@ static int handle_command(const char *cmdline, char *resp, size_t resp_sz){
         return 0;
     }
     if(!strcmp(args[0], "walletpassphrasehexfor") && argc >= 3){
-        char secret[256]={0}; QrxSignerSession*ss=signer_session(args[1],1); if(!ss){json_error(resp,resp_sz,"walletpassphrasehexfor","signer session limit reached");return 0;}
+        char secret[256]={0};
+        if(!signer_wallet_name_safe(args[1])){json_error(resp,resp_sz,"walletpassphrasehexfor","invalid wallet name");return 0;}
         if(strcmp(args[2],"-") && qrx_hex_decode_text(args[2],secret,sizeof(secret))!=0){json_error(resp,resp_sz,"walletpassphrasehexfor","invalid encoding");return 0;}
-        OPENSSL_cleanse(ss->secret,sizeof(ss->secret));snprintf(ss->secret,sizeof(ss->secret),"%s",secret);ss->unlocked=1;OPENSSL_cleanse(secret,sizeof(secret));snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"walletpassphrasehexfor\",\"result\":{\"wallet\":\"%s\",\"unlocked\":true}}\n",args[1]);return 0;}
+        if(signer_verify_secret(args[1],secret)!=0){OPENSSL_cleanse(secret,sizeof(secret));json_error(resp,resp_sz,"walletpassphrasehexfor","incorrect passphrase");return 0;}
+        QrxSignerSession*ss=signer_session(args[1],1); if(!ss){OPENSSL_cleanse(secret,sizeof(secret));json_error(resp,resp_sz,"walletpassphrasehexfor","signer session limit reached");return 0;}
+        OPENSSL_cleanse(ss->secret,sizeof(ss->secret));snprintf(ss->secret,sizeof(ss->secret),"%s",secret);ss->unlocked=1;OPENSSL_cleanse(secret,sizeof(secret));snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"walletpassphrasehexfor\",\"result\":{\"wallet\":\"%s\",\"unlocked\":true,\"verified\":true}}\n",args[1]);return 0;}
+    if(!strcmp(args[0], "walletsessionstatusfor") && argc >= 2){QrxSignerSession*ss=signer_session(args[1],0);snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"walletsessionstatusfor\",\"result\":{\"wallet\":\"%s\",\"unlocked\":%s}}\n",args[1],(ss&&ss->unlocked)?"true":"false");return 0;}
     if(!strcmp(args[0], "walletlockfor") && argc >= 2){QrxSignerSession*ss=signer_session(args[1],0);if(ss){OPENSSL_cleanse(ss->secret,sizeof(ss->secret));ss->unlocked=0;}snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"walletlockfor\",\"result\":{\"locked\":true}}\n");return 0;}
+    /* 0.0.9.74: legacy global unlock must never claim success without
+     * verifying the active wallet key. Keep the RPC for compatibility, but
+     * route it through the same signer verification/session semantics as the
+     * wallet-specific command. */
     if(!strcmp(args[0], "walletpassphrasehex") && argc >= 2){
-        char secret[1024];
-        if(!strcmp(args[1], "-")) secret[0]=0;
-        else if(qrx_hex_decode_text(args[1], secret, sizeof(secret)) != 0){ json_error(resp, resp_sz, "walletpassphrasehex", "invalid passphrase encoding"); return 0; }
-        if(qrx_set_env("QRX_PASSPHRASE", secret, 1) != 0){ memset(secret,0,sizeof(secret)); json_error(resp, resp_sz, "walletpassphrasehex", "could not update wallet session"); return 0; }
-        memset(secret,0,sizeof(secret));
-        snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"walletpassphrasehex\",\"result\":{\"unlocked\":true}}\n");
-        return 0;
+        char secret[256]={0};
+        const char *active_wallet=strrchr(g_wdir,'/'); active_wallet=active_wallet?active_wallet+1:g_wdir;
+        if(!signer_wallet_name_safe(active_wallet)){json_error(resp,resp_sz,"walletpassphrasehex","active wallet name invalid");return 0;}
+        if(strcmp(args[1],"-") && qrx_hex_decode_text(args[1],secret,sizeof(secret))!=0){json_error(resp,resp_sz,"walletpassphrasehex","invalid passphrase encoding");return 0;}
+        if(signer_verify_secret(active_wallet,secret)!=0){OPENSSL_cleanse(secret,sizeof(secret));json_error(resp,resp_sz,"walletpassphrasehex","incorrect passphrase");return 0;}
+        QrxSignerSession*ss=signer_session(active_wallet,1); if(!ss){OPENSSL_cleanse(secret,sizeof(secret));json_error(resp,resp_sz,"walletpassphrasehex","signer session limit reached");return 0;}
+        OPENSSL_cleanse(ss->secret,sizeof(ss->secret));snprintf(ss->secret,sizeof(ss->secret),"%s",secret);ss->unlocked=1;OPENSSL_cleanse(secret,sizeof(secret));
+        snprintf(resp,resp_sz,"{\"ok\":true,\"method\":\"walletpassphrasehex\",\"result\":{\"wallet\":\"%s\",\"unlocked\":true,\"verified\":true}}\n",active_wallet);return 0;
     }
     if(!strcmp(args[0], "walletlock")){
+        const char *active_wallet=strrchr(g_wdir,'/'); active_wallet=active_wallet?active_wallet+1:g_wdir;
+        QrxSignerSession*ss=signer_session(active_wallet,0);if(ss){OPENSSL_cleanse(ss->secret,sizeof(ss->secret));ss->unlocked=0;}
         qrx_set_env("QRX_PASSPHRASE", "", 1);
         snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"walletlock\",\"result\":{\"locked\":true}}\n");
         return 0;
@@ -2469,7 +2512,8 @@ static int handle_command(const char *cmdline, char *resp, size_t resp_sz){
 
 int main(int argc, char **argv){
     g_start_time = time(NULL);
-    const char *network="alpha", *datadir=NULL, *wallet="default", *listen_arg=NULL; const char *addnodes[64]; int addnode_count=0; const char *rpc_bind_arg=NULL;
+    const char *network="mainnet", *datadir=NULL, *wallet="default", *listen_arg=NULL; const char *addnodes[64]; int addnode_count=0; const char *rpc_bind_arg=NULL;
+    int wallet_passphrase_source_seen=0;
     for(int i=1;i<argc;++i){
         if(!strcmp(argv[i],"--network")&&i+1<argc) network=argv[++i];
         else if(!strcmp(argv[i],"--datadir")&&i+1<argc) datadir=argv[++i];
@@ -2480,7 +2524,13 @@ int main(int argc, char **argv){
         else if(!strcmp(argv[i],"--allow-remote-rpc")) g_allow_remote_rpc=1;
         else if(!strcmp(argv[i],"--rpc-user")&&i+1<argc) snprintf(g_rpc_user,sizeof(g_rpc_user),"%s",argv[++i]);
         else if(!strcmp(argv[i],"--rpc-password")&&i+1<argc) snprintf(g_rpc_password,sizeof(g_rpc_password),"%s",argv[++i]);
-        else if(!strcmp(argv[i],"--wallet-passphrase")&&i+1<argc) snprintf(g_wallet_passphrase,sizeof(g_wallet_passphrase),"%s",argv[++i]);
+        else if(!strcmp(argv[i],"--wallet-passphrase")&&i+1<argc) {
+            if(wallet_passphrase_source_seen++){ fprintf(stderr,"Specify only one wallet passphrase source.\n"); return 1; }
+            fprintf(stderr,"WARNING: --wallet-passphrase exposes the wallet secret in the process argument list. Prefer --wallet-passphrase-file or --wallet-passphrase-stdin. This value is a wallet unlock passphrase, NOT recovery words.\n");
+            snprintf(g_wallet_passphrase,sizeof(g_wallet_passphrase),"%s",argv[++i]);
+        }
+        else if(!strcmp(argv[i],"--wallet-passphrase-file")&&i+1<argc) { if(wallet_passphrase_source_seen++){ fprintf(stderr,"Specify only one wallet passphrase source.\n"); return 1; } if(load_wallet_passphrase_file(argv[++i])!=0) return 1; }
+        else if(!strcmp(argv[i],"--wallet-passphrase-stdin")) { if(wallet_passphrase_source_seen++){ fprintf(stderr,"Specify only one wallet passphrase source.\n"); return 1; } if(load_wallet_passphrase_stdin()!=0) return 1; }
         else if(!strcmp(argv[i],"--no-wallet-passphrase-default")) g_wallet_passphrase_default_disabled = 1;
         else if(!strcmp(argv[i],"--blocktime")&&i+1<argc) { g_blocktime_override_set=1; g_blocktime_seconds=atoi(argv[++i]); if(g_blocktime_seconds<1) g_blocktime_seconds=1; }
         else if(!strcmp(argv[i],"--commission-bps")&&i+1<argc) { g_commission_override_set=1; g_commission_bps=atoll(argv[++i]); if(g_commission_bps<0) g_commission_bps=0; if(g_commission_bps>10000) g_commission_bps=10000; }

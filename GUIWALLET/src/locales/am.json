@@ -336,7 +336,7 @@
   "wallet.auto.c05d1196b1d6": "QRX አንድ synchronized ያስጀምራል",
   "wallet.auto.d3d40d47ac02": "qrxd",
   "wallet.auto.6b731bf07e4c": "/ P2P / QRXDB runtimeን እና እያንዳንዱን Validator-Mode wallet እንደ ተለየ signer identity ይጭናል። እሱ",
-  "wallet.auto.77c20fd45de7": "50 daemons አያስጀምርም። Proposal signing በusable identities መካከል ይዞራል እና ሁሉም usable fleet identities በተመሳሳይ proposal ላይ vote ማድረግ ይችላሉ። ምንም auto-staked የለም። Fleet wallets በcurrent validator session passphrase ሊከፈቱ መቻል አለባቸው፤ locked ወይ under-staked identity ሙሉ nodeን ከማቆም ይልቅ ይዘለላል።",
+  "wallet.auto.77c20fd45de7": "one daemon per validator አያስጀምርም። Proposal signing በusable identities መካከል ይዞራል እና ሁሉም usable fleet identities በተመሳሳይ proposal ላይ vote ማድረግ ይችላሉ። ምንም auto-staked የለም። Fleet wallets በcurrent validator session passphrase ሊከፈቱ መቻል አለባቸው፤ locked ወይ under-staked identity ሙሉ nodeን ከማቆም ይልቅ ይዘለላል።",
   "wallet.auto.600a8ded9e9d": "Transactions እና Ledger",
   "wallet.auto.5c9c30ef1e67": "QUB + BTC activity በአንድ ቦታ።",
   "wallet.auto.892ba528c8a5": "History read-only ነው። Activityን ለመመርመር filters ይጠቀሙ፤ CSV export seeds፣ private keys ወይ passphrasesን አይexport አያደርግም።",

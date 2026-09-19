@@ -501,7 +501,7 @@ else()
   message(STATUS "QRX Upscaler: libpng not found, PPM/PGM only")
 endif()
 
-add_executable(qrx-upscaler src/apps/qrx_upscaler.c src/apps/qrx_upscaler_capabilities.c src/apps/qrx_upscaler_main.c)
+add_executable(qrx-upscaler src/apps/qrx_upscaler.c src/apps/qrx_upscaler_capabilities.c src/apps/qrx_upscaler_ai.c src/apps/qrx_upscaler_main.c)
 target_include_directories(qrx-upscaler PRIVATE src)
 if(CMAKE_DL_LIBS)
   target_link_libraries(qrx-upscaler PRIVATE ${CMAKE_DL_LIBS})

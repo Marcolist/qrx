@@ -336,7 +336,7 @@
   "wallet.auto.c05d1196b1d6": "QRX start één gesynchroniseerde",
   "wallet.auto.d3d40d47ac02": "qrxd",
   "wallet.auto.6b731bf07e4c": "/ P2P / QRXDB-runtime en laadt elke wallet in Validatormodus als afzonderlijke ondertekenidentiteit. Het start",
-  "wallet.auto.77c20fd45de7": "geen 50 daemons. Voorstelondertekening roteert over bruikbare identiteiten en alle bruikbare fleet-identiteiten kunnen over hetzelfde voorstel stemmen. Er wordt niets automatisch gestaket. Fleet-wallets moeten ontgrendelbaar zijn met de wachtwoordzin van de huidige validatorsessie; een vergrendelde of onvoldoende gestakete identiteit wordt overgeslagen in plaats van de hele node te blokkeren.",
+  "wallet.auto.77c20fd45de7": "geen one daemon per validator. Voorstelondertekening roteert over bruikbare identiteiten en alle bruikbare fleet-identiteiten kunnen over hetzelfde voorstel stemmen. Er wordt niets automatisch gestaket. Fleet-wallets moeten ontgrendelbaar zijn met de wachtwoordzin van de huidige validatorsessie; een vergrendelde of onvoldoende gestakete identiteit wordt overgeslagen in plaats van de hele node te blokkeren.",
   "wallet.auto.600a8ded9e9d": "Transacties & grootboek",
   "wallet.auto.5c9c30ef1e67": "QUB- en BTC-activiteit op één plek.",
   "wallet.auto.892ba528c8a5": "Geschiedenis is alleen-lezen. Gebruik filters om activiteit te bekijken; CSV-export exporteert nooit seeds, privésleutels of wachtwoordzinnen.",

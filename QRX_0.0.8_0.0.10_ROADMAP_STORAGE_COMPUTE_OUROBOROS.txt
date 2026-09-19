@@ -4609,7 +4609,7 @@ GENESIS FREEZE TOKENOMICS HARDENING — 2026-09-11 [DONE]
 - Sanitizer linker propagation for later-added test targets fixed.
 
 ================================================================
-QRX UPSCALER (Apps) - roadmap target, not implemented in 0.0.9
+QRX UPSCALER (Apps) - local AI foundation implemented through 0.0.9.58
 ================================================================
 AI image upscaling; video is split into single frames, upscaled as a
 batch and reassembled. Runs locally on the verified AURA runtime, or
@@ -4624,3 +4624,68 @@ Activation architecture and tokenomics unchanged.
 
 Full specification and binding security requirements:
 QRX_UPSCALER_ROADMAP_0.0.9.md
+
+0.0.10.32 – CONFIDENTIAL COMPUTE / FULLY HOMOMORPHIC ENCRYPTION (FHE) [ROADMAP]
+
+Ziel:
+QRX Drive und QRX Compute sollen perspektivisch Workloads erlauben, bei denen
+geeignete Berechnungen auf verschluesselten Nutzerdaten ausgefuehrt werden,
+ohne dass ein Compute-Provider den Klartext oder den geheimen
+Entschluesselungsschluessel erhaelt.
+
+Architektur:
+
+Client plaintext
+  -> client-side encryption / QRX Drive PRIVATE_PQ object
+  -> FHE job envelope + ciphertext references
+  -> QRX Compute provider executes supported encrypted circuit/model segment
+  -> encrypted result + proof/commitment
+  -> client-side decryption
+
+Binding requirements:
+- FHE ist zusaetzlich zur bestehenden clientseitigen QRX-Drive-Verschluesselung;
+  normale Drive-Verschluesselung allein erlaubt keine Berechnung auf Ciphertext.
+- Bevorzugt werden lattice-basierte, offen spezifizierte FHE-Schemata/Runtimes
+  mit dokumentierten Post-Quantum-Sicherheitsparametern. Kandidaten wie CKKS,
+  BFV/BGV oder TFHE sind erst nach konkreter Parameter-, Lizenz- und
+  Kryptographiepruefung zulaessig; der Name eines Schemas allein ist kein
+  Quantum-Security-Nachweis.
+- Kein Provider bekommt den geheimen Client-Schluessel. Evaluation Keys werden
+  minimal, jobspezifisch und capability-gebunden ausgegeben.
+- Ciphertext, Evaluation Keys, Job Graph, chain_id, protocol/version und
+  Input-/Output-Roots werden kryptographisch aneinander gebunden.
+- Keine stille Fallback-Entschluesselung beim Provider. Nicht unterstuetzte Jobs
+  muessen fail-closed bleiben oder ausdruecklich in einen nicht-FHE Modus wechseln,
+  den der Nutzer separat bestaetigt.
+- FHE-Jobs laufen im bestehenden Secure Execution Sandbox / Compute Job / Escrow /
+  PoUC-Rahmen und erzeugen keine neuen QUB-Emissionen.
+- QRX Drive speichert Ciphertexts und versionierte Content Roots; Revisionen
+  bleiben immutable referenzierbar und kryptographisch pruefbar.
+- Metadata Leakage (Dateigroesse, Jobdauer, Access Pattern, Modell-/Circuit-ID)
+  wird separat modelliert; FHE wird nicht als vollstaendige Traffic-/Metadaten-
+  Anonymisierung dargestellt.
+
+Phased delivery:
+1. FHE capability registry + benchmark harness + deterministic test vectors.
+2. Encrypted scalar/vector demo jobs; client key lifecycle and recovery policy.
+3. CKKS/BFV/BGV/TFHE candidate evaluation with audited security parameters.
+4. Partial encrypted inference for explicitly supported model segments.
+5. Hybrid confidential pipeline (FHE where practical, local execution where
+   decryption would otherwise be required) with explicit user-visible boundary.
+6. Only after independent cryptographic/security audit: production activation
+   through normal QRX governance/readiness gates.
+
+Acceptance gates:
+- Provider never observes plaintext in an FHE-marked job.
+- Secret key never leaves the user's trusted client boundary.
+- Known-answer vectors match across supported architectures.
+- Parameter sets have documented security estimates and minimum target security.
+- Resource amplification (RAM/CPU/network/ciphertext expansion) is benchmarked
+  and bounded before market quotes are accepted.
+- Malformed ciphertext/evaluation-key fuzzing cannot crash provider/node/wallet.
+- No downgrade from FHE to plaintext without explicit user consent.
+- Result provenance/version roots remain compatible with QRX Drive revisions.
+
+Status:
+ROADMAP ONLY. No claim is made that 0.0.9 or current 0.0.10 source can already
+run arbitrary AI inference fully homomorphically.

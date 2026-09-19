@@ -17,6 +17,7 @@
   #include <winsock2.h>
   #include <ws2tcpip.h>
   #include <windows.h>
+  #include <conio.h>
   #ifndef PATH_MAX
     #define PATH_MAX MAX_PATH
   #endif
@@ -35,8 +36,56 @@
   #include <arpa/inet.h>
   #include <netinet/in.h>
   #include <unistd.h>
+  #include <termios.h>
   static void qrx_wsa_init_once(void) { }
 #endif
+
+/* Human-facing wallet unlock. The user types the normal passphrase; qrx-cli
+ * converts it to the daemon's hex transport internally. The secret is never
+ * placed in argv and terminal echo is disabled while it is entered. */
+static int qrx_read_hidden_passphrase(char *out, size_t out_sz) {
+    if(!out || out_sz < 2) return -1;
+    memset(out, 0, out_sz);
+    fprintf(stderr, "Wallet passphrase: ");
+    fflush(stderr);
+#ifdef _WIN32
+    size_t n = 0;
+    for(;;) {
+        int ch = _getch();
+        if(ch == '\r' || ch == '\n') break;
+        if((ch == '\b' || ch == 127) && n) { n--; continue; }
+        if(ch == 3) { fprintf(stderr, "\n"); return -1; }
+        if(ch >= 32 && n + 1 < out_sz) out[n++] = (char)ch;
+    }
+    out[n] = 0;
+    fprintf(stderr, "\n");
+    return 0;
+#else
+    struct termios oldt, newt;
+    int tty = isatty(STDIN_FILENO);
+    if(tty) {
+        if(tcgetattr(STDIN_FILENO, &oldt) != 0) return -1;
+        newt = oldt; newt.c_lflag &= (tcflag_t)~ECHO;
+        if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &newt) != 0) return -1;
+    }
+    if(!fgets(out, (int)out_sz, stdin)) {
+        if(tty) tcsetattr(STDIN_FILENO, TCSAFLUSH, &oldt);
+        fprintf(stderr, "\n"); return -1;
+    }
+    if(tty) tcsetattr(STDIN_FILENO, TCSAFLUSH, &oldt);
+    fprintf(stderr, "\n");
+    out[strcspn(out, "\r\n")] = 0;
+    return 0;
+#endif
+}
+
+static int qrx_hex_encode_secret(const char *secret, char *hex, size_t hex_sz) {
+    static const char d[]="0123456789abcdef";
+    size_t n = secret ? strlen(secret) : 0;
+    if(hex_sz < n*2+1) return -1;
+    for(size_t i=0;i<n;i++){ unsigned char c=(unsigned char)secret[i]; hex[i*2]=d[c>>4]; hex[i*2+1]=d[c&15]; }
+    hex[n*2]=0; return 0;
+}
 
 #ifndef PATH_MAX
   #define PATH_MAX 4096
@@ -79,17 +128,17 @@ static const char *qrx_detect_network(char *buf, size_t buf_sz) {
     }
     qrx_global_state_path(path, sizeof(path), "current_network");
     if(qrx_read_file_first_line(path, buf, buf_sz) == 0) return buf;
-    snprintf(buf, buf_sz, "alpha");
+    snprintf(buf, buf_sz, "mainnet");
     return buf;
 }
 
 static int qrx_control_port_for_network(const char *network) {
-    if (!network || !*network) return 37661;
+    if (!network || !*network) return 37660;
     if (!strcmp(network, "mainnet")) return 37660;
     if (!strcmp(network, "alpha")) return 37661;
     if (!strcmp(network, "testnet")) return 37662;
     if (!strcmp(network, "regtest")) return 37663;
-    return 37661;
+    return 37660;
 }
 
 static char g_rpc_user[128] = "";
@@ -131,7 +180,7 @@ static void make_auth_header(char *out, size_t out_sz) {
 }
 
 static void usage(void){
-    puts("qrx-cli [--network <alpha|testnet|regtest|mainnet>] [--datadir PATH] [--wallet NAME] [--rpc-user USER] [--rpc-password PASS] <command>\nCommands: getinfo|getnewaddress|listaddresses|getbalance [addr]|getaddressnonce <addr> [lane]|getnoncelanes <addr>|getagent <agent>|listagents [owner]|getagentlimits <agent>|getorder <order_id>|listorders [owner_or_agent] [status]|gettrade <trade_id>|listtrades [market] [limit]|getorderbook <market> [depth]|getassetbalance <asset> [address]|listassets|getassetinfo <asset>|getassettag <qualifier> <address>|getassetrestriction <asset> <address>|getassetburnedfees|gettradinginfo|getgateway <gateway>|listgateways [venue]|getexecutionreport <report_id>|getstateroot|getsettlement <trade_id>|getcrosschaininfo|getcrosschainswap <session_id>|listcrosschainswaps [status]|getcrosschainorderbook [depth]|getbtchtlctemplate <hashlock_hex> <buyer_btc_pubkey_hex> <seller_btc_refund_pubkey_hex> <csv_blocks> [mainnet|testnet|regtest]|getbtcspvinfo|getbtcbestheader|getbtcheader <hash|height>|verifybtcproof <txid> <block_hash> <tx_index> <branch_csv>|getbtcconfirmations <txid>|verifycrosschainfunding <session_id> <rawtx_hex> <block_hash> <tx_index> <branch_csv>|getcrosschainfunding <session_id>|getcrosschainsecurity <session_id>|getvelocityinfo|getvelocityengineinfo|getresourcedashboard|getresourceatlas|getaurafabric|getauraatlas|listauramodels|gethostingmissions|getdomainpreflight <name.qrx> [years]|registerdomain <name.qrx> <years> [qub_address]|renewdomain <name.qrx> <years>|updatedomain <name.qrx> <KEEP|SET|CLEAR> <qub|-> <KEEP|SET|CLEAR> <web_root_hex|-> <KEEP|SET|CLEAR> <WALLET|publishing_commitment_hex|->|transferdomain <name.qrx> <new_owner>|listdomains [owner]|getdomainhistory <name.qrx>|getadpolicy|getadcampaign <campaign_id>|getadrewards|createadcampaign <id> <target_url> <creative_root_hex> <start_height> <end_height> <cost_per_impression_atoms> <budget_atoms> [category]|claimadrewards|prepareqrxsite <name.qrx> <folder>|getqrxsitepublish <name.qrx> <version>|listqrxsiteversions <name.qrx>|rollbackqrxsite <name.qrx> <version>|advanceqrxsite <name.qrx> <version> [epochs] [rate_atoms_per_gib_epoch]|getdomain <name.qrx>|resolvebrowserinput <url-or-name>|fetchqrxsite <name.qrx> [path]|listdrivefiles [owner]|getdrivefilehealth <contract_id>|getdriveshardroutes <contract_id>|getdrivepqstatus|preparedriveupload <source> <STANDARD|FAST|ARCHIVE>|startpreparedriveupload <contract_id> <prepare_id>|advancepreparedriveupload <prepare_id> [epochs] [rate_atoms_per_gib_epoch]|decryptdrivefile <encrypted-container> <destination>|startdrivedownload <contract_id> <destination>|startdriveupload <contract_id> <source>|getdrivetransfer <transfer_id>|listdrivetransfers|pausedrivetransfer <transfer_id>|resumedrivetransfer <transfer_id>|canceldrivetransfer <transfer_id>|getblockcount|getblockchaininfo|getnetworkinfo|getnodestatus|getmainnethealth|getdriveactivationreadiness|getprotocolreadiness <FEATURE_FLAG>|getuptime|getbuildinfo|getmempoolinfo|getrecentblocks [limit]|getrecenttransactions [limit]|getvalidatorstatus|getblockproducerinfo|setvalidatorfleet <wallet1,wallet2,...|->|getfeeinfo|getpeerinfo|getstakinginfo|getwalletinfo|walletpassphrasehex <hex|->|walletpassphrasehexfor <wallet> <hex|->|walletlock|walletlockfor <wallet>|getreward [height]|getparams [height]|getprotocolinfo [height]|gethalving [height]|getforks|getactivefork [height]|createrawtransaction <from> <to> <amount> <ed25519_pub_hex> <mldsa65_pub_b64> [memo] [fee] [nonce]|createvelocitytransaction <from> <to> <amount> <ed25519_pub_hex> <mldsa65_pub_b64> <tx_type> <lane_id> <expiry_height> <payload> [fee] [nonce]|createagentregistertransaction <owner> <agent> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createagentupdatetransaction <owner> <agent> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createagentrevoketransaction <owner> <agent> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createordertransaction <agent> <owner> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createexternalordertransaction <agent> <owner> <venue> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|creategatewayregistertransaction <authority> <gateway> <venue> <name> <gateway_ed_pub_hex> <gateway_mldsa65_pub_b64> <gateway_expires_height> <authority_ed_pub_hex> <authority_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|creategatewayrevoketransaction <authority> <gateway> <authority_ed_pub_hex> <authority_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createexecutionreporttransaction <gateway> <owner> <order_id> <SUBMITTED|PARTIALLY_FILLED|FILLED|REJECTED|CANCELED> <filled_quantity_atoms> <avg_price_atoms> <venue_fee_atoms> <venue_order_id> <report_sequence> <gateway_ed_pub_hex> <gateway_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainbuytransaction <agent> <owner> <btc_sats> <max_qub_per_btc_atoms> <order_expiry_height> <hashlock_hex> <btc_receive_pubkey_hex> <qrx_refund_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainselltransaction <agent> <owner> <btc_sats> <min_qub_per_btc_atoms> <order_expiry_height> <btc_refund_pubkey_hex> <btc_refund_csv_blocks> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainredeemtransaction <seller_owner> <session_id> <secret_hex> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainrefundtransaction <buyer_owner> <session_id> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createbtcspvheadertransaction <address> <header_hex> <ed_pub_hex> <mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createbtcspvfundingprooftransaction <address> <session_id> <rawtx_hex> <block_hash> <tx_index> <branch_csv> <ed_pub_hex> <mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createordercanceltransaction <agent> <owner> <order_id> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createorderreplacetransaction <agent> <owner> <order_id> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|signrawtransactionwithwallet <rawtxfile> <signedtxfile>|decoderawtransaction <txfile>|gettxid <txfile>|sendtoaddress <addr> <amount> [memo]|sendfromaddress <source> <addr> <amount> [memo]|sendrawtransaction <txfile>|history [addr] [limit]|addnode <host:port>|listpeers|peerstatus|banscores|stake <amount>|delegate <validator> <amount>|undelegate <validator> <amount>|claim-undelegated <validator>|validator-set|tokenomics|getdevaddress|faucet <addr> <amount>|createswap <recipient> <amount> <hashlock_hex> <timelock_seconds> [memo]|redeemswap <swap_id> <secret>|refundswap <swap_id>|getswap <swap_id>|listswaps|shielded-address|shield <amount> [shielded_address]|shielded-balance|shielded-send <shielded_address> <amount>|unshield <transparent_address> <amount>|shielded-history|stealth-address|stealth-send <stealth_address> <amount> [memo]|stealth-scan|stealth-spend <tx_id> <transparent_address> <amount>|stealth-history|privacy-feature-status|stop");
+    puts("qrx-cli [--network <alpha|testnet|regtest|mainnet>] [--datadir PATH] [--wallet NAME] [--rpc-user USER] [--rpc-password PASS] <command>\nCommands: getinfo|getnewaddress|listaddresses|getbalance [addr]|getaddressnonce <addr> [lane]|getnoncelanes <addr>|getagent <agent>|listagents [owner]|getagentlimits <agent>|getorder <order_id>|listorders [owner_or_agent] [status]|gettrade <trade_id>|listtrades [market] [limit]|getorderbook <market> [depth]|getassetbalance <asset> [address]|listassets|getassetinfo <asset>|getassettag <qualifier> <address>|getassetrestriction <asset> <address>|getassetburnedfees|gettradinginfo|getgateway <gateway>|listgateways [venue]|getexecutionreport <report_id>|getstateroot|getsettlement <trade_id>|getcrosschaininfo|getcrosschainswap <session_id>|listcrosschainswaps [status]|getcrosschainorderbook [depth]|getbtchtlctemplate <hashlock_hex> <buyer_btc_pubkey_hex> <seller_btc_refund_pubkey_hex> <csv_blocks> [mainnet|testnet|regtest]|getbtcspvinfo|getbtcbestheader|getbtcheader <hash|height>|verifybtcproof <txid> <block_hash> <tx_index> <branch_csv>|getbtcconfirmations <txid>|verifycrosschainfunding <session_id> <rawtx_hex> <block_hash> <tx_index> <branch_csv>|getcrosschainfunding <session_id>|getcrosschainsecurity <session_id>|getvelocityinfo|getvelocityengineinfo|getresourcedashboard|getresourceatlas|getaurafabric|getauraatlas|listauramodels|gethostingmissions|getdomainpreflight <name.qrx> [years]|registerdomain <name.qrx> <years> [qub_address]|renewdomain <name.qrx> <years>|updatedomain <name.qrx> <KEEP|SET|CLEAR> <qub|-> <KEEP|SET|CLEAR> <web_root_hex|-> <KEEP|SET|CLEAR> <WALLET|publishing_commitment_hex|->|transferdomain <name.qrx> <new_owner>|listdomains [owner]|getdomainhistory <name.qrx>|getadpolicy|getadcampaign <campaign_id>|getadrewards|createadcampaign <id> <target_url> <creative_root_hex> <start_height> <end_height> <cost_per_impression_atoms> <budget_atoms> [category]|claimadrewards|prepareqrxsite <name.qrx> <folder>|getqrxsitepublish <name.qrx> <version>|listqrxsiteversions <name.qrx>|rollbackqrxsite <name.qrx> <version>|advanceqrxsite <name.qrx> <version> [epochs] [rate_atoms_per_gib_epoch]|getdomain <name.qrx>|resolvebrowserinput <url-or-name>|fetchqrxsite <name.qrx> [path]|listdrivefiles [owner]|getdrivefilehealth <contract_id>|getdriveshardroutes <contract_id>|getdrivepqstatus|preparedriveupload <source> <STANDARD|FAST|ARCHIVE>|startpreparedriveupload <contract_id> <prepare_id>|advancepreparedriveupload <prepare_id> [epochs] [rate_atoms_per_gib_epoch]|decryptdrivefile <encrypted-container> <destination>|startdrivedownload <contract_id> <destination>|startdriveupload <contract_id> <source>|getdrivetransfer <transfer_id>|listdrivetransfers|pausedrivetransfer <transfer_id>|resumedrivetransfer <transfer_id>|canceldrivetransfer <transfer_id>|getblockcount|getblockchaininfo|getnetworkinfo|getnodestatus|getmainnethealth|getdriveactivationreadiness|getprotocolreadiness <FEATURE_FLAG>|getuptime|getbuildinfo|getmempoolinfo|getrecentblocks [limit]|getrecenttransactions [limit]|getvalidatorstatus|getblockproducerinfo|setvalidatorfleet <wallet1,wallet2,...|->|getfeeinfo|getpeerinfo|getstakinginfo|getwalletinfo|walletpassphrase (secure interactive prompt)|walletpassphrasehex <hex|-> [advanced]|walletpassphrasehexfor <wallet> <hex|-> [advanced]|walletsessionstatusfor <wallet>|walletlock|walletlockfor <wallet>|getreward [height]|getparams [height]|getprotocolinfo [height]|gethalving [height]|getforks|getactivefork [height]|createrawtransaction <from> <to> <amount> <ed25519_pub_hex> <mldsa65_pub_b64> [memo] [fee] [nonce]|createvelocitytransaction <from> <to> <amount> <ed25519_pub_hex> <mldsa65_pub_b64> <tx_type> <lane_id> <expiry_height> <payload> [fee] [nonce]|createagentregistertransaction <owner> <agent> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createagentupdatetransaction <owner> <agent> <permissions> <max_trade_atoms> <daily_limit_atoms> <market_allowlist> <agent_expires_height> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createagentrevoketransaction <owner> <agent> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createordertransaction <agent> <owner> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createexternalordertransaction <agent> <owner> <venue> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|creategatewayregistertransaction <authority> <gateway> <venue> <name> <gateway_ed_pub_hex> <gateway_mldsa65_pub_b64> <gateway_expires_height> <authority_ed_pub_hex> <authority_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|creategatewayrevoketransaction <authority> <gateway> <authority_ed_pub_hex> <authority_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createexecutionreporttransaction <gateway> <owner> <order_id> <SUBMITTED|PARTIALLY_FILLED|FILLED|REJECTED|CANCELED> <filled_quantity_atoms> <avg_price_atoms> <venue_fee_atoms> <venue_order_id> <report_sequence> <gateway_ed_pub_hex> <gateway_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainbuytransaction <agent> <owner> <btc_sats> <max_qub_per_btc_atoms> <order_expiry_height> <hashlock_hex> <btc_receive_pubkey_hex> <qrx_refund_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainselltransaction <agent> <owner> <btc_sats> <min_qub_per_btc_atoms> <order_expiry_height> <btc_refund_pubkey_hex> <btc_refund_csv_blocks> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainredeemtransaction <seller_owner> <session_id> <secret_hex> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createcrosschainrefundtransaction <buyer_owner> <session_id> <owner_ed_pub_hex> <owner_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createbtcspvheadertransaction <address> <header_hex> <ed_pub_hex> <mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createbtcspvfundingprooftransaction <address> <session_id> <rawtx_hex> <block_hash> <tx_index> <branch_csv> <ed_pub_hex> <mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createordercanceltransaction <agent> <owner> <order_id> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|createorderreplacetransaction <agent> <owner> <order_id> <market> <BUY|SELL> <LIMIT|MARKET> <quantity_atoms> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]|signrawtransactionwithwallet <rawtxfile> <signedtxfile>|decoderawtransaction <txfile>|gettxid <txfile>|sendtoaddress <addr> <amount> [memo]|sendfromaddress <source> <addr> <amount> [memo]|sendrawtransaction <txfile>|history [addr] [limit]|addnode <host:port>|listpeers|peerstatus|banscores|stake <amount>|delegate <validator> <amount>|undelegate <validator> <amount>|claim-undelegated <validator>|validator-set|tokenomics|getdevaddress|faucet <addr> <amount>|createswap <recipient> <amount> <hashlock_hex> <timelock_seconds> [memo]|redeemswap <swap_id> <secret>|refundswap <swap_id>|getswap <swap_id>|listswaps|shielded-address|shield <amount> [shielded_address]|shielded-balance|shielded-send <shielded_address> <amount>|unshield <transparent_address> <amount>|shielded-history|stealth-address|stealth-send <stealth_address> <amount> [memo]|stealth-scan|stealth-spend <tx_id> <transparent_address> <amount>|stealth-history|privacy-feature-status|stop");
     puts("Phase 4F.2: createarbitragehedgetransaction <agent> <owner> <matched_crosschain_buy_order_id> <arbitrage_id> <quantity_sats> <limit_price_atoms> <order_expiry_height> <agent_ed_pub_hex> <agent_mldsa65_pub_b64> <lane_id> <tx_expiry_height> [fee] [nonce]");
     puts("Complete history: the local Core reader accepts `qrx list-trades <chain-dir> * all`; use qrx-wallet-cli export-ledger for an unbounded verified CSV export");
 }
@@ -379,9 +428,18 @@ int main(int argc,char **argv){
     else if(!strcmp(argv[cmdi],"getpeerinfo")) snprintf(cmd,sizeof(cmd),"getpeerinfo\n");
     else if(!strcmp(argv[cmdi],"getstakinginfo")) snprintf(cmd,sizeof(cmd),"getstakinginfo\n");
     else if(!strcmp(argv[cmdi],"getwalletinfo")) snprintf(cmd,sizeof(cmd),"getwalletinfo\n");
+    else if(!strcmp(argv[cmdi],"walletpassphrase")) {
+        char secret[256], hex[512];
+        if(cmdi+1<argc){ fprintf(stderr,"walletpassphrase takes no argument. Enter the passphrase only at the hidden prompt.\n"); return 1; }
+        if(qrx_read_hidden_passphrase(secret,sizeof(secret))!=0){ fprintf(stderr,"Could not read wallet passphrase securely.\n"); return 1; }
+        if(qrx_hex_encode_secret(secret,hex,sizeof(hex))!=0){ memset(secret,0,sizeof(secret)); fprintf(stderr,"Wallet passphrase is too long.\n"); return 1; }
+        snprintf(cmd,sizeof(cmd),"walletpassphrasehexfor %s %s\n", wallet, hex[0]?hex:"-");
+        memset(secret,0,sizeof(secret)); memset(hex,0,sizeof(hex));
+    }
     else if(!strcmp(argv[cmdi],"walletpassphrasehex") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"walletpassphrasehex %s\n", argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"walletpassphrasehexfor") && cmdi+2<argc) snprintf(cmd,sizeof(cmd),"walletpassphrasehexfor %s %s\n", argv[cmdi+1],argv[cmdi+2]);
-    else if(!strcmp(argv[cmdi],"walletlock")) snprintf(cmd,sizeof(cmd),"walletlock\n");
+    else if(!strcmp(argv[cmdi],"walletsessionstatusfor") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"walletsessionstatusfor %s\n",argv[cmdi+1]);
+    else if(!strcmp(argv[cmdi],"walletlock")) snprintf(cmd,sizeof(cmd),"walletlockfor %s\n",wallet);
     else if(!strcmp(argv[cmdi],"walletlockfor") && cmdi+1<argc) snprintf(cmd,sizeof(cmd),"walletlockfor %s\n",argv[cmdi+1]);
     else if(!strcmp(argv[cmdi],"history")) {
         if(cmdi+2<argc) snprintf(cmd,sizeof(cmd),"history %s %s\n", argv[cmdi+1], argv[cmdi+2]);

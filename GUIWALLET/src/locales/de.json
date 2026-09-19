@@ -336,7 +336,7 @@
   "wallet.auto.c05d1196b1d6": "QRX startet einen synchronisierten",
   "wallet.auto.d3d40d47ac02": "qrxd",
   "wallet.auto.6b731bf07e4c": "/ P2P / QRXDB-Laufzeit und lädt jede Wallet im Validator-Modus als eigene Signierer-Identität. Sie startet nicht",
-  "wallet.auto.77c20fd45de7": "50 Daemons. Das Signieren von Vorschlägen rotiert zwischen nutzbaren Identitäten; alle nutzbaren Flotten-Identitäten können über denselben Vorschlag abstimmen. Es wird nichts automatisch gestakt. Flotten-Wallets müssen mit der Passphrase der aktuellen Validator-Sitzung entsperrbar sein; gesperrte oder unzureichend gestakte Identitäten werden übersprungen, statt die gesamte Node anzuhalten.",
+  "wallet.auto.77c20fd45de7": "60 Bootstrap-Validator-Adressen; nicht 60 Daemons. Das Signieren von Vorschlägen rotiert zwischen nutzbaren Identitäten; alle nutzbaren Flotten-Identitäten können über denselben Vorschlag abstimmen. Es wird nichts automatisch gestakt. Flotten-Wallets müssen mit der Passphrase der aktuellen Validator-Sitzung entsperrbar sein; gesperrte oder unzureichend gestakte Identitäten werden übersprungen, statt die gesamte Node anzuhalten.",
   "wallet.auto.600a8ded9e9d": "Transaktions & Ledger",
   "wallet.auto.5c9c30ef1e67": "QUB- und BTC-Aktivitäten an einem Ort.",
   "wallet.auto.892ba528c8a5": "Der Verlauf ist schreibgeschützt. Filter dienen nur zur Auswertung; ein CSV-Export enthält niemals Seeds, private Schlüssel oder Passphrasen.",
