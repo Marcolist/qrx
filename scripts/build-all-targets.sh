@@ -463,37 +463,15 @@ else
   echo "Warning: AURA signed runtime resources not staged (development build; AUTO runtime remains pending)" >&2
 fi
 
-echo "[5.5/9] Staging verified local AI Upscaler bundle for $TARGET"
-AI_BUNDLE_READY=0
+echo "[5.5/9] Staging mandatory verified local AI Upscaler bundle for $TARGET"
 AI_DEST="$WALLET/src-tauri/resources/upscaler"
-if bash "$ROOT/scripts/prepare-upscaler-ai-bundle.sh" "$TARGET" "$AI_DEST"; then
-  bash "$ROOT/scripts/verify-upscaler-ai-bundle.sh" "$AI_DEST" "$TARGET"
-  AI_BUNDLE_READY=1
-else
-  rc=$?
-  rm -rf "$AI_DEST"
-  if [[ "$TARGET" == linux-* ]]; then
-    # QRX 0.0.9.88: the desktop wallet itself must remain buildable on Linux
-    # hosts that cannot build/run the optional local Vulkan AI backend (for
-    # example low-resource ARM boards). Keep a resource marker so Tauri's
-    # resource glob is valid and let runtime capability detection expose AI as
-    # unavailable/pending instead of turning an optional accelerator into a
-    # wallet build blocker.
-    mkdir -p "$AI_DEST"
-    printf '%s
-'       'QRX_AI_BUNDLE_V1'       "target=$TARGET"       'status=unavailable'       'reason=local AI runtime/model bundle could not be prepared on this build host'       > "$AI_DEST/AI_UNAVAILABLE.txt"
-    echo "Warning: local AI bundle unavailable on $TARGET (prepare exit $rc); continuing with GUI wallet without local AI." >&2
-  elif [[ "${QRX_ALLOW_AI_PENDING:-0}" == "1" ]]; then
-    mkdir -p "$AI_DEST"
-    printf '%s
-' 'QRX_AI_BUNDLE_V1' "target=$TARGET" 'status=developer-opt-out' > "$AI_DEST/AI_UNAVAILABLE.txt"
-    echo "Warning: explicit developer opt-out QRX_ALLOW_AI_PENDING=1; AI Upscaler will be unavailable." >&2
-  else
-    echo "Verified AI bundle is mandatory for this distribution target; aborting." >&2
-    echo "For an explicit developer-only build without AI, set QRX_ALLOW_AI_PENDING=1." >&2
-    exit "$rc"
-  fi
-fi
+# QRX 0.0.9.94: GUI release contents no longer depend on the build host having
+# a usable Vulkan/Metal device. The target runtime + reviewed models are always
+# prepared and verified. Hardware capability is evaluated only on the client.
+rm -rf "$AI_DEST"
+bash "$ROOT/scripts/prepare-upscaler-ai-bundle.sh" "$TARGET" "$AI_DEST"
+bash "$ROOT/scripts/verify-upscaler-ai-bundle.sh" "$AI_DEST" "$TARGET"
+[[ ! -e "$AI_DEST/AI_UNAVAILABLE.txt" ]] || { echo "AI_UNAVAILABLE marker is forbidden in GUI release builds" >&2; exit 8; }
 
 echo "[6/9] Building Tauri desktop wallet after its Core dependencies"
 (
@@ -539,7 +517,7 @@ if [[ "$TARGET" == macos-* ]]; then
     if [[ -d "$cand" ]]; then PACKAGED_AI="$cand"; break; fi
   done
   if [[ -z "$PACKAGED_AI" ]]; then
-    if [[ "${QRX_ALLOW_AI_PENDING:-0}" != "1" ]]; then echo "AI resources missing from final .app bundle" >&2; exit 8; fi
+    echo "AI resources missing from final .app bundle" >&2; exit 8
   else
     bash "$ROOT/scripts/verify-upscaler-ai-bundle.sh" "$PACKAGED_AI" "$TARGET"
 
