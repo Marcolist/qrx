@@ -81,12 +81,17 @@ if (-not $PngArchiveOk) {
   Need "git"
   $PngCommit="3061454d980de7d53608f594194cfac722721d2a"
   if (Test-Path $PngGitSource) { Remove-Item -Recurse -Force $PngGitSource }
-  & git clone --filter=blob:none --no-checkout https://github.com/pnggroup/libpng.git $PngGitSource
-  if ($LASTEXITCODE -ne 0) { throw "libpng upstream git clone failed" }
-  & git -C $PngGitSource fetch --depth 1 origin "refs/tags/v$PngVersion:refs/tags/v$PngVersion"
-  if ($LASTEXITCODE -ne 0) { throw "libpng tag fetch failed" }
-  $tagCommit=(& git -C $PngGitSource rev-list -n 1 "v$PngVersion").Trim().ToLowerInvariant()
+  # Clone the exact upstream release tag directly.  Do not reconstruct a
+  # refs/tags ref after clone: PowerShell/string changes in 0.0.9.91 could
+  # accidentally turn v1.6.58 into v/tags/v1.6.58.
+  $PngTag="v$PngVersion"
+  & git clone --filter=blob:none --depth 1 --branch $PngTag --single-branch https://github.com/pnggroup/libpng.git $PngGitSource
+  if ($LASTEXITCODE -ne 0) { throw "libpng upstream tagged clone failed ($PngTag)" }
+  $tagCommit=(& git -C $PngGitSource rev-parse HEAD).Trim().ToLowerInvariant()
+  if ($LASTEXITCODE -ne 0 -or -not $tagCommit) { throw "libpng tagged HEAD resolution failed" }
   if ($tagCommit -ne $PngCommit) { throw "libpng tag commit mismatch`nexpected $PngCommit`nactual   $tagCommit" }
+  $exactTag=(& git -C $PngGitSource describe --tags --exact-match HEAD).Trim()
+  if ($LASTEXITCODE -ne 0 -or $exactTag -ne $PngTag) { throw "libpng checkout is not exact expected tag $PngTag (actual '$exactTag')" }
   & git -C $PngGitSource checkout --detach $PngCommit
   if ($LASTEXITCODE -ne 0) { throw "libpng pinned commit checkout failed" }
 }

@@ -613,6 +613,7 @@ c3a6da0a6148f930c90fe5eec58a6529fdefd81496437b948113ccbc30026974  ./QRX_0.0.9.87
 b130e580ddbc2e211da8eb28aecba3a3efe9989ef72068b901401f64a5cbfa29  ./QRX_0.0.9.89_LINUX_DESKTOP_WINDOWS_LIBPNG_HARDENING.md
 fb172ec2182a97f8803309450e35119d5f2ce1f40b37f4e79604b350e8fbce3b  ./QRX_0.0.9.90_LINUX_TAURI_ABI_WINDOWS_LIBPNG_INTEGRITY.md
 78e86d46424d39c2ced413646b50e16a86f10c86f81330f38080bb213a852c54  ./QRX_0.0.9.91_LEGACY_LINUX_GUI_SOURCE_FALLBACK_DETERMINISTIC_FETCH.md
+340738f68e2d643446dba3a7191e2a17dfcf30067854e11ea5cb5800f8c36a69  ./QRX_0.0.9.92_WINDOWS_LIBPNG_TAG_RESOLUTION_FIX.md
 75af825ed9c0a1e77ebbe51737a37cbf8ee99a47aed3d5d81195db41372bbd02  ./QRX_APP_PLATFORM_0.0.9_0.0.10.md
 345ce11d1dc6a6271f8c6187a3e01e1faab459385e3ea971ca416b41e985ef60  ./QRX_A_TO_Z_DOCUMENTATION_PLAN_0.0.9.49.md
 963c2dc1b5036d361c0959bcd8935253439bd3896c35c3fd888cd0b9e523fcfc  ./QRX_CORE_0.0.7_VELOCITY_TARGET.md
@@ -884,7 +885,7 @@ ef3df65704a4e46462b84e0723db59133a2183a5801fa5d8529e117da5b995b6  ./qrx-core/scr
 feae4736521ce42d4f077f52c877266fe8c711d166bb1eed33e7ff613d14a3cf  ./qrx-core/scripts/build-linux-static.sh
 add37d55ea2df4abf8dd5c528c4787af66f4d11f126261e613ab9d0559ce5d1e  ./qrx-core/scripts/build-macos-static.sh
 94f214a903c7f53731f4d2399451b6b37aafe379e52553d560dacfff613ae755  ./qrx-core/scripts/build-unix-native-deps.sh
-fe4109bfcf66c8710897751c571fd704482bdd084f2b1d375446612ab15baca9  ./qrx-core/scripts/build-windows-x64-static.ps1
+256e6c46bcfeea91a7752a2dc1ac521fa9f0e5786e3dc64557d83170294180a0  ./qrx-core/scripts/build-windows-x64-static.ps1
 bc66646a9c7607155f4fc369527eb271c3e94890e37886cc9fdcd40c9799d8ff  ./qrx-core/scripts/committee_finalize.sh
 fc22e966f8caf815234f7ad5d60d72cdb01ad3c78b6dbc41918f08cfcb9e8c6e  ./qrx-core/scripts/committee_vote.sh
 888c2fad315f5e96c03acd63dee8a43bdbbc72c46b27cf103c8f00e34a10f188  ./qrx-core/scripts/demo_rc6.sh
@@ -1378,6 +1379,7 @@ cf05bb1e689ef76fee380da9640207bbb1a4bfcdcca19a7c591377b91fd8959f  ./scripts/run-
 fc6f35192895dc692f8f5a6c42201df1f388482ceb50803515ac0f9e5882503b  ./scripts/setup-mainnet-governance-vault.sh
 4d4949a721845aef60f72607c027050c169115122fe7c57916fb4508b58ee926  ./scripts/sign-aura-runtime-catalog.py
 a262f00670daa055dee5330802508a459080eaa3e50ecf7d2ad973b91804fb3f  ./scripts/test_00988_headless_ai_fallback.sh
+a3c54f641da226bfecdc1fa9d5204f573032044483890dcbf9e5d8359b1e46f1  ./scripts/test_00992_windows_libpng_tag_resolution.py
 37c369e79bc3a60b06bbaafc1ef7f3e969dfed21337993e00fe2c4ca509e54f9  ./scripts/test_browser_fleet_068.sh
 0a7c036e11c9b184966dc63fcc8b5ea0c3f75db069b1545ef81cd76f657e4fe7  ./scripts/test_command_center_policy_00971.py
 20934046be9a8e19084536a2715add59898ac1af0024cdc89b75246b35656c3d  ./scripts/test_generals_phase63.sh
