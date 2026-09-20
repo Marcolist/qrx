@@ -73,3 +73,14 @@ Outputs are placed in `dist/`. Every archive contains `manifest.json` and `SHA25
 The complete matrix additionally produces `dist/qrx-0.0.7-linux-arm64.zip`. Linux builds are deliberately native: selecting `linux-arm64` on an x86-64 host fails instead of accidentally labelling an x86 binary as ARM.
 
 macOS and Windows code signing credentials are intentionally not stored in the repository. Unsigned development installers can be built without them; public releases should add signing and Apple notarization as protected CI secrets.
+
+
+## Windows 0.0.9.81 bootstrap
+
+Recommended first-run entry point on Windows:
+
+```cmd
+scripts\build-windows-x64.cmd
+```
+
+The launcher asks before using `-ExecutionPolicy Bypass` for that child PowerShell process only; it does not persistently change Windows policy. The PowerShell preflight auto-detects Strawberry Perl and can offer to install supported missing prerequisites through winget. Use `build-all-targets.ps1 -Target windows-x64 -Plan` for a read-only prerequisite check.

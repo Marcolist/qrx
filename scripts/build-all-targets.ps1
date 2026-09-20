@@ -1,7 +1,8 @@
 param(
   [ValidateSet('host','linux-x64','linux-arm64','macos-x64','macos-arm64','windows-x64')]
   [string]$Target='host',
-  [switch]$Plan
+  [switch]$Plan,
+  [switch]$InstallDependencies
 )
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -17,31 +18,107 @@ if ($Target -ne 'windows-x64' -and -not ($Target -eq 'host' -and $OnWindows)) {
 }
 $Target='windows-x64'
 
+function Add-ProcessPath([string]$Dir) {
+  if (-not $Dir -or -not (Test-Path $Dir)) { return }
+  $parts=@($env:Path -split ';' | Where-Object { $_ })
+  if ($parts -notcontains $Dir) { $env:Path="$Dir;$env:Path" }
+}
+function Refresh-ProcessPath {
+  $machine=[Environment]::GetEnvironmentVariable('Path','Machine')
+  $user=[Environment]::GetEnvironmentVariable('Path','User')
+  $current=@($env:Path -split ';' | Where-Object { $_ })
+  $merged=@()
+  foreach($p in (@($machine -split ';') + @($user -split ';') + $current)) { if($p -and $merged -notcontains $p){$merged += $p} }
+  $env:Path=($merged -join ';')
+  Add-KnownToolPaths
+}
+function Add-KnownToolPaths {
+  # Installers can update the persistent PATH without updating this running shell.
+  # Add only well-known, existing native Windows tool locations.
+  foreach($p in @(
+    'C:\Strawberry\perl\bin','C:\Strawberry\c\bin',
+    "$env:LOCALAPPDATA\Programs\Python\Python313", "$env:LOCALAPPDATA\Programs\Python\Python313\Scripts",
+    "$env:USERPROFILE\.cargo\bin", 'C:\Program Files\CMake\bin', 'C:\Program Files\nodejs'
+  )) { Add-ProcessPath $p }
+}
 function Find-Python {
-  $p=Get-Command python -ErrorAction SilentlyContinue
-  if($p){ try { & $p.Source -c "import sys; assert sys.version_info >= (3,9)" 2>$null; if($LASTEXITCODE -eq 0){return @($p.Source)} } catch{} }
-  $py=Get-Command py -ErrorAction SilentlyContinue
-  if($py){ try { & $py.Source -3 -c "import sys; assert sys.version_info >= (3,9)" 2>$null; if($LASTEXITCODE -eq 0){return @($py.Source,'-3')} } catch{} }
+  $candidates=@()
+  $p=Get-Command python -ErrorAction SilentlyContinue; if($p){$candidates += ,@($p.Source)}
+  $py=Get-Command py -ErrorAction SilentlyContinue; if($py){$candidates += ,@($py.Source,'-3')}
+  $known=@("$env:LOCALAPPDATA\Programs\Python\Python313\python.exe",'C:\Program Files\Python313\python.exe')
+  foreach($k in $known){if(Test-Path $k){$candidates += ,@($k)}}
+  foreach($c in $candidates){
+    try { $exe=$c[0]; $prefix=@(); if($c.Count -gt 1){$prefix=$c[1..($c.Count-1)]}; & $exe @prefix -c "import sys; assert sys.version_info >= (3,9)" 2>$null; if($LASTEXITCODE -eq 0){return $c} } catch{}
+  }
   return $null
 }
 function Run-Python([string[]]$Args){ $exe=$script:Python[0]; $prefix=@(); if($script:Python.Count -gt 1){$prefix=$script:Python[1..($script:Python.Count-1)]}; & $exe @prefix @Args; if($LASTEXITCODE -ne 0){throw "Python command failed: $($Args -join ' ')"} }
-function Need([string]$Name,[string]$Hint){ if(-not(Get-Command $Name -ErrorAction SilentlyContinue)){ $script:Missing += "${Name}: $Hint" } }
+function Has-Command([string]$Name){ return [bool](Get-Command $Name -ErrorAction SilentlyContinue) }
+function Has-VCTools {
+  $v=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+  if(-not(Test-Path $v)){return $false}
+  try { return [bool]((& $v -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()) } catch { return $false }
+}
+function Get-MissingDependencies {
+  Add-KnownToolPaths
+  $m=@()
+  $script:Python=Find-Python; if(-not $script:Python){$m+='python'}
+  foreach($n in 'cmake','cargo','rustc','rustup','node','npm','npx','perl','tar'){if(-not(Has-Command $n)){$m += $n}}
+  if(-not(Has-VCTools)){$m += 'msvc'}
+  return @($m | Select-Object -Unique)
+}
+function Install-WingetPackage([string]$Id,[string]$Override='') {
+  $winget=Get-Command winget -ErrorAction SilentlyContinue
+  if(-not $winget){throw "winget is required for automatic dependency installation. Install App Installer or install the prerequisite manually."}
+  $args=@('install','--id',$Id,'-e','--accept-source-agreements','--accept-package-agreements','--disable-interactivity')
+  if($Override){$args += @('--override',$Override)}
+  Write-Host "Installing $Id ..." -ForegroundColor Cyan
+  & $winget.Source @args
+  if($LASTEXITCODE -ne 0){throw "winget failed while installing $Id (exit $LASTEXITCODE)"}
+}
+function Install-MissingDependencies([string[]]$Items) {
+  # npm/npx arrive with Node; cargo/rustc arrive with rustup.
+  if($Items -contains 'python'){Install-WingetPackage 'Python.Python.3.13'}
+  if($Items -contains 'cmake'){Install-WingetPackage 'Kitware.CMake'}
+  if(($Items -contains 'cargo') -or ($Items -contains 'rustc') -or ($Items -contains 'rustup')){Install-WingetPackage 'Rustlang.Rustup'}
+  if(($Items -contains 'node') -or ($Items -contains 'npm') -or ($Items -contains 'npx')){Install-WingetPackage 'OpenJS.NodeJS.LTS'}
+  if($Items -contains 'perl'){Install-WingetPackage 'StrawberryPerl.StrawberryPerl'}
+  if($Items -contains 'msvc'){
+    Install-WingetPackage 'Microsoft.VisualStudio.2022.BuildTools' '--wait --passive --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended'
+  }
+  if($Items -contains 'tar'){Write-Warning 'tar.exe is normally included with Windows 10/11. Automatic replacement is intentionally not installed.'}
+  Refresh-ProcessPath
+}
+function Describe-Missing([string]$Name) {
+  switch($Name){
+    'python' {'Python 3.9+ (auto: winget install --id Python.Python.3.13 -e)'}
+    'cmake' {'CMake (auto: winget install --id Kitware.CMake -e)'}
+    'cargo' {'Rust/Cargo (auto: winget install --id Rustlang.Rustup -e)'}
+    'rustc' {'Rust compiler (auto: winget install --id Rustlang.Rustup -e)'}
+    'rustup' {'Rustup (auto: winget install --id Rustlang.Rustup -e)'}
+    'node' {'Node.js LTS (auto: winget install --id OpenJS.NodeJS.LTS -e)'}
+    'npm' {'npm (installed with Node.js LTS)'}
+    'npx' {'npx (installed with Node.js LTS)'}
+    'perl' {'Strawberry Perl; C:\Strawberry\perl\bin is auto-detected'}
+    'msvc' {'Visual Studio Build Tools 2022 + Desktop development with C++'}
+    'tar' {'tar.exe (normally included with Windows 10/11)'}
+    default {$Name}
+  }
+}
 
-$Missing=@(); $Python=Find-Python
-if(-not $Python){$Missing+='Python 3.9+: winget install --id Python.Python.3.13 -e'}
-Need 'cmake' 'winget install --id Kitware.CMake -e'
-Need 'cargo' 'Install Rust with rustup: https://rustup.rs/'
-Need 'rustc' 'Install Rust with rustup: https://rustup.rs/'
-Need 'rustup' 'Install Rust with rustup: https://rustup.rs/'
-Need 'node' 'winget install --id OpenJS.NodeJS.LTS -e'
-Need 'npm' 'Installed with Node.js LTS'
-Need 'npx' 'Installed with Node.js LTS'
-Need 'perl' 'Install Strawberry Perl: winget install --id StrawberryPerl.StrawberryPerl -e'
-Need 'tar' 'Included with current Windows 10/11'
-$vswhere=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-if(-not(Test-Path $vswhere)){$Missing+='Visual Studio Build Tools 2022 + Desktop development with C++ (MSVC + Windows SDK)'}
-elseif(-not((& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim())){$Missing+='Visual Studio C++ x64 toolchain/workload is missing'}
-
+Add-KnownToolPaths
+$Missing=Get-MissingDependencies
+if($Missing.Count -and -not $Plan){
+  Write-Host ''; Write-Host 'Missing prerequisites:' -ForegroundColor Yellow
+  $Missing | ForEach-Object { Write-Host "  - $(Describe-Missing $_)" -ForegroundColor Yellow }
+  if(Has-Command winget){
+    $answer = if($InstallDependencies){'Y'}else{Read-Host 'Install supported missing dependencies automatically with winget? [Y/N]'}
+    if($answer -match '^(?i:y|yes|j|ja)$'){
+      Install-MissingDependencies $Missing
+      $Missing=Get-MissingDependencies
+    }
+  }
+}
 Write-Host 'QRX native Windows x64 release plan:'
 Write-Host '  0. Preflight all Windows dependencies + GUI/Core audits'
 Write-Host '  1. Hermetic MSVC Core/CLI/QRXDB build'
@@ -52,7 +129,7 @@ Write-Host '  5. Stage target-suffixed Tauri sidecars'
 Write-Host '  6. Stage AURA + verified Windows AI bundle'
 Write-Host '  7. Build Tauri MSI + NSIS installers'
 Write-Host '  8. Verify and package SHA-256 release'
-if($Missing.Count){ Write-Host ''; Write-Host 'Missing prerequisites:' -ForegroundColor Red; $Missing|ForEach-Object{Write-Host "  - $_" -ForegroundColor Red}; if($Plan){exit 4}; throw 'Windows build preflight failed. Install the items above, reopen PowerShell, and rerun.' }
+if($Missing.Count){ Write-Host ''; Write-Host 'Missing prerequisites:' -ForegroundColor Red; $Missing|ForEach-Object{Write-Host "  - $(Describe-Missing $_)" -ForegroundColor Red}; if($Plan){exit 4}; throw 'Windows build preflight failed. Install the items above and rerun. QRX 0.0.9.82 refreshes common tool paths automatically.' }
 if($Plan){Write-Host 'Windows preflight: PASS'; exit 0}
 
 $Core=Join-Path $Repo 'qrx-core'; $Wallet=Join-Path $Repo 'GUIWALLET'; $Browser=Join-Path $Repo 'QRXBROWSER'
