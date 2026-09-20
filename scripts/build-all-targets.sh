@@ -15,13 +15,18 @@ JOBS="${JOBS:-}"
 TARGET=""
 PLAN_ONLY=0
 ALL_TARGETS=0
+NODE_ONLY=0
 
 usage() {
   cat <<'EOF'
 Usage:
-  ./scripts/build-all-targets.sh [--target host|TARGET] [--plan]
+  ./scripts/build-all-targets.sh [--target host|TARGET] [--node-only] [--plan]
   ./scripts/build-all-targets.sh --all [--plan]
   ./scripts/build-all-targets.sh --list-targets
+
+Modes:
+  --node-only    Build/package headless Core node components only (qrx, qrxd, qrx-cli, QRXDB tools).
+                 Skips GUI/Tauri, Browser, BTC GUI service, AURA/AI bundle and desktop installers.
 
 Targets:
   host          Auto-detect the current operating system and CPU architecture
@@ -43,11 +48,17 @@ while [[ $# -gt 0 ]]; do
     --target) [[ $# -ge 2 ]] || { echo "--target needs a value" >&2; exit 2; }; TARGET="$2"; shift 2 ;;
     --all) ALL_TARGETS=1; shift ;;
     --plan) PLAN_ONLY=1; shift ;;
+    --node-only) NODE_ONLY=1; shift ;;
     --list-targets) printf '%s\n' host linux-x64 linux-arm64 macos-x64 macos-arm64 macos-both windows-x64; exit 0 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
+
+if [[ "$NODE_ONLY" -eq 1 && "$ALL_TARGETS" -eq 1 ]]; then
+  echo "--node-only cannot be combined with --all; select a concrete/native host target." >&2
+  exit 2
+fi
 
 if [[ "$ALL_TARGETS" -eq 1 ]]; then
   [[ -z "$TARGET" ]] || { echo "Use either --all or --target, not both" >&2; exit 2; }
@@ -75,11 +86,21 @@ TARGET="${TARGET:-host}"
 if [[ "$TARGET" == "macos-both" ]]; then
   [[ "$(uname -s)" == "Darwin" ]] || { echo "macos-both requires macOS" >&2; exit 3; }
   if [[ "$PLAN_ONLY" -eq 1 ]]; then
-    bash "$0" --target macos-arm64 --plan
-    bash "$0" --target macos-x64 --plan
+    if [[ "$NODE_ONLY" -eq 1 ]]; then
+      bash "$0" --target macos-arm64 --node-only --plan
+      bash "$0" --target macos-x64 --node-only --plan
+    else
+      bash "$0" --target macos-arm64 --plan
+      bash "$0" --target macos-x64 --plan
+    fi
   else
-    bash "$0" --target macos-arm64
-    bash "$0" --target macos-x64
+    if [[ "$NODE_ONLY" -eq 1 ]]; then
+      bash "$0" --target macos-arm64 --node-only
+      bash "$0" --target macos-x64 --node-only
+    else
+      bash "$0" --target macos-arm64
+      bash "$0" --target macos-x64
+    fi
     echo "Both macOS QRX releases completed:"
     echo "  $DIST_ROOT/macos-arm64"
     echo "  $DIST_ROOT/macos-x64"
@@ -114,7 +135,16 @@ case "$TARGET" in
   *) echo "Unsupported target: $TARGET" >&2; usage >&2; exit 2 ;;
 esac
 
-cat <<EOF
+if [[ "$NODE_ONLY" -eq 1 ]]; then
+  cat <<EOF
+QRX headless node release plan: $TARGET
+  1. Build static QRX Core library
+  2. Build qrx, qrx-cli, qrxd and QRXDB tools
+  3. Stage headless node binaries/tools only
+  4. Verify and package checksummed node release
+EOF
+else
+  cat <<EOF
 QRX release plan: $TARGET
   1. Build static QRX Core library
   2. Build qrx, qrx-cli, qrxd and QRXDB tools
@@ -123,16 +153,21 @@ QRX release plan: $TARGET
   5. Build isolated Tauri 2 QRX Browser multi-WebView sidecar
   6. Install target-suffixed Core/BTC/Browser sidecars
   7. Stage signed AURA runtime trust/catalog resources
-  8. Stage verified local AI runtime/model bundle for the selected target
+  8. Stage verified local AI runtime/model bundle when supported; Linux can fall back to AI-pending GUI
   9. Build Tauri wallet and verify/package the checksummed release
 EOF
+fi
 [[ "$PLAN_ONLY" -eq 1 ]] && exit 0
 
-echo "[0/8] Auditing GUI <-> Core/CLI compatibility"
-python3 "$ROOT/scripts/audit-gui-core-compat.py"
-python3 "$ROOT/scripts/audit-gui-interactions.py"
-python3 "$ROOT/scripts/audit-gui-polish.py"
-python3 "$ROOT/scripts/audit-tauri2-browser.py"
+if [[ "$NODE_ONLY" -eq 0 ]]; then
+  echo "[0/8] Auditing GUI <-> Core/CLI compatibility"
+  python3 "$ROOT/scripts/audit-gui-core-compat.py"
+  python3 "$ROOT/scripts/audit-gui-interactions.py"
+  python3 "$ROOT/scripts/audit-gui-polish.py"
+  python3 "$ROOT/scripts/audit-tauri2-browser.py"
+else
+  echo "[0/4] Headless node profile: GUI/AURA/AI audits intentionally skipped"
+fi
 
 actual_os="$(uname -s)"
 actual_arch="$(uname -m)"
@@ -154,7 +189,7 @@ esac
 # per-user Cargo environment into this build process. No system-wide Rust
 # package or persistent shell modification beyond rustup's normal defaults is
 # required.
-if [[ "$TARGET" == linux-* ]] && ! command -v cargo >/dev/null 2>&1; then
+if [[ "$NODE_ONLY" -eq 0 && "$TARGET" == linux-* ]] && ! command -v cargo >/dev/null 2>&1; then
   echo "Cargo not found; installing the default Rust toolchain via rustup..."
   if ! command -v curl >/dev/null 2>&1; then
     command -v apt-get >/dev/null 2>&1 || { echo "Cannot auto-install Rust: curl is missing and apt-get is unavailable." >&2; exit 4; }
@@ -168,13 +203,35 @@ if [[ "$TARGET" == linux-* ]] && ! command -v cargo >/dev/null 2>&1; then
   source "$HOME/.cargo/env"
   command -v cargo >/dev/null 2>&1 || { echo "Rust bootstrap completed but cargo is still unavailable." >&2; exit 4; }
   echo "Rust/Cargo installed: $(cargo --version)"
-elif [[ "$TARGET" == linux-* && -f "$HOME/.cargo/env" ]]; then
+elif [[ "$NODE_ONLY" -eq 0 && "$TARGET" == linux-* && -f "$HOME/.cargo/env" ]]; then
   # Ensure rustup-managed cargo/rustc are visible even in non-login shells.
   # shellcheck disable=SC1091
   source "$HOME/.cargo/env"
 fi
 
-for command_name in cmake cargo rustc rustup node npm python3; do
+# QRX 0.0.9.87: Linux native desktop/Rust dependency bootstrap.
+# Rust crates such as libdbus-sys discover system ABI headers through pkg-config.
+# On Ubuntu/Debian these development packages are not part of a minimal server
+# installation, so install the verified build prerequisites before Cargo/Tauri.
+if [[ "$NODE_ONLY" -eq 0 && "$TARGET" == linux-* ]] && command -v apt-get >/dev/null 2>&1; then
+  linux_apt_missing=()
+  command -v pkg-config >/dev/null 2>&1 || linux_apt_missing+=(pkg-config)
+  pkg-config --exists 'dbus-1 >= 1.6' >/dev/null 2>&1 || linux_apt_missing+=(libdbus-1-dev)
+  if (( ${#linux_apt_missing[@]} > 0 )); then
+    command -v sudo >/dev/null 2>&1 || { echo "Missing Linux build packages: ${linux_apt_missing[*]}; sudo is unavailable." >&2; exit 4; }
+    echo "Installing Linux build dependencies: ${linux_apt_missing[*]}"
+    sudo apt-get update
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "${linux_apt_missing[@]}"
+  fi
+  command -v pkg-config >/dev/null 2>&1 || { echo "pkg-config is still unavailable after dependency bootstrap." >&2; exit 4; }
+  pkg-config --exists 'dbus-1 >= 1.6' || { echo "dbus-1 development metadata is still unavailable after dependency bootstrap." >&2; exit 4; }
+fi
+
+required_commands=(cmake python3)
+if [[ "$NODE_ONLY" -eq 0 ]]; then
+  required_commands+=(cargo rustc rustup node npm)
+fi
+for command_name in "${required_commands[@]}"; do
   command -v "$command_name" >/dev/null 2>&1 || { echo "Missing build dependency: $command_name" >&2; exit 4; }
 done
 if [[ "$TARGET" == "windows-x64" ]]; then
@@ -262,6 +319,25 @@ if [[ "$TARGET" == macos-* ]]; then
   done
 fi
 
+if [[ "$NODE_ONLY" -eq 1 ]]; then
+  echo "[2/4] Staging headless node binaries"
+  mkdir -p "$TARGET_OUT/core" "$TARGET_OUT/tools"
+  for binary in qrx qrx-cli qrxd qrxdb_verify qrxdb_salvage qrxdb_compact qrxdb_snapshot; do
+    cp "$CORE_BIN_DIR/$binary$CORE_EXT" "$TARGET_OUT/core/$binary$CORE_EXT"
+  done
+  cp "$CORE/tools/qrx-wallet-cli.py" "$TARGET_OUT/tools/"
+  echo "[3/4] Verifying headless node release"
+  for binary in qrx qrx-cli qrxd qrxdb_verify qrxdb_salvage qrxdb_compact qrxdb_snapshot; do
+    [[ -f "$TARGET_OUT/core/$binary$CORE_EXT" ]] || { echo "Node release binary missing: $binary" >&2; exit 9; }
+  done
+  [[ -f "$TARGET_OUT/tools/qrx-wallet-cli.py" ]] || { echo "Node CLI helper missing" >&2; exit 9; }
+  echo "[4/4] Creating checksummed headless node archive"
+  NODE_ARCHIVE="$DIST_ROOT/qrx-0.0.9-genesis-$TARGET-node-only.zip"
+  python3 "$ROOT/scripts/package-target-release.py" --root "$TARGET_OUT" --target "$TARGET-node-only" --output "$NODE_ARCHIVE"
+  echo "QRX headless node release complete: $NODE_ARCHIVE"
+  exit 0
+fi
+
 echo "[2/8] Staging complete CLI and Python tool set"
 mkdir -p "$TARGET_OUT/core" "$TARGET_OUT/tools" "$TARGET_OUT/wallet"
 for binary in qrx qrx-cli qrxd qrx-upscaler qrxdb_verify qrxdb_salvage qrxdb_compact qrxdb_snapshot; do
@@ -334,21 +410,36 @@ else
 fi
 
 echo "[5.5/9] Staging verified local AI Upscaler bundle for $TARGET"
-if bash "$ROOT/scripts/prepare-upscaler-ai-bundle.sh" "$TARGET" "$WALLET/src-tauri/resources/upscaler"; then
-  :
+AI_BUNDLE_READY=0
+AI_DEST="$WALLET/src-tauri/resources/upscaler"
+if bash "$ROOT/scripts/prepare-upscaler-ai-bundle.sh" "$TARGET" "$AI_DEST"; then
+  bash "$ROOT/scripts/verify-upscaler-ai-bundle.sh" "$AI_DEST" "$TARGET"
+  AI_BUNDLE_READY=1
 else
   rc=$?
-  rm -rf "$WALLET/src-tauri/resources/upscaler"
-  if [[ "${QRX_ALLOW_AI_PENDING:-0}" != "1" ]]; then
-    echo "Verified AI bundle is mandatory for normal/distribution builds; aborting." >&2
+  rm -rf "$AI_DEST"
+  if [[ "$TARGET" == linux-* ]]; then
+    # QRX 0.0.9.88: the desktop wallet itself must remain buildable on Linux
+    # hosts that cannot build/run the optional local Vulkan AI backend (for
+    # example low-resource ARM boards). Keep a resource marker so Tauri's
+    # resource glob is valid and let runtime capability detection expose AI as
+    # unavailable/pending instead of turning an optional accelerator into a
+    # wallet build blocker.
+    mkdir -p "$AI_DEST"
+    printf '%s
+'       'QRX_AI_BUNDLE_V1'       "target=$TARGET"       'status=unavailable'       'reason=local AI runtime/model bundle could not be prepared on this build host'       > "$AI_DEST/AI_UNAVAILABLE.txt"
+    echo "Warning: local AI bundle unavailable on $TARGET (prepare exit $rc); continuing with GUI wallet without local AI." >&2
+  elif [[ "${QRX_ALLOW_AI_PENDING:-0}" == "1" ]]; then
+    mkdir -p "$AI_DEST"
+    printf '%s
+' 'QRX_AI_BUNDLE_V1' "target=$TARGET" 'status=developer-opt-out' > "$AI_DEST/AI_UNAVAILABLE.txt"
+    echo "Warning: explicit developer opt-out QRX_ALLOW_AI_PENDING=1; AI Upscaler will be unavailable." >&2
+  else
+    echo "Verified AI bundle is mandatory for this distribution target; aborting." >&2
     echo "For an explicit developer-only build without AI, set QRX_ALLOW_AI_PENDING=1." >&2
     exit "$rc"
   fi
-  echo "Warning: explicit developer opt-out QRX_ALLOW_AI_PENDING=1; AI Upscaler will be unavailable." >&2
 fi
-
-# Fail before Tauri if staging is incomplete.
-bash "$ROOT/scripts/verify-upscaler-ai-bundle.sh" "$WALLET/src-tauri/resources/upscaler" "$TARGET"
 
 echo "[6/9] Building Tauri desktop wallet after its Core dependencies"
 (
