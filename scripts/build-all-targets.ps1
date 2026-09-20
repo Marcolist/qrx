@@ -38,7 +38,7 @@ function Add-KnownToolPaths {
   foreach($p in @(
     'C:\Strawberry\perl\bin','C:\Strawberry\c\bin',
     "$env:LOCALAPPDATA\Programs\Python\Python313", "$env:LOCALAPPDATA\Programs\Python\Python313\Scripts",
-    "$env:USERPROFILE\.cargo\bin", 'C:\Program Files\CMake\bin', 'C:\Program Files\nodejs'
+    "$env:USERPROFILE\.cargo\bin", 'C:\Program Files\CMake\bin', 'C:\Program Files\nodejs', 'C:\Program Files\Git\cmd', 'C:\Program Files\Git\bin'
   )) { Add-ProcessPath $p }
 }
 function Find-Python {
@@ -76,7 +76,7 @@ function Get-MissingDependencies {
   Add-KnownToolPaths
   $m=@()
   $script:Python=Find-Python; if(-not $script:Python){$m+='python'}
-  foreach($n in 'cmake','cargo','rustc','rustup','node','npm','npx','perl','tar'){if(-not(Has-Command $n)){$m += $n}}
+  foreach($n in 'cmake','cargo','rustc','rustup','node','npm','npx','perl','tar','git'){if(-not(Has-Command $n)){$m += $n}}
   if(-not(Has-VCTools)){$m += 'msvc'}
   return @($m | Select-Object -Unique)
 }
@@ -96,6 +96,7 @@ function Install-MissingDependencies([string[]]$Items) {
   if(($Items -contains 'cargo') -or ($Items -contains 'rustc') -or ($Items -contains 'rustup')){Install-WingetPackage 'Rustlang.Rustup'}
   if(($Items -contains 'node') -or ($Items -contains 'npm') -or ($Items -contains 'npx')){Install-WingetPackage 'OpenJS.NodeJS.LTS'}
   if($Items -contains 'perl'){Install-WingetPackage 'StrawberryPerl.StrawberryPerl'}
+  if($Items -contains 'git'){Install-WingetPackage 'Git.Git'}
   if($Items -contains 'msvc'){
     Install-WingetPackage 'Microsoft.VisualStudio.2022.BuildTools' '--wait --passive --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended'
   }
@@ -115,6 +116,7 @@ function Describe-Missing([string]$Name) {
     'perl' {'Strawberry Perl; C:\Strawberry\perl\bin is auto-detected'}
     'msvc' {'Visual Studio Build Tools 2022 + Desktop development with C++'}
     'tar' {'tar.exe (normally included with Windows 10/11)'}
+    'git' {'Git for Windows (auto: winget install --id Git.Git -e)'}
     default {$Name}
   }
 }
