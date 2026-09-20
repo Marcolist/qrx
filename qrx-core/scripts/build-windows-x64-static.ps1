@@ -4,6 +4,10 @@ param(
   [string]$DepsPrefix = ""
 )
 $ErrorActionPreference = "Stop"
+# Strawberry Perl may be installed correctly while the current shell still has an old PATH.
+foreach($p in @("C:\Strawberry\perl\bin","C:\Strawberry\c\bin")){
+  if((Test-Path $p) -and (($env:Path -split ';') -notcontains $p)){ $env:Path="$p;$env:Path" }
+}
 $Core = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Repo = (Resolve-Path (Join-Path $Core "..")).Path
 if (-not $BuildDir) { $BuildDir = Join-Path $Repo "build\core\windows-x64" }

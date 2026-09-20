@@ -7,7 +7,7 @@ bc9ed5b9acb70ef6a7135ee7ebea130a8c23525bd3f0f0f2125f5d6c5b14f603  ./AI_SUPPLY_CH
 e3a9ebcad74e0e03b35d85a1fa9a56f4b5a0679669cb0626fc46b9b5b13cff15  ./ATOMIC_APPLYTX_WAL_RECOVERY.md
 232f3a3be8d0e3506ab9fec302d41c57ef5d79ce91030837070267c4971f797c  ./BOOTSTRAP_VALIDATORS_AND_DEV_SHARE.md
 05b74d1d7f428b40da22d08e32b5974a35d793cca49b7fa9742946c69c0a6000  ./BTC_SHARED_SERVICE_LEDGER_PERIODS.md
-622771e9e04ba3f4f2830a0d08a989e787b7d573da82db1651115e6ed942be06  ./BUILD_ALL_TARGETS.md
+d4f9d56703479ddb6f91cc1483fd11438bc2e5ceabe79c17eaedd6794620180a  ./BUILD_ALL_TARGETS.md
 2045e8b5bfac332465730f6fd97d6274cf8bb685e728bf5186f614ccd0a799b3  ./BUILD_ALL_TARGETS_MACOS_BASH32_FIX.md
 8b2285498ea49e3276fdaf1e4961aab6a9f8b4a43b32460a4dcd2783cd8cb153  ./BUILD_ALL_TARGETS_MACOS_DMG_FIX.md
 fbcfb3aa4cdd33d962b3b4511309c6a9e08fe6b3df81dc2a7d0c80ddeb4a659c  ./BUILD_ALL_TARGETS_TAURI_SIDECAR_BOOTSTRAP_FIX.md
@@ -602,6 +602,8 @@ d72af8aec5fbe5346c80386768d66cb26a037ae1b8a292c32eb66e1d5714215a  ./QRX_0.0.9.77
 d5f64cfac5fe4eecd5bbbaf0203753b02882382723dc5d0fba237885a9e8c6a6  ./QRX_0.0.9.78_MACOS_DUAL_ARCH_BUILD_HARDENING.md
 87dbf8fcbbb71f453f8adc2303a6fa21786ded98edfc6737bcc27d2b1dfef64a  ./QRX_0.0.9.79_MACOS_THIN_ARCH_VERIFICATION_FIX.md
 cc0b6b759386be957b48ee133efa2d6bf0d67a090c0c99db0b158911dde8dbe2  ./QRX_0.0.9.80_NATIVE_WINDOWS_BUILD_PIPELINE.md
+874d526119bdb4f5916eae4c8094bede87deb1464aed21f7199b8991449c8409  ./QRX_0.0.9.81_WINDOWS_BOOTSTRAP_HARDENING.md
+25fe30af32cb8a7df89d9e8c7d87ed8641ba5481106355b87c7e2a225c79bd6f  ./QRX_0.0.9.82_UNIFIED_WINDOWS_BUILD_BOOTSTRAP.md
 75af825ed9c0a1e77ebbe51737a37cbf8ee99a47aed3d5d81195db41372bbd02  ./QRX_APP_PLATFORM_0.0.9_0.0.10.md
 345ce11d1dc6a6271f8c6187a3e01e1faab459385e3ea971ca416b41e985ef60  ./QRX_A_TO_Z_DOCUMENTATION_PLAN_0.0.9.49.md
 963c2dc1b5036d361c0959bcd8935253439bd3896c35c3fd888cd0b9e523fcfc  ./QRX_CORE_0.0.7_VELOCITY_TARGET.md
@@ -873,7 +875,7 @@ ef3df65704a4e46462b84e0723db59133a2183a5801fa5d8529e117da5b995b6  ./qrx-core/scr
 feae4736521ce42d4f077f52c877266fe8c711d166bb1eed33e7ff613d14a3cf  ./qrx-core/scripts/build-linux-static.sh
 add37d55ea2df4abf8dd5c528c4787af66f4d11f126261e613ab9d0559ce5d1e  ./qrx-core/scripts/build-macos-static.sh
 aa63b6dfbb3f2527225046f1939f0449a8553919e9bf72c01dfdea245f6a872e  ./qrx-core/scripts/build-unix-native-deps.sh
-0af6fb3e62f61a395d26d467eb4769515164d3291c4b5c76de466cc3444cf7a9  ./qrx-core/scripts/build-windows-x64-static.ps1
+1b09d8b3cb7644af34c3c4f0eabac4ee10c29d0e4ed1ced95b6f6fe20ac55824  ./qrx-core/scripts/build-windows-x64-static.ps1
 bc66646a9c7607155f4fc369527eb271c3e94890e37886cc9fdcd40c9799d8ff  ./qrx-core/scripts/committee_finalize.sh
 fc22e966f8caf815234f7ad5d60d72cdb01ad3c78b6dbc41918f08cfcb9e8c6e  ./qrx-core/scripts/committee_vote.sh
 888c2fad315f5e96c03acd63dee8a43bdbbc72c46b27cf103c8f00e34a10f188  ./qrx-core/scripts/demo_rc6.sh
@@ -1327,6 +1329,7 @@ f8cd8f625bb33cedd430062da160ba3e47a54b73f0d23c9b7934371f39935f4c  ./qrx-core/tes
 952c79c9dd03e1810ecd65c30fde80ba05fdacda27992fd99e6c457a867842c9  ./qrx-core/tests/velocity_phase4f_scheduler.c
 75bfd3e3ca6d19d1be2fc2ed2560471bdae4c0c359717491db4501c928b47c17  ./qrx-core/tools/qrx-complete-ledger-export.py
 7398ca4964be40b04b3b2bda99928fb79c28e738a5fdd96b10513a79bc9efcf5  ./qrx-core/tools/qrx-wallet-cli.py
+4b9d6511b2a01f0b5cf3b0213ad5075c43cdf558e6dee04c30387dd8696fb968  ./scripts/__pycache__/audit-0.0.9.81-windows-bootstrap.cpython-313.pyc
 aacfe9fac99ba1dbab10fe6baa7517371f193b636e8bb0611b0131157a127ce2  ./scripts/__pycache__/verify-upscaler-ai-bundle.cpython-313.pyc
 d0c0650a17a8be2585c1e5ade2c0f27d1d18e4899909668da124557ffe8400a2  ./scripts/apply-i18n-matrix.py
 ee3842628c5528735287b478d2be7b1111669bd6210d71a7fd87c94aae0d83af  ./scripts/apply-locale-index-patch.py
@@ -1336,14 +1339,16 @@ b15e1eba06b2b42f00081808c1de7c10ad4190c8e2cf154171598a5f534cc9e4  ./scripts/audi
 72a7d04d56a0e5b78288faee6c4938b0658f33cef496629967ebadfcdded4bd3  ./scripts/audit-0.0.9.75-legacy-wallet-migration.py
 63c332cf7fe3b843d4fa078ab44f08029ede64ab6b5715c7755e762d474b0899  ./scripts/audit-0.0.9.76-peer-overview.py
 4e93837fefdce2748e25788d4c7e3974ba2b077fadec198d60e3d423b288e34e  ./scripts/audit-0.0.9.77-mainnet-genesis-finalization.py
+8f3621ebb0bd0fa05c948d844fe6601068d265a3c0dc067a704ff3163befbf52  ./scripts/audit-0.0.9.81-windows-bootstrap.py
 fad529dbe680b6b3047133330e6ece07c36c3f12fd2d8df49fdf6fb069c371ed  ./scripts/audit-gui-core-compat.py
 2a7902f8a7b523b355eef735555b8bbbc252ba690d1d3f311827b5982cfac6c1  ./scripts/audit-gui-interactions.py
 e6b45823364afde2679a921416732359bfd1ece12af70768f89614f2428da5f8  ./scripts/audit-gui-polish.py
 de2b52146b1993e00dfd813a42a90fbfd9a2e045f8e00445a22bd16b63a06b09  ./scripts/audit-tauri2-browser.py
 12a685066078af76593b4dcf05683d585ed342ec81f9fa595c337323a929a773  ./scripts/audit-untrusted-abort-reachability.py
-0c902f574c124304804fc6985848b3ea366c4c304f97d366f227739e86d68605  ./scripts/build-all-targets.ps1
+55c33744cc714dd0b7cc5df29d7966a21882be3f0e005dfb24abeb0fa12fedb7  ./scripts/build-all-targets.ps1
 fed97ef36faec7b8867224fa19445d64b7829472e355bbe4b20103ab364d717f  ./scripts/build-all-targets.sh
 0da0a33b95e644f67101a6146b15d0a07a58fa439bc94ccfbc78318e845ebc99  ./scripts/build-aura-runtime.sh
+1860f2e21d1b03446dd77ce1302ca685cd3b611d88fbe97de77d03bf51065e0a  ./scripts/build-windows-x64.cmd
 ab1f0f28239eaa84aa04b1c47f1f66b791db511746d69a3b9b0509f067554add  ./scripts/final-release-audit.sh
 2776653f826ced40e295d721354d7803eb8e2533c18268beee9df0872c38ec1b  ./scripts/finalize-mainnet-genesis-inputs.py
 ae3181a7681b51476ab377ff6e7e6b632991b593a6448cbe6087a601ac927819  ./scripts/generate-mainnet-governance-keys.sh
