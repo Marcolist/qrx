@@ -608,6 +608,8 @@ cc0b6b759386be957b48ee133efa2d6bf0d67a090c0c99db0b158911dde8dbe2  ./QRX_0.0.9.80
 b94e4f2f7773e83faa3de8966a030fbfa748035ee3ea8ab7718dc4ea859341e0  ./QRX_0.0.9.84_MAINNET_PEER_BOOTSTRAP_HARDENING.md
 017ff068dbb246277791492c73f2fd9bcd160126f0ee30bb6476050195d5959e  ./QRX_0.0.9.85_LINUX_RUSTUP_DEPENDENCY_BOOTSTRAP.md
 86347d05096a104310a751d43e70dc20dca4ac2f8fcd96c76e917a377fddfdfc  ./QRX_0.0.9.86_LINUX_OPENSSL_LIB64_LAYOUT_HARDENING.md
+c3a6da0a6148f930c90fe5eec58a6529fdefd81496437b948113ccbc30026974  ./QRX_0.0.9.87_AURA_LINUX_DBUS_BUILD_HARDENING.md
+690d655df32366516cc3cec5980a2944cef4f448c390f18fb5e243fd5f50df80  ./QRX_0.0.9.88_HEADLESS_NODE_AI_CAPABILITY_FALLBACK.md
 75af825ed9c0a1e77ebbe51737a37cbf8ee99a47aed3d5d81195db41372bbd02  ./QRX_APP_PLATFORM_0.0.9_0.0.10.md
 345ce11d1dc6a6271f8c6187a3e01e1faab459385e3ea971ca416b41e985ef60  ./QRX_A_TO_Z_DOCUMENTATION_PLAN_0.0.9.49.md
 963c2dc1b5036d361c0959bcd8935253439bd3896c35c3fd888cd0b9e523fcfc  ./QRX_CORE_0.0.7_VELOCITY_TARGET.md
@@ -1347,12 +1349,12 @@ b15e1eba06b2b42f00081808c1de7c10ad4190c8e2cf154171598a5f534cc9e4  ./scripts/audi
 1b992a7693079dd1406d93698fec525ebb38a8eae6bd7898ac12443d59a5474c  ./scripts/audit-0.0.9.84-mainnet-peer-bootstrap.py
 fad529dbe680b6b3047133330e6ece07c36c3f12fd2d8df49fdf6fb069c371ed  ./scripts/audit-gui-core-compat.py
 2a7902f8a7b523b355eef735555b8bbbc252ba690d1d3f311827b5982cfac6c1  ./scripts/audit-gui-interactions.py
-e6b45823364afde2679a921416732359bfd1ece12af70768f89614f2428da5f8  ./scripts/audit-gui-polish.py
+45383c06901e4b682ae6e129b9b2cbbead2b5714e6f56ef646edeac32367af61  ./scripts/audit-gui-polish.py
 f9a32e9187c54c5ab731ad3af3008b77e10a4bac0e65672df55b26378677065c  ./scripts/audit-linux-openssl-layout.py
 de2b52146b1993e00dfd813a42a90fbfd9a2e045f8e00445a22bd16b63a06b09  ./scripts/audit-tauri2-browser.py
 12a685066078af76593b4dcf05683d585ed342ec81f9fa595c337323a929a773  ./scripts/audit-untrusted-abort-reachability.py
 c9d8de72c108af1e0287582152802c0b16ddf3bd781029e4bf74cf25496253bf  ./scripts/build-all-targets.ps1
-bb2eddecb9a4dc709645ab7ba1c9cf75c3035e0eb2e65b7725ee78fce8e54b25  ./scripts/build-all-targets.sh
+e44736b0fbccd987143bd8cab004314b6a5c2c148a1e384671d45cceacb1094e  ./scripts/build-all-targets.sh
 0da0a33b95e644f67101a6146b15d0a07a58fa439bc94ccfbc78318e845ebc99  ./scripts/build-aura-runtime.sh
 9e7aae8ac057a1bd945b83fef9eb5360738365a5698dde009db11c671927c88e  ./scripts/build-windows-x64.cmd
 ab1f0f28239eaa84aa04b1c47f1f66b791db511746d69a3b9b0509f067554add  ./scripts/final-release-audit.sh
@@ -1371,6 +1373,7 @@ e6e445e1b792b87b10fe5a0ea7a6d85db91119237b23e63fb242ad405ff6ddc4  ./scripts/qrx-
 cf05bb1e689ef76fee380da9640207bbb1a4bfcdcca19a7c591377b91fd8959f  ./scripts/run-mainnet-genesis-dress-rehearsal.sh
 fc6f35192895dc692f8f5a6c42201df1f388482ceb50803515ac0f9e5882503b  ./scripts/setup-mainnet-governance-vault.sh
 4d4949a721845aef60f72607c027050c169115122fe7c57916fb4508b58ee926  ./scripts/sign-aura-runtime-catalog.py
+a262f00670daa055dee5330802508a459080eaa3e50ecf7d2ad973b91804fb3f  ./scripts/test_00988_headless_ai_fallback.sh
 37c369e79bc3a60b06bbaafc1ef7f3e969dfed21337993e00fe2c4ca509e54f9  ./scripts/test_browser_fleet_068.sh
 0a7c036e11c9b184966dc63fcc8b5ea0c3f75db069b1545ef81cd76f657e4fe7  ./scripts/test_command_center_policy_00971.py
 20934046be9a8e19084536a2715add59898ac1af0024cdc89b75246b35656c3d  ./scripts/test_generals_phase63.sh
