@@ -1,7 +1,7 @@
 #pragma once
 #define QRX_DEFAULT_MAX_CONNECTIONS 128
 #define QRX_DEFAULT_OUTBOUND_CONNECTIONS 16
-#define QRX_SEEDNODE_COUNT 3
+#define QRX_SEEDNODE_COUNT 6
 
 typedef struct {
     int max_connections;

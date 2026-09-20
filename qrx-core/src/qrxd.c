@@ -919,6 +919,27 @@ static void json_lines_array(char *dst, size_t dst_sz, const char *text){
     strncat(dst, "]", dst_sz - strlen(dst) - 1);
 }
 
+static void json_peer_lines_array(char *dst, size_t dst_sz, const char *text){
+    snprintf(dst, dst_sz, "[");
+    int first = 1;
+    char *copy = strdup(text ? text : "");
+    if(!copy){ strncat(dst, "]", dst_sz - strlen(dst) - 1); return; }
+    char *save = NULL; char *line = strtok_r(copy, "\n", &save);
+    while(line){
+        trim_ws_right(line);
+        while(*line == ' ' || *line == '\t' || *line == '\r') line++;
+        if(*line && strcmp(line,"[peers]") && strcmp(line,"[known]") && strcmp(line,"no peers")){
+            char js[4096]={0}; json_string(js,sizeof(js),line);
+            if(!first) strncat(dst, ",", dst_sz - strlen(dst) - 1);
+            strncat(dst, js, dst_sz - strlen(dst) - 1);
+            first = 0;
+        }
+        line = strtok_r(NULL, "\n", &save);
+    }
+    free(copy);
+    strncat(dst, "]", dst_sz - strlen(dst) - 1);
+}
+
 static long long count_regular_files(const char *dirpath){
 #ifdef _WIN32
     char search[MAX_PATH];
@@ -2051,7 +2072,7 @@ static int handle_command(const char *cmdline, char *resp, size_t resp_sz){
         char *argv1[] = { g_backend_path, "list-peers", g_ndir, NULL };
         char *argv2[] = { g_backend_path, "peer-status", g_ndir, NULL };
         if(run_capture(argv1, out1, sizeof(out1)) != 0 || run_capture(argv2, out2, sizeof(out2)) != 0) json_error(resp, resp_sz, "getpeerinfo", "backend failed");
-        else { json_lines_array(arr1,sizeof(arr1),out1); json_keyval_object(obj2,sizeof(obj2),out2); snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"getpeerinfo\",\"result\":{\"peers\":%s,\"peer_state\":%s}}\n", arr1, obj2); }
+        else { json_peer_lines_array(arr1,sizeof(arr1),out1); json_keyval_object(obj2,sizeof(obj2),out2); snprintf(resp, resp_sz, "{\"ok\":true,\"method\":\"getpeerinfo\",\"result\":{\"peers\":%s,\"peer_state\":%s}}\n", arr1, obj2); }
         return 0;
     }
     if(!strcmp(args[0], "peerstatus") || !strcmp(args[0], "banscores")){

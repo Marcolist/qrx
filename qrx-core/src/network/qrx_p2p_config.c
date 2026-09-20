@@ -5,7 +5,10 @@
 const char *QRX_DEFAULT_SEEDNODES[QRX_SEEDNODE_COUNT] = {
     "seed1.qrxchain.org",
     "seed2.qrxchain.org",
-    "seed3.qrxchain.org"
+    "seed3.qrxchain.org",
+    "node01.qrx.mey-solution.de",
+    "89.143.197.28",
+    "174.165.210.227"
 };
 
 
