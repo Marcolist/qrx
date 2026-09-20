@@ -128,17 +128,91 @@ function CMakeInstall([string]$Source,[string]$Build,[string[]]$Args) {
   if ($LASTEXITCODE -ne 0) { throw "CMake configure failed: $Source" }
   & cmake --build $Build --config Release --parallel $Jobs
   if ($LASTEXITCODE -ne 0) { throw "CMake build failed: $Source" }
-  & cmake --install $Build --config Release
+  # --prefix is deliberately repeated at install time. Some upstream CMake
+  # projects/cache states can otherwise retain their own default prefix.
+  & cmake --install $Build --config Release --prefix $DepsPrefix
   if ($LASTEXITCODE -ne 0) { throw "CMake install failed: $Source" }
 }
 
-$ZlibStatic=Join-Path $DepsPrefix "lib\zlibstatic.lib"
-if (-not (Test-Path $ZlibStatic)) {
-  $src=Join-Path $Work "zlib-$ZlibVersion"; Extract $ZlibTar $src
-  CMakeInstall $src (Join-Path $Work "zlib-build") @("-DCMAKE_BUILD_TYPE=Release","-DCMAKE_INSTALL_PREFIX=$DepsPrefix","-DBUILD_SHARED_LIBS=OFF","-DZLIB_BUILD_TESTING=OFF")
+# Resolve a dependency produced by the *current* build rather than assuming
+# every upstream project honours the same install layout.  The resolver is
+# intentionally bounded: dependency prefix -> current build tree -> current
+# install_manifest.  It never scans arbitrary old system installations.
+function Resolve-ZlibStatic([string]$Build,[string]$Source,[string]$Prefix) {
+  $destLib=Join-Path $Prefix "lib"
+  $destInc=Join-Path $Prefix "include"
+  New-Item -ItemType Directory -Force -Path $destLib,$destInc | Out-Null
+
+  $preferred=@(
+    (Join-Path $destLib "zlibstatic.lib"),
+    (Join-Path $destLib "z.lib"),
+    (Join-Path $Build "Release\zlibstatic.lib"),
+    (Join-Path $Build "zlibstatic.lib"),
+    (Join-Path $Build "Release\z.lib"),
+    (Join-Path $Build "z.lib")
+  )
+  $candidate=$preferred | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+  # If the expected names moved, consult only this build's manifest and tree.
+  if (-not $candidate) {
+    $manifest=Join-Path $Build "install_manifest.txt"
+    if (Test-Path $manifest) {
+      $candidate=Get-Content $manifest | Where-Object {
+        $_ -match '\.(lib)$' -and (Split-Path $_ -Leaf) -match '^(zlibstatic|zlib|z)\.lib$'
+      } | Where-Object { Test-Path $_ } | Select-Object -First 1
+    }
+  }
+  if (-not $candidate) {
+    $candidate=(Get-ChildItem $Build -Recurse -File -ErrorAction SilentlyContinue |
+      Where-Object { $_.Name -match '^(zlibstatic|zlib|z)\.lib$' } |
+      Sort-Object @{Expression={ if ($_.Name -eq 'zlibstatic.lib') {0} else {1} }},FullName |
+      Select-Object -First 1).FullName
+  }
+  if (-not $candidate -or -not (Test-Path $candidate)) { return $null }
+
+  # Prefer an explicitly static archive.  A bare z.lib next to z.dll can be an
+  # import library, so if zlibstatic.lib exists anywhere in this build it wins.
+  if ((Split-Path $candidate -Leaf) -ne 'zlibstatic.lib') {
+    $explicit=(Get-ChildItem $Build -Recurse -File -Filter 'zlibstatic.lib' -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+    if ($explicit) { $candidate=$explicit }
+  }
+
+  $canonical=Join-Path $destLib "zlibstatic.lib"
+  if ((Resolve-Path $candidate).Path -ne $canonical) {
+    Write-Host "Adopting zlib artifact from current build: $candidate"
+    Copy-Item -Force $candidate $canonical
+  }
+
+  # Adopt headers from the current source/build if upstream installed elsewhere.
+  foreach($h in @('zlib.h','zconf.h')) {
+    $dst=Join-Path $destInc $h
+    if (-not (Test-Path $dst)) {
+      $hc=@((Join-Path $Build $h),(Join-Path $Source $h)) | Where-Object { Test-Path $_ } | Select-Object -First 1
+      if (-not $hc) {
+        $manifest=Join-Path $Build 'install_manifest.txt'
+        if (Test-Path $manifest) { $hc=Get-Content $manifest | Where-Object { (Split-Path $_ -Leaf) -eq $h -and (Test-Path $_) } | Select-Object -First 1 }
+      }
+      if ($hc) { Copy-Item -Force $hc $dst }
+    }
+  }
+  if (-not (Test-Path (Join-Path $destInc 'zlib.h')) -or -not (Test-Path (Join-Path $destInc 'zconf.h'))) {
+    throw "zlib library was found, but matching headers from the current build could not be adopted"
+  }
+  return $canonical
 }
-if (-not (Test-Path $ZlibStatic)) { $ZlibStatic=Join-Path $DepsPrefix "lib\zlib.lib" }
-if (-not (Test-Path $ZlibStatic)) { throw "Static zlib missing" }
+
+$ZlibBuild=Join-Path $Work "zlib-build"
+$ZlibSource=Join-Path $Work "zlib-$ZlibVersion"
+$ZlibStatic=Resolve-ZlibStatic $ZlibBuild $ZlibSource $DepsPrefix
+if (-not $ZlibStatic) {
+  Extract $ZlibTar $ZlibSource
+  CMakeInstall $ZlibSource $ZlibBuild @(
+    "-DCMAKE_BUILD_TYPE=Release","-DCMAKE_INSTALL_PREFIX=$DepsPrefix",
+    "-DBUILD_SHARED_LIBS=OFF","-DZLIB_BUILD_SHARED=OFF","-DZLIB_BUILD_STATIC=ON","-DZLIB_BUILD_TESTING=OFF"
+  )
+  $ZlibStatic=Resolve-ZlibStatic $ZlibBuild $ZlibSource $DepsPrefix
+}
+if (-not $ZlibStatic -or -not (Test-Path $ZlibStatic)) { throw "Static zlib missing after build/artifact resolution" }
 
 $PngStatic=(Get-ChildItem (Join-Path $DepsPrefix "lib") -Filter "*png*static*.lib" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
 if (-not $PngStatic) {

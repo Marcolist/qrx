@@ -207,7 +207,7 @@ static int cmd_ai_status(void) {
       a.ai_ready?"true":"false",a.status); return 0;
 }
 static int cmd_verify_model(const char*p){char e[256];int rc=qrx_ups_ai_verify_manifest(p,e,sizeof(e));if(rc){fprintf(stderr,"qrx-upscaler: model verification failed: %s\n",e);return 2;}puts("model_verified=true");return 0;}
-static int cmd_ai_image(int argc,char**argv){if(argc<5){usage();return 2;}int scale=0;unsigned tile=0;const char*model=NULL;for(int i=4;i<argc;i++){if(!strcmp(argv[i],"--scale")&&i+1<argc){if(parse_int(argv[++i],2,4,&scale)||!(scale==2||scale==4))return 2;}else if(!strcmp(argv[i],"--tile")&&i+1<argc){int x=0;if(parse_int(argv[++i],0,2048,&x))return 2;tile=(unsigned)x;}else if(!strcmp(argv[i],"--model")&&i+1<argc)model=argv[++i];else{fprintf(stderr,"qrx-upscaler: unknown AI option %s\n",argv[i]);return 2;}}if(!scale){fputs("qrx-upscaler: ai-image requires --scale 2 or 4\n",stderr);return 2;}if(tile==0){QrxUpsCapabilities c;if(qrx_ups_capabilities_probe(&c)==0)tile=c.recommended_tile;}int rc=qrx_ups_ai_run_image(argv[2],argv[3],scale,tile,model);if(rc){fprintf(stderr,"qrx-upscaler: AI inference unavailable/failed (code %d). Run 'qrx-upscaler ai-status'.\n",rc);return 7;}return 0;}
+static int cmd_ai_image(int argc,char**argv){if(argc<5){usage();return 2;}QrxUpsCapabilities caps;if(qrx_ups_capabilities_probe(&caps)!=0||!caps.ai_runtime_ready){fputs("qrx-upscaler: local AI disabled: no usable Vulkan/MoltenVK accelerator on this client.\n",stderr);return 8;}int scale=0;unsigned tile=0;const char*model=NULL;for(int i=4;i<argc;i++){if(!strcmp(argv[i],"--scale")&&i+1<argc){if(parse_int(argv[++i],2,4,&scale)||!(scale==2||scale==4))return 2;}else if(!strcmp(argv[i],"--tile")&&i+1<argc){int x=0;if(parse_int(argv[++i],0,2048,&x))return 2;tile=(unsigned)x;}else if(!strcmp(argv[i],"--model")&&i+1<argc)model=argv[++i];else{fprintf(stderr,"qrx-upscaler: unknown AI option %s\n",argv[i]);return 2;}}if(!scale){fputs("qrx-upscaler: ai-image requires --scale 2 or 4\n",stderr);return 2;}if(tile==0){QrxUpsCapabilities c;if(qrx_ups_capabilities_probe(&c)==0)tile=c.recommended_tile;}int rc=qrx_ups_ai_run_image(argv[2],argv[3],scale,tile,model);if(rc){fprintf(stderr,"qrx-upscaler: AI inference unavailable/failed (code %d). Run 'qrx-upscaler ai-status'.\n",rc);return 7;}return 0;}
 
 /* ---------------------------------------------------------------- */
 /* selftest: proves the pixel path works and is deterministic        */
@@ -257,7 +257,7 @@ static int cmd_capabilities(void) {
            c.native_metal_present?"true":"false",
            c.metal_version_major,c.vulkan_mode,c.accelerator,
            c.ai_runtime_ready?"true":"false",
-           a.runtime_installed?"true":"false",a.runtime_verified?"true":"false",a.model_x2_verified?"true":"false",a.model_x4_verified?"true":"false",a.ai_ready?"true":"false",a.backend,a.model_dir,
+           a.runtime_installed?"true":"false",a.runtime_verified?"true":"false",a.model_x2_verified?"true":"false",a.model_x4_verified?"true":"false",(a.ai_ready&&c.ai_runtime_ready)?"true":"false",a.backend,a.model_dir,
            c.classical_available?"true":"false",
            c.recommended_tile,c.recommended_threads,c.status);
     return 0;
