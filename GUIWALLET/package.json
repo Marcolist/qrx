@@ -20,6 +20,6 @@
     "build:release:windows": "bash ../scripts/build-all-targets.sh --target windows-x64"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^1.6.0"
+    "@tauri-apps/cli": "1.6.0"
   }
 }

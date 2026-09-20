@@ -209,6 +209,37 @@ elif [[ "$NODE_ONLY" -eq 0 && "$TARGET" == linux-* && -f "$HOME/.cargo/env" ]]; 
   source "$HOME/.cargo/env"
 fi
 
+# QRX 0.0.9.97: Linux CMake/Python binding bootstrap hardening.
+# Some clean Ubuntu 22/26 hosts (and source-built transitive components) need
+# pybind11's CMake package metadata even when Python itself is already present.
+# Prefer distro packages so builds do not depend on an ad-hoc GitHub clone.
+# Verify both Python import and CMake metadata before continuing.
+if [[ "$NODE_ONLY" -eq 0 && "$TARGET" == linux-* ]] && command -v apt-get >/dev/null 2>&1; then
+  pybind_need=0
+  python3 -c 'import pybind11' >/dev/null 2>&1 || pybind_need=1
+  if command -v cmake >/dev/null 2>&1; then
+    pybind_cmake_dir="$(python3 -m pybind11 --cmakedir 2>/dev/null || true)"
+    [[ -n "$pybind_cmake_dir" && -f "$pybind_cmake_dir/pybind11Config.cmake" ]] || pybind_need=1
+  else
+    pybind_need=1
+  fi
+  if [[ "$pybind_need" -eq 1 ]]; then
+    command -v sudo >/dev/null 2>&1 || { echo "pybind11 bootstrap required but sudo is unavailable." >&2; exit 4; }
+    echo "pybind11 Python/CMake metadata incomplete; installing Ubuntu/Debian build packages..."
+    sudo apt-get update
+    sudo apt-get install -y python3-dev python3-pybind11 pybind11-dev
+  fi
+  python3 -c 'import pybind11; print("pybind11 Python module:", pybind11.__version__)' || { echo "pybind11 Python module remains unavailable after bootstrap." >&2; exit 4; }
+  pybind_cmake_dir="$(python3 -m pybind11 --cmakedir 2>/dev/null || true)"
+  if [[ -z "$pybind_cmake_dir" || ! -f "$pybind_cmake_dir/pybind11Config.cmake" ]]; then
+    # Debian may install CMake metadata outside the Python wheel's cmakedir.
+    pybind_cmake_dir="$(dpkg -L pybind11-dev 2>/dev/null | sed -n 's#/pybind11Config.cmake$##p' | head -n1)"
+  fi
+  [[ -n "$pybind_cmake_dir" && -f "$pybind_cmake_dir/pybind11Config.cmake" ]] || { echo "pybind11 CMake package metadata is unavailable after bootstrap." >&2; exit 4; }
+  export pybind11_DIR="$pybind_cmake_dir"
+  echo "pybind11 CMake package: $pybind11_DIR"
+fi
+
 # QRX 0.0.9.90: Linux native desktop/Tauri ABI-aware dependency bootstrap.
 # Minimal Ubuntu/Debian installations do not ship the GTK/WebKit development
 # metadata required by Tauri/wry/gtk-rs. Detect it before Cargo starts so a
@@ -279,6 +310,37 @@ if [[ "$NODE_ONLY" -eq 0 && "$TARGET" == linux-* ]] && command -v apt-get >/dev/
   for qrx_pc in 'libsoup-2.4 >= 2.62' 'javascriptcoregtk-4.0 >= 2.24' 'webkit2gtk-4.0 >= 2.22'; do
     pkg-config --exists "$qrx_pc" || { echo "Legacy WebKitGTK source fallback did not provide: $qrx_pc" >&2; exit 4; }
   done
+fi
+
+# QRX 0.0.9.96: Linux Node/Tauri compatibility preflight.
+# Tauri CLI 1.6 uses modern JavaScript syntax (including optional chaining), so
+# merely finding a `node` executable is insufficient on older Ubuntu installs.
+# Require Node >=18 before npm/Tauri is touched. On Debian/Ubuntu desktop build
+# hosts, upgrade an obsolete/missing Node through NodeSource's Node 20 LTS
+# repository, then re-check the runtime in this same build process.
+qrx_node_major() {
+  local v
+  v="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || true)"
+  [[ "$v" =~ ^[0-9]+$ ]] && printf '%s\n' "$v" || printf '0\n'
+}
+if [[ "$NODE_ONLY" -eq 0 && "$TARGET" == linux-* ]]; then
+  node_major="$(qrx_node_major)"
+  if (( node_major < 18 )); then
+    echo "Node.js >=18 required for the Tauri desktop wallet; detected: $(node --version 2>/dev/null || echo missing)"
+    if command -v apt-get >/dev/null 2>&1; then
+      command -v sudo >/dev/null 2>&1 || { echo "Cannot bootstrap Node.js 20 LTS: sudo is unavailable." >&2; exit 4; }
+      command -v curl >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y curl ca-certificates; }
+      echo "Installing Node.js 20 LTS build runtime for QRX desktop..."
+      curl -fsSL https://deb.nodesource.com/setup_20.x -o /tmp/qrx-nodesource-setup.sh
+      sudo -E bash /tmp/qrx-nodesource-setup.sh
+      rm -f /tmp/qrx-nodesource-setup.sh
+      sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+      hash -r
+      node_major="$(qrx_node_major)"
+    fi
+  fi
+  (( node_major >= 18 )) || { echo "Node.js >=18 is still unavailable; refusing a late Tauri syntax failure." >&2; exit 4; }
+  echo "Node/Tauri preflight: $(node --version), npm $(npm --version 2>/dev/null || echo missing)"
 fi
 
 required_commands=(cmake python3)
@@ -484,8 +546,7 @@ echo "[6/9] Building Tauri desktop wallet after its Core dependencies"
     npm ci --no-audit --no-fund
   else
     echo "Warning: no package-lock.json/npm-shrinkwrap.json in $WALLET." >&2
-    echo "         Falling back to 'npm install'; this build is NOT reproducible." >&2
-    echo "         Commit a lock file before producing release artifacts." >&2
+    echo "         Using exact top-level dependency pins; transitive npm resolution is not fully reproducible without a lock file." >&2
     npm install --no-audit --no-fund
   fi
   if [[ "$TARGET" == linux-* ]]; then
