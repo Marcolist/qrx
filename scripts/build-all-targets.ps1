@@ -42,17 +42,30 @@ function Add-KnownToolPaths {
   )) { Add-ProcessPath $p }
 }
 function Find-Python {
+  # Return a single object instead of a PowerShell array. Returning an array from
+  # a function is pipeline-unrolled; a one-element candidate then became a plain
+  # string and $script:Python[0] evaluated to the first character (for example C).
   $candidates=@()
-  $p=Get-Command python -ErrorAction SilentlyContinue; if($p){$candidates += ,@($p.Source)}
-  $py=Get-Command py -ErrorAction SilentlyContinue; if($py){$candidates += ,@($py.Source,'-3')}
-  $known=@("$env:LOCALAPPDATA\Programs\Python\Python313\python.exe",'C:\Program Files\Python313\python.exe')
-  foreach($k in $known){if(Test-Path $k){$candidates += ,@($k)}}
+  $p=Get-Command python -ErrorAction SilentlyContinue
+  if($p){$candidates += [pscustomobject]@{ Exe=$p.Source; Prefix=@() }}
+  $py=Get-Command py -ErrorAction SilentlyContinue
+  if($py){$candidates += [pscustomobject]@{ Exe=$py.Source; Prefix=@('-3') }}
+  foreach($k in @("$env:LOCALAPPDATA\Programs\Python\Python313\python.exe",'C:\Program Files\Python313\python.exe')){
+    if(Test-Path $k){$candidates += [pscustomobject]@{ Exe=$k; Prefix=@() }}
+  }
   foreach($c in $candidates){
-    try { $exe=$c[0]; $prefix=@(); if($c.Count -gt 1){$prefix=$c[1..($c.Count-1)]}; & $exe @prefix -c "import sys; assert sys.version_info >= (3,9)" 2>$null; if($LASTEXITCODE -eq 0){return $c} } catch{}
+    try {
+      & $c.Exe @($c.Prefix) -c "import sys; assert sys.version_info >= (3,9)" 2>$null
+      if($LASTEXITCODE -eq 0){return $c}
+    } catch{}
   }
   return $null
 }
-function Run-Python([string[]]$Args){ $exe=$script:Python[0]; $prefix=@(); if($script:Python.Count -gt 1){$prefix=$script:Python[1..($script:Python.Count-1)]}; & $exe @prefix @Args; if($LASTEXITCODE -ne 0){throw "Python command failed: $($Args -join ' ')"} }
+function Run-Python([string[]]$PythonArgs){
+  if(-not $script:Python -or -not $script:Python.Exe){throw 'Python launcher was not initialized'}
+  & $script:Python.Exe @($script:Python.Prefix) @PythonArgs
+  if($LASTEXITCODE -ne 0){throw "Python command failed: $($PythonArgs -join ' ')"}
+}
 function Has-Command([string]$Name){ return [bool](Get-Command $Name -ErrorAction SilentlyContinue) }
 function Has-VCTools {
   $v=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
@@ -129,7 +142,7 @@ Write-Host '  5. Stage target-suffixed Tauri sidecars'
 Write-Host '  6. Stage AURA + verified Windows AI bundle'
 Write-Host '  7. Build Tauri MSI + NSIS installers'
 Write-Host '  8. Verify and package SHA-256 release'
-if($Missing.Count){ Write-Host ''; Write-Host 'Missing prerequisites:' -ForegroundColor Red; $Missing|ForEach-Object{Write-Host "  - $(Describe-Missing $_)" -ForegroundColor Red}; if($Plan){exit 4}; throw 'Windows build preflight failed. Install the items above and rerun. QRX 0.0.9.82 refreshes common tool paths automatically.' }
+if($Missing.Count){ Write-Host ''; Write-Host 'Missing prerequisites:' -ForegroundColor Red; $Missing|ForEach-Object{Write-Host "  - $(Describe-Missing $_)" -ForegroundColor Red}; if($Plan){exit 4}; throw 'Windows build preflight failed. Install the items above and rerun. QRX 0.0.9.83 refreshes common tool paths automatically.' }
 if($Plan){Write-Host 'Windows preflight: PASS'; exit 0}
 
 $Core=Join-Path $Repo 'qrx-core'; $Wallet=Join-Path $Repo 'GUIWALLET'; $Browser=Join-Path $Repo 'QRXBROWSER'

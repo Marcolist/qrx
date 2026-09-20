@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0.."
-echo QRX 0.0.9.82 Windows x64 policy bootstrap
+echo QRX 0.0.9.83 Windows x64 policy bootstrap
 echo.
 echo Windows may block unsigned local PowerShell scripts under the current execution policy.
 echo This launcher can start ONE child PowerShell process with -ExecutionPolicy Bypass.
