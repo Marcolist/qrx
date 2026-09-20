@@ -209,22 +209,48 @@ elif [[ "$NODE_ONLY" -eq 0 && "$TARGET" == linux-* && -f "$HOME/.cargo/env" ]]; 
   source "$HOME/.cargo/env"
 fi
 
-# QRX 0.0.9.87: Linux native desktop/Rust dependency bootstrap.
-# Rust crates such as libdbus-sys discover system ABI headers through pkg-config.
-# On Ubuntu/Debian these development packages are not part of a minimal server
-# installation, so install the verified build prerequisites before Cargo/Tauri.
+# QRX 0.0.9.89: Linux native desktop/Tauri dependency bootstrap.
+# Minimal Ubuntu/Debian installations do not ship the GTK/WebKit development
+# metadata required by Tauri/wry/gtk-rs. Detect it before Cargo starts so a
+# desktop build does not fail late in gdk-sys/atk-sys/cairo-sys/webkit2gtk-sys.
+# --node-only deliberately bypasses this entire desktop dependency set.
 if [[ "$NODE_ONLY" -eq 0 && "$TARGET" == linux-* ]] && command -v apt-get >/dev/null 2>&1; then
   linux_apt_missing=()
   command -v pkg-config >/dev/null 2>&1 || linux_apt_missing+=(pkg-config)
-  pkg-config --exists 'dbus-1 >= 1.6' >/dev/null 2>&1 || linux_apt_missing+=(libdbus-1-dev)
+  command -v patchelf >/dev/null 2>&1 || linux_apt_missing+=(patchelf)
+
+  # One Debian/Ubuntu dev package may satisfy several pkg-config modules; keep
+  # package additions unique so apt output remains deterministic.
+  add_linux_pkg() {
+    local pkg="$1" seen
+    for seen in "${linux_apt_missing[@]:-}"; do [[ "$seen" == "$pkg" ]] && return 0; done
+    linux_apt_missing+=("$pkg")
+  }
+  if command -v pkg-config >/dev/null 2>&1; then
+    pkg-config --exists 'dbus-1 >= 1.6' >/dev/null 2>&1 || add_linux_pkg libdbus-1-dev
+    pkg-config --exists 'gdk-3.0 >= 3.22' >/dev/null 2>&1 || add_linux_pkg libgtk-3-dev
+    pkg-config --exists 'atk >= 2.28' >/dev/null 2>&1 || add_linux_pkg libgtk-3-dev
+    pkg-config --exists 'cairo >= 1.14' >/dev/null 2>&1 || add_linux_pkg libgtk-3-dev
+    pkg-config --exists 'webkit2gtk-4.1' >/dev/null 2>&1 || add_linux_pkg libwebkit2gtk-4.1-dev
+    pkg-config --exists 'librsvg-2.0' >/dev/null 2>&1 || add_linux_pkg librsvg2-dev
+    pkg-config --exists 'ayatana-appindicator3-0.1' >/dev/null 2>&1 || add_linux_pkg libayatana-appindicator3-dev
+  else
+    add_linux_pkg libdbus-1-dev
+    add_linux_pkg libgtk-3-dev
+    add_linux_pkg libwebkit2gtk-4.1-dev
+    add_linux_pkg librsvg2-dev
+    add_linux_pkg libayatana-appindicator3-dev
+  fi
   if (( ${#linux_apt_missing[@]} > 0 )); then
-    command -v sudo >/dev/null 2>&1 || { echo "Missing Linux build packages: ${linux_apt_missing[*]}; sudo is unavailable." >&2; exit 4; }
-    echo "Installing Linux build dependencies: ${linux_apt_missing[*]}"
+    command -v sudo >/dev/null 2>&1 || { echo "Missing Linux desktop build packages: ${linux_apt_missing[*]}; sudo is unavailable." >&2; exit 4; }
+    echo "Installing Linux desktop build dependencies: ${linux_apt_missing[*]}"
     sudo apt-get update
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "${linux_apt_missing[@]}"
   fi
   command -v pkg-config >/dev/null 2>&1 || { echo "pkg-config is still unavailable after dependency bootstrap." >&2; exit 4; }
-  pkg-config --exists 'dbus-1 >= 1.6' || { echo "dbus-1 development metadata is still unavailable after dependency bootstrap." >&2; exit 4; }
+  for qrx_pc in 'dbus-1 >= 1.6' 'gdk-3.0 >= 3.22' 'atk >= 2.28' 'cairo >= 1.14' 'webkit2gtk-4.1' 'librsvg-2.0'; do
+    pkg-config --exists "$qrx_pc" || { echo "Linux desktop development metadata is still unavailable: $qrx_pc" >&2; exit 4; }
+  done
 fi
 
 required_commands=(cmake python3)

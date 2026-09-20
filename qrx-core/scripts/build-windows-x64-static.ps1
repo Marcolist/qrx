@@ -22,7 +22,7 @@ $ZlibVersion = if ($env:QRX_ZLIB_VERSION) { $env:QRX_ZLIB_VERSION } else { "1.3.
 $PngVersion = if ($env:QRX_LIBPNG_VERSION) { $env:QRX_LIBPNG_VERSION } else { "1.6.58" }
 $CurlVersion = if ($env:QRX_CURL_VERSION) { $env:QRX_CURL_VERSION } else { "8.22.0" }
 $ZlibSha = "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"
-$PngSha = "8c9b05b675ca7301a458df2c2e46f26e1d41ff36b8863f8c33530bc58c2e6225"
+$PngSha = "f4cc2ac75f181a6e67fb6e25b7e8b5338231fa076019b7e7d4e679f3e619ac36"
 $CurlSha = "f7ef3ae8a22e521f289803fe93543eb64c329b58aa73a9e224dfd915a2a5f4f7"
 
 function Need([string]$Name) { if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) { throw "Missing build tool: $Name" } }
