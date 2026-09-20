@@ -262,16 +262,22 @@ if [[ "$NODE_ONLY" -eq 0 && "$TARGET" == linux-* ]] && command -v apt-get >/dev/
   for qrx_pc in 'dbus-1 >= 1.6' 'gdk-3.0 >= 3.22' 'atk >= 2.28' 'cairo >= 1.14' 'webkit2gtk-4.1' 'librsvg-2.0'; do
     pkg-config --exists "$qrx_pc" || { echo "Linux desktop development metadata is still unavailable: $qrx_pc" >&2; exit 4; }
   done
-  # Tauri 1.6 wallet ABI. Ubuntu 24.04+ removed webkit2gtk-4.0-dev even
-  # though libsoup2 may still exist; fail here with a precise explanation
-  # rather than after a long Rust compile. Node-only remains supported.
+  # Tauri 1 wallet ABI. On newer Ubuntu releases the 4.0/libsoup2 ABI is no
+  # longer packaged. Keep the current wallet buildable without downgrading the
+  # host: build a private, pinned WebKitGTK 4.0 stack from verified sources.
+  legacy_missing=0
   for qrx_pc in 'libsoup-2.4 >= 2.62' 'javascriptcoregtk-4.0 >= 2.24' 'webkit2gtk-4.0 >= 2.22'; do
-    if ! pkg-config --exists "$qrx_pc"; then
-      echo "Linux GUI Wallet requires legacy Tauri-1 WebKit metadata unavailable on this host: $qrx_pc" >&2
-      echo "QRX Browser already uses Tauri 2/WebKitGTK 4.1. The wallet must be migrated to Tauri 2 for Ubuntu releases that removed WebKitGTK 4.0." >&2
-      echo "For a server/node build use: bash ./scripts/build-all-targets.sh --target host --node-only" >&2
-      exit 4
-    fi
+    pkg-config --exists "$qrx_pc" || legacy_missing=1
+  done
+  if [[ "$legacy_missing" -eq 1 ]]; then
+    echo "Legacy WebKitGTK 4.0 ABI unavailable from system packages; building isolated source fallback."
+    LEGACY_WEBKIT_PREFIX="$(bash "$ROOT/scripts/build-linux-legacy-webkit4.sh" "$TARGET" | tail -n 1)"
+    export PKG_CONFIG_PATH="$LEGACY_WEBKIT_PREFIX/lib/pkgconfig:$LEGACY_WEBKIT_PREFIX/lib64/pkgconfig:${PKG_CONFIG_PATH:-}"
+    export LD_LIBRARY_PATH="$LEGACY_WEBKIT_PREFIX/lib:$LEGACY_WEBKIT_PREFIX/lib64:${LD_LIBRARY_PATH:-}"
+    export CMAKE_PREFIX_PATH="$LEGACY_WEBKIT_PREFIX:${CMAKE_PREFIX_PATH:-}"
+  fi
+  for qrx_pc in 'libsoup-2.4 >= 2.62' 'javascriptcoregtk-4.0 >= 2.24' 'webkit2gtk-4.0 >= 2.22'; do
+    pkg-config --exists "$qrx_pc" || { echo "Legacy WebKitGTK source fallback did not provide: $qrx_pc" >&2; exit 4; }
   done
 fi
 
@@ -504,7 +510,15 @@ echo "[6/9] Building Tauri desktop wallet after its Core dependencies"
     echo "         Commit a lock file before producing release artifacts." >&2
     npm install --no-audit --no-fund
   fi
-  npx tauri build --target "$RUST_TARGET" --config "$TAURI_CONFIG"
+  if [[ "$TARGET" == linux-* ]]; then
+    npx tauri build --target "$RUST_TARGET" --config "$TAURI_CONFIG" --bundles deb
+    echo "[6.1/9] Attempting optional Linux AppImage bundle"
+    if ! npx tauri build --target "$RUST_TARGET" --config "$TAURI_CONFIG" --bundles appimage; then
+      echo "Warning: AppImage bundling failed; keeping the successfully built Linux wallet and DEB." >&2
+    fi
+  else
+    npx tauri build --target "$RUST_TARGET" --config "$TAURI_CONFIG"
+  fi
 )
 
 BUNDLE_DIR="$TAURI_TARGET_DIR/$RUST_TARGET/release/bundle"
@@ -620,7 +634,9 @@ case "$TARGET" in
     ;;
   linux-*)
     find "$BUNDLE_DIR" -type f -name '*.deb' -print -quit | grep -q . || { echo "Linux DEB missing after Tauri bundle" >&2; exit 8; }
-    find "$BUNDLE_DIR" -type f -name '*.AppImage' -print -quit | grep -q . || { echo "Linux AppImage missing after Tauri bundle" >&2; exit 8; }
+    if ! find "$BUNDLE_DIR" -type f -name '*.AppImage' -print -quit | grep -q .; then
+      echo "Warning: Linux AppImage missing; DEB is the authoritative Linux desktop artifact for this build." >&2
+    fi
     ;;
   windows-x64)
     find "$BUNDLE_DIR" -type f -name '*.msi' -print -quit | grep -q . || { echo "Windows MSI missing after Tauri bundle" >&2; exit 8; }

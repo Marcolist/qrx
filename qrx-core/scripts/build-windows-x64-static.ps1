@@ -67,7 +67,29 @@ $OsslExpected=((Get-Content $OsslShaFile | Select-Object -First 1) -split '\s+')
 if ($OsslExpected -notmatch '^[0-9a-fA-F]{64}$') { throw "Invalid OpenSSL checksum sidecar" }
 Verify $OsslTar $OsslExpected
 $ZlibTar=Join-Path $SourceCache "zlib-$ZlibVersion.tar.gz"; Fetch "https://zlib.net/fossils/zlib-$ZlibVersion.tar.gz" $ZlibTar; Verify $ZlibTar $ZlibSha
-$PngTar=Join-Path $SourceCache "libpng-$PngVersion.tar.xz"; FetchVerified "https://downloads.sourceforge.net/project/libpng/libpng16/$PngVersion/libpng-$PngVersion.tar.xz" $PngTar $PngSha
+$PngTar=Join-Path $SourceCache "libpng-$PngVersion.tar.xz"
+$PngArchiveOk=$false
+try {
+  FetchVerified "https://downloads.sourceforge.net/project/libpng/libpng16/$PngVersion/libpng-$PngVersion.tar.xz?download=1" $PngTar $PngSha
+  $PngArchiveOk=$true
+} catch {
+  Write-Warning "Canonical libpng archive fetch did not produce the maintainer-published SHA256; refusing those bytes and falling back to the signed/tagged upstream source tree."
+  Remove-Item -Force -ErrorAction SilentlyContinue $PngTar,"$PngTar.tmp"
+}
+$PngGitSource=Join-Path $Work "libpng-$PngVersion-git"
+if (-not $PngArchiveOk) {
+  Need "git"
+  $PngCommit="3061454d980de7d53608f594194cfac722721d2a"
+  if (Test-Path $PngGitSource) { Remove-Item -Recurse -Force $PngGitSource }
+  & git clone --filter=blob:none --no-checkout https://github.com/pnggroup/libpng.git $PngGitSource
+  if ($LASTEXITCODE -ne 0) { throw "libpng upstream git clone failed" }
+  & git -C $PngGitSource fetch --depth 1 origin "refs/tags/v$PngVersion:refs/tags/v$PngVersion"
+  if ($LASTEXITCODE -ne 0) { throw "libpng tag fetch failed" }
+  $tagCommit=(& git -C $PngGitSource rev-list -n 1 "v$PngVersion").Trim().ToLowerInvariant()
+  if ($tagCommit -ne $PngCommit) { throw "libpng tag commit mismatch`nexpected $PngCommit`nactual   $tagCommit" }
+  & git -C $PngGitSource checkout --detach $PngCommit
+  if ($LASTEXITCODE -ne 0) { throw "libpng pinned commit checkout failed" }
+}
 $CurlTar=Join-Path $SourceCache "curl-$CurlVersion.tar.xz"; Fetch "https://curl.se/download/curl-$CurlVersion.tar.xz" $CurlTar; Verify $CurlTar $CurlSha
 
 # OpenSSL's Windows build requires the MSVC developer environment. Locate it
@@ -109,7 +131,7 @@ if (-not (Test-Path $ZlibStatic)) { throw "Static zlib missing" }
 
 $PngStatic=(Get-ChildItem (Join-Path $DepsPrefix "lib") -Filter "*png*static*.lib" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
 if (-not $PngStatic) {
-  $src=Join-Path $Work "libpng-$PngVersion"; Extract $PngTar $src
+  if ($PngArchiveOk) { $src=Join-Path $Work "libpng-$PngVersion"; Extract $PngTar $src } else { $src=$PngGitSource }
   CMakeInstall $src (Join-Path $Work "libpng-build") @("-DCMAKE_BUILD_TYPE=Release","-DCMAKE_INSTALL_PREFIX=$DepsPrefix","-DBUILD_SHARED_LIBS=OFF","-DPNG_SHARED=OFF","-DPNG_STATIC=ON","-DPNG_TESTS=OFF","-DPNG_TOOLS=OFF","-DZLIB_ROOT=$DepsPrefix","-DZLIB_LIBRARY=$ZlibStatic","-DZLIB_INCLUDE_DIR=$DepsPrefix\include")
   $PngStatic=(Get-ChildItem (Join-Path $DepsPrefix "lib") -Filter "*png*.lib" | Where-Object { $_.Name -notmatch 'dll' } | Select-Object -First 1).FullName
 }
@@ -127,7 +149,7 @@ if (-not (Test-Path $CurlStatic)) {
 }
 if (-not (Test-Path $CurlStatic)) { throw "Static libcurl missing" }
 
-@("openssl=$OpenSSLVersion sha256=$OsslExpected","zlib=$ZlibVersion sha256=$ZlibSha","libpng=$PngVersion sha256=$PngSha","curl=$CurlVersion sha256=$CurlSha","os=windows","arch=x86_64") | Set-Content -Encoding ascii (Join-Path $DepsPrefix "qrx-deps.lock")
+@("openssl=$OpenSSLVersion sha256=$OsslExpected","zlib=$ZlibVersion sha256=$ZlibSha","libpng=$PngVersion archive-sha256=$PngSha git-fallback-commit=3061454d980de7d53608f594194cfac722721d2a","curl=$CurlVersion sha256=$CurlSha","os=windows","arch=x86_64") | Set-Content -Encoding ascii (Join-Path $DepsPrefix "qrx-deps.lock")
 
 if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
 $cmakeArgs=@("-S",$Core,"-B",$BuildDir,"-A","x64","-DCMAKE_BUILD_TYPE=Release","-DQRX_REQUIRE_PQC=ON","-DQRX_REQUIRE_BUNDLED_DEPS=ON","-DQRX_DEPS_PREFIX=$DepsPrefix","-DOPENSSL_ROOT_DIR=$DepsPrefix","-DOPENSSL_USE_STATIC_LIBS=TRUE","-DOPENSSL_CRYPTO_LIBRARY=$Crypto","-DZLIB_ROOT=$DepsPrefix","-DZLIB_LIBRARY=$ZlibStatic","-DZLIB_INCLUDE_DIR=$DepsPrefix\include","-DPNG_PNG_INCLUDE_DIR=$DepsPrefix\include","-DPNG_LIBRARY=$PngStatic","-DCURL_ROOT=$DepsPrefix","-DCURL_USE_STATIC_LIBS=TRUE","-DCURL_LIBRARY=$CurlStatic","-DCURL_INCLUDE_DIR=$DepsPrefix\include")
