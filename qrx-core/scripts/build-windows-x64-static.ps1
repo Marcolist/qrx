@@ -22,7 +22,7 @@ $ZlibVersion = if ($env:QRX_ZLIB_VERSION) { $env:QRX_ZLIB_VERSION } else { "1.3.
 $PngVersion = if ($env:QRX_LIBPNG_VERSION) { $env:QRX_LIBPNG_VERSION } else { "1.6.58" }
 $CurlVersion = if ($env:QRX_CURL_VERSION) { $env:QRX_CURL_VERSION } else { "8.22.0" }
 $ZlibSha = "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"
-$PngSha = "f4cc2ac75f181a6e67fb6e25b7e8b5338231fa076019b7e7d4e679f3e619ac36"
+$PngSha = "28eb403f51f0f7405249132cecfe82ea5c0ef97f1b32c5a65828814ae0d34775"
 $CurlSha = "f7ef3ae8a22e521f289803fe93543eb64c329b58aa73a9e224dfd915a2a5f4f7"
 
 function Need([string]$Name) { if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) { throw "Missing build tool: $Name" } }
@@ -39,6 +39,19 @@ function Verify([string]$File,[string]$Expected) {
   $got=(Get-FileHash -Algorithm SHA256 $File).Hash.ToLowerInvariant()
   if ($got -ne $Expected.ToLowerInvariant()) { throw "SHA256 mismatch for $File`nexpected $Expected`nactual   $got" }
 }
+function FetchVerified([string]$Url,[string]$Out,[string]$Expected) {
+  # Never trust a stale or mirror/error-page cache entry. Verify first, then
+  # delete and download exactly once if the cached bytes are not the pinned artifact.
+  if (Test-Path $Out) {
+    $cached=(Get-FileHash -Algorithm SHA256 $Out).Hash.ToLowerInvariant()
+    if ($cached -ne $Expected.ToLowerInvariant()) {
+      Write-Warning "Discarding cached source with wrong SHA256: $Out"
+      Remove-Item -Force $Out
+    }
+  }
+  Fetch $Url $Out
+  Verify $Out $Expected
+}
 function Extract([string]$Archive,[string]$Destination) {
   if (Test-Path $Destination) { Remove-Item -Recurse -Force $Destination }
   New-Item -ItemType Directory -Force -Path $Destination | Out-Null
@@ -54,7 +67,7 @@ $OsslExpected=((Get-Content $OsslShaFile | Select-Object -First 1) -split '\s+')
 if ($OsslExpected -notmatch '^[0-9a-fA-F]{64}$') { throw "Invalid OpenSSL checksum sidecar" }
 Verify $OsslTar $OsslExpected
 $ZlibTar=Join-Path $SourceCache "zlib-$ZlibVersion.tar.gz"; Fetch "https://zlib.net/fossils/zlib-$ZlibVersion.tar.gz" $ZlibTar; Verify $ZlibTar $ZlibSha
-$PngTar=Join-Path $SourceCache "libpng-$PngVersion.tar.gz"; Fetch "https://download.sourceforge.net/libpng/libpng-$PngVersion.tar.gz" $PngTar; Verify $PngTar $PngSha
+$PngTar=Join-Path $SourceCache "libpng-$PngVersion.tar.xz"; FetchVerified "https://downloads.sourceforge.net/project/libpng/libpng16/$PngVersion/libpng-$PngVersion.tar.xz" $PngTar $PngSha
 $CurlTar=Join-Path $SourceCache "curl-$CurlVersion.tar.xz"; Fetch "https://curl.se/download/curl-$CurlVersion.tar.xz" $CurlTar; Verify $CurlTar $CurlSha
 
 # OpenSSL's Windows build requires the MSVC developer environment. Locate it

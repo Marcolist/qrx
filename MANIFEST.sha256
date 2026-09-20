@@ -611,6 +611,7 @@ b94e4f2f7773e83faa3de8966a030fbfa748035ee3ea8ab7718dc4ea859341e0  ./QRX_0.0.9.84
 c3a6da0a6148f930c90fe5eec58a6529fdefd81496437b948113ccbc30026974  ./QRX_0.0.9.87_AURA_LINUX_DBUS_BUILD_HARDENING.md
 690d655df32366516cc3cec5980a2944cef4f448c390f18fb5e243fd5f50df80  ./QRX_0.0.9.88_HEADLESS_NODE_AI_CAPABILITY_FALLBACK.md
 b130e580ddbc2e211da8eb28aecba3a3efe9989ef72068b901401f64a5cbfa29  ./QRX_0.0.9.89_LINUX_DESKTOP_WINDOWS_LIBPNG_HARDENING.md
+fb172ec2182a97f8803309450e35119d5f2ce1f40b37f4e79604b350e8fbce3b  ./QRX_0.0.9.90_LINUX_TAURI_ABI_WINDOWS_LIBPNG_INTEGRITY.md
 75af825ed9c0a1e77ebbe51737a37cbf8ee99a47aed3d5d81195db41372bbd02  ./QRX_APP_PLATFORM_0.0.9_0.0.10.md
 345ce11d1dc6a6271f8c6187a3e01e1faab459385e3ea971ca416b41e985ef60  ./QRX_A_TO_Z_DOCUMENTATION_PLAN_0.0.9.49.md
 963c2dc1b5036d361c0959bcd8935253439bd3896c35c3fd888cd0b9e523fcfc  ./QRX_CORE_0.0.7_VELOCITY_TARGET.md
@@ -882,7 +883,7 @@ ef3df65704a4e46462b84e0723db59133a2183a5801fa5d8529e117da5b995b6  ./qrx-core/scr
 feae4736521ce42d4f077f52c877266fe8c711d166bb1eed33e7ff613d14a3cf  ./qrx-core/scripts/build-linux-static.sh
 add37d55ea2df4abf8dd5c528c4787af66f4d11f126261e613ab9d0559ce5d1e  ./qrx-core/scripts/build-macos-static.sh
 94f214a903c7f53731f4d2399451b6b37aafe379e52553d560dacfff613ae755  ./qrx-core/scripts/build-unix-native-deps.sh
-b881303fa0076af6197e6a68c79f5fbbb6f6d1213ba47b0190734242766422f3  ./qrx-core/scripts/build-windows-x64-static.ps1
+0114989d1c17ffed670d0fdcd232eb4f4b986c49e8d8db8ca948288a4535335a  ./qrx-core/scripts/build-windows-x64-static.ps1
 bc66646a9c7607155f4fc369527eb271c3e94890e37886cc9fdcd40c9799d8ff  ./qrx-core/scripts/committee_finalize.sh
 fc22e966f8caf815234f7ad5d60d72cdb01ad3c78b6dbc41918f08cfcb9e8c6e  ./qrx-core/scripts/committee_vote.sh
 888c2fad315f5e96c03acd63dee8a43bdbbc72c46b27cf103c8f00e34a10f188  ./qrx-core/scripts/demo_rc6.sh
@@ -1355,7 +1356,7 @@ f9a32e9187c54c5ab731ad3af3008b77e10a4bac0e65672df55b26378677065c  ./scripts/audi
 de2b52146b1993e00dfd813a42a90fbfd9a2e045f8e00445a22bd16b63a06b09  ./scripts/audit-tauri2-browser.py
 12a685066078af76593b4dcf05683d585ed342ec81f9fa595c337323a929a773  ./scripts/audit-untrusted-abort-reachability.py
 c9d8de72c108af1e0287582152802c0b16ddf3bd781029e4bf74cf25496253bf  ./scripts/build-all-targets.ps1
-1dde2712ad246d411a7a645ad9d11339318d70c4383c0e4f6a95c440c678b783  ./scripts/build-all-targets.sh
+563abc17068d586b7330d431ede423e2ab24511d209c916bdabdd62b4f258a9a  ./scripts/build-all-targets.sh
 0da0a33b95e644f67101a6146b15d0a07a58fa439bc94ccfbc78318e845ebc99  ./scripts/build-aura-runtime.sh
 9e7aae8ac057a1bd945b83fef9eb5360738365a5698dde009db11c671927c88e  ./scripts/build-windows-x64.cmd
 ab1f0f28239eaa84aa04b1c47f1f66b791db511746d69a3b9b0509f067554add  ./scripts/final-release-audit.sh

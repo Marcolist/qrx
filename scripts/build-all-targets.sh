@@ -209,7 +209,7 @@ elif [[ "$NODE_ONLY" -eq 0 && "$TARGET" == linux-* && -f "$HOME/.cargo/env" ]]; 
   source "$HOME/.cargo/env"
 fi
 
-# QRX 0.0.9.89: Linux native desktop/Tauri dependency bootstrap.
+# QRX 0.0.9.90: Linux native desktop/Tauri ABI-aware dependency bootstrap.
 # Minimal Ubuntu/Debian installations do not ship the GTK/WebKit development
 # metadata required by Tauri/wry/gtk-rs. Detect it before Cargo starts so a
 # desktop build does not fail late in gdk-sys/atk-sys/cairo-sys/webkit2gtk-sys.
@@ -231,13 +231,24 @@ if [[ "$NODE_ONLY" -eq 0 && "$TARGET" == linux-* ]] && command -v apt-get >/dev/
     pkg-config --exists 'gdk-3.0 >= 3.22' >/dev/null 2>&1 || add_linux_pkg libgtk-3-dev
     pkg-config --exists 'atk >= 2.28' >/dev/null 2>&1 || add_linux_pkg libgtk-3-dev
     pkg-config --exists 'cairo >= 1.14' >/dev/null 2>&1 || add_linux_pkg libgtk-3-dev
+    # QRX Browser is Tauri 2 (WebKitGTK 4.1/libsoup3), while the current
+    # GUI Wallet is Tauri 1.6 (WebKitGTK 4.0/libsoup2). Keep both ABI
+    # requirements explicit until the wallet itself is migrated to Tauri 2.
     pkg-config --exists 'webkit2gtk-4.1' >/dev/null 2>&1 || add_linux_pkg libwebkit2gtk-4.1-dev
+    pkg-config --exists 'libsoup-2.4 >= 2.62' >/dev/null 2>&1 || add_linux_pkg libsoup2.4-dev
+    if ! pkg-config --exists 'javascriptcoregtk-4.0 >= 2.24' >/dev/null 2>&1 || ! pkg-config --exists 'webkit2gtk-4.0 >= 2.22' >/dev/null 2>&1; then
+      if apt-cache show libwebkit2gtk-4.0-dev >/dev/null 2>&1; then
+        add_linux_pkg libwebkit2gtk-4.0-dev
+      fi
+    fi
     pkg-config --exists 'librsvg-2.0' >/dev/null 2>&1 || add_linux_pkg librsvg2-dev
     pkg-config --exists 'ayatana-appindicator3-0.1' >/dev/null 2>&1 || add_linux_pkg libayatana-appindicator3-dev
   else
     add_linux_pkg libdbus-1-dev
     add_linux_pkg libgtk-3-dev
     add_linux_pkg libwebkit2gtk-4.1-dev
+    add_linux_pkg libsoup2.4-dev
+    if apt-cache show libwebkit2gtk-4.0-dev >/dev/null 2>&1; then add_linux_pkg libwebkit2gtk-4.0-dev; fi
     add_linux_pkg librsvg2-dev
     add_linux_pkg libayatana-appindicator3-dev
   fi
@@ -250,6 +261,17 @@ if [[ "$NODE_ONLY" -eq 0 && "$TARGET" == linux-* ]] && command -v apt-get >/dev/
   command -v pkg-config >/dev/null 2>&1 || { echo "pkg-config is still unavailable after dependency bootstrap." >&2; exit 4; }
   for qrx_pc in 'dbus-1 >= 1.6' 'gdk-3.0 >= 3.22' 'atk >= 2.28' 'cairo >= 1.14' 'webkit2gtk-4.1' 'librsvg-2.0'; do
     pkg-config --exists "$qrx_pc" || { echo "Linux desktop development metadata is still unavailable: $qrx_pc" >&2; exit 4; }
+  done
+  # Tauri 1.6 wallet ABI. Ubuntu 24.04+ removed webkit2gtk-4.0-dev even
+  # though libsoup2 may still exist; fail here with a precise explanation
+  # rather than after a long Rust compile. Node-only remains supported.
+  for qrx_pc in 'libsoup-2.4 >= 2.62' 'javascriptcoregtk-4.0 >= 2.24' 'webkit2gtk-4.0 >= 2.22'; do
+    if ! pkg-config --exists "$qrx_pc"; then
+      echo "Linux GUI Wallet requires legacy Tauri-1 WebKit metadata unavailable on this host: $qrx_pc" >&2
+      echo "QRX Browser already uses Tauri 2/WebKitGTK 4.1. The wallet must be migrated to Tauri 2 for Ubuntu releases that removed WebKitGTK 4.0." >&2
+      echo "For a server/node build use: bash ./scripts/build-all-targets.sh --target host --node-only" >&2
+      exit 4
+    fi
   done
 fi
 
