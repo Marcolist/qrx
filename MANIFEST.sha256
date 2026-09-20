@@ -614,6 +614,7 @@ b130e580ddbc2e211da8eb28aecba3a3efe9989ef72068b901401f64a5cbfa29  ./QRX_0.0.9.89
 fb172ec2182a97f8803309450e35119d5f2ce1f40b37f4e79604b350e8fbce3b  ./QRX_0.0.9.90_LINUX_TAURI_ABI_WINDOWS_LIBPNG_INTEGRITY.md
 78e86d46424d39c2ced413646b50e16a86f10c86f81330f38080bb213a852c54  ./QRX_0.0.9.91_LEGACY_LINUX_GUI_SOURCE_FALLBACK_DETERMINISTIC_FETCH.md
 340738f68e2d643446dba3a7191e2a17dfcf30067854e11ea5cb5800f8c36a69  ./QRX_0.0.9.92_WINDOWS_LIBPNG_TAG_RESOLUTION_FIX.md
+a1d497ee74d52f97a739d4d18bcb5041583a7f8deda2148edcf044f4b65946bc  ./QRX_0.0.9.93_WINDOWS_CMAKE_GIT_BOOTSTRAP_HARDENING.md
 75af825ed9c0a1e77ebbe51737a37cbf8ee99a47aed3d5d81195db41372bbd02  ./QRX_APP_PLATFORM_0.0.9_0.0.10.md
 345ce11d1dc6a6271f8c6187a3e01e1faab459385e3ea971ca416b41e985ef60  ./QRX_A_TO_Z_DOCUMENTATION_PLAN_0.0.9.49.md
 963c2dc1b5036d361c0959bcd8935253439bd3896c35c3fd888cd0b9e523fcfc  ./QRX_CORE_0.0.7_VELOCITY_TARGET.md
@@ -885,7 +886,7 @@ ef3df65704a4e46462b84e0723db59133a2183a5801fa5d8529e117da5b995b6  ./qrx-core/scr
 feae4736521ce42d4f077f52c877266fe8c711d166bb1eed33e7ff613d14a3cf  ./qrx-core/scripts/build-linux-static.sh
 add37d55ea2df4abf8dd5c528c4787af66f4d11f126261e613ab9d0559ce5d1e  ./qrx-core/scripts/build-macos-static.sh
 94f214a903c7f53731f4d2399451b6b37aafe379e52553d560dacfff613ae755  ./qrx-core/scripts/build-unix-native-deps.sh
-256e6c46bcfeea91a7752a2dc1ac521fa9f0e5786e3dc64557d83170294180a0  ./qrx-core/scripts/build-windows-x64-static.ps1
+c7212b4ee23864f9eaf0731ad466b7e9a9114df263c594abea27d1b60437cb4f  ./qrx-core/scripts/build-windows-x64-static.ps1
 bc66646a9c7607155f4fc369527eb271c3e94890e37886cc9fdcd40c9799d8ff  ./qrx-core/scripts/committee_finalize.sh
 fc22e966f8caf815234f7ad5d60d72cdb01ad3c78b6dbc41918f08cfcb9e8c6e  ./qrx-core/scripts/committee_vote.sh
 888c2fad315f5e96c03acd63dee8a43bdbbc72c46b27cf103c8f00e34a10f188  ./qrx-core/scripts/demo_rc6.sh
@@ -1357,7 +1358,7 @@ fad529dbe680b6b3047133330e6ece07c36c3f12fd2d8df49fdf6fb069c371ed  ./scripts/audi
 f9a32e9187c54c5ab731ad3af3008b77e10a4bac0e65672df55b26378677065c  ./scripts/audit-linux-openssl-layout.py
 de2b52146b1993e00dfd813a42a90fbfd9a2e045f8e00445a22bd16b63a06b09  ./scripts/audit-tauri2-browser.py
 12a685066078af76593b4dcf05683d585ed342ec81f9fa595c337323a929a773  ./scripts/audit-untrusted-abort-reachability.py
-c9d8de72c108af1e0287582152802c0b16ddf3bd781029e4bf74cf25496253bf  ./scripts/build-all-targets.ps1
+3084e3ec9f0ce977b76eb7a3b3ef8b1b004bc65c0e8f120b2661b34824b230d6  ./scripts/build-all-targets.ps1
 2acd8d3a7d308fa221e9713b877d455c43a0e49c2e0a2985b4b39bf6295d7c9f  ./scripts/build-all-targets.sh
 0da0a33b95e644f67101a6146b15d0a07a58fa439bc94ccfbc78318e845ebc99  ./scripts/build-aura-runtime.sh
 f31e7d5c4a1bc146458b3247fd7519b44d323aef9850394bba7e624e3a3b505d  ./scripts/build-linux-legacy-webkit4.sh
@@ -1380,6 +1381,7 @@ fc6f35192895dc692f8f5a6c42201df1f388482ceb50803515ac0f9e5882503b  ./scripts/setu
 4d4949a721845aef60f72607c027050c169115122fe7c57916fb4508b58ee926  ./scripts/sign-aura-runtime-catalog.py
 a262f00670daa055dee5330802508a459080eaa3e50ecf7d2ad973b91804fb3f  ./scripts/test_00988_headless_ai_fallback.sh
 a3c54f641da226bfecdc1fa9d5204f573032044483890dcbf9e5d8359b1e46f1  ./scripts/test_00992_windows_libpng_tag_resolution.py
+92c1f5075ee0bef83535ea16e1e68d092d2a3f0ac202105038613531ca1d60f4  ./scripts/test_00993_windows_cmake_git_bootstrap.py
 37c369e79bc3a60b06bbaafc1ef7f3e969dfed21337993e00fe2c4ca509e54f9  ./scripts/test_browser_fleet_068.sh
 0a7c036e11c9b184966dc63fcc8b5ea0c3f75db069b1545ef81cd76f657e4fe7  ./scripts/test_command_center_policy_00971.py
 20934046be9a8e19084536a2715add59898ac1af0024cdc89b75246b35656c3d  ./scripts/test_generals_phase63.sh

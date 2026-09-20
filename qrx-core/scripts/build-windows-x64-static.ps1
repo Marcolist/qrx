@@ -26,7 +26,7 @@ $PngSha = "28eb403f51f0f7405249132cecfe82ea5c0ef97f1b32c5a65828814ae0d34775"
 $CurlSha = "f7ef3ae8a22e521f289803fe93543eb64c329b58aa73a9e224dfd915a2a5f4f7"
 
 function Need([string]$Name) { if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) { throw "Missing build tool: $Name" } }
-foreach ($c in @("cmake","perl","tar")) { Need $c }
+foreach ($c in @("cmake","perl","tar","git")) { Need $c }
 
 function Fetch([string]$Url,[string]$Out) {
   if (-not (Test-Path $Out) -or (Get-Item $Out).Length -eq 0) {
@@ -116,9 +116,15 @@ if (-not (Test-Path $Crypto)) {
 if (-not (Test-Path $Crypto)) { $Crypto=Join-Path $DepsPrefix "lib\crypto.lib" }
 if (-not (Test-Path $Crypto)) { throw "Static OpenSSL crypto library missing" }
 
+# Pin the multi-config Visual Studio generator.  Passing -A x64 to an
+# environment-selected Ninja generator is invalid (Ninja has no platform
+# specification) and also leaves cl.exe undiscovered outside a VS dev shell.
+# The Windows preflight already requires the VS 2022 C++ toolchain, so use its
+# generator deterministically for dependency and Core builds.
+$CMakeGenerator="Visual Studio 17 2022"
 function CMakeInstall([string]$Source,[string]$Build,[string[]]$Args) {
   if (Test-Path $Build) { Remove-Item -Recurse -Force $Build }
-  & cmake -S $Source -B $Build -A x64 @Args
+  & cmake -S $Source -B $Build -G $CMakeGenerator -A x64 @Args
   if ($LASTEXITCODE -ne 0) { throw "CMake configure failed: $Source" }
   & cmake --build $Build --config Release --parallel $Jobs
   if ($LASTEXITCODE -ne 0) { throw "CMake build failed: $Source" }
@@ -157,7 +163,7 @@ if (-not (Test-Path $CurlStatic)) { throw "Static libcurl missing" }
 @("openssl=$OpenSSLVersion sha256=$OsslExpected","zlib=$ZlibVersion sha256=$ZlibSha","libpng=$PngVersion archive-sha256=$PngSha git-fallback-commit=3061454d980de7d53608f594194cfac722721d2a","curl=$CurlVersion sha256=$CurlSha","os=windows","arch=x86_64") | Set-Content -Encoding ascii (Join-Path $DepsPrefix "qrx-deps.lock")
 
 if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
-$cmakeArgs=@("-S",$Core,"-B",$BuildDir,"-A","x64","-DCMAKE_BUILD_TYPE=Release","-DQRX_REQUIRE_PQC=ON","-DQRX_REQUIRE_BUNDLED_DEPS=ON","-DQRX_DEPS_PREFIX=$DepsPrefix","-DOPENSSL_ROOT_DIR=$DepsPrefix","-DOPENSSL_USE_STATIC_LIBS=TRUE","-DOPENSSL_CRYPTO_LIBRARY=$Crypto","-DZLIB_ROOT=$DepsPrefix","-DZLIB_LIBRARY=$ZlibStatic","-DZLIB_INCLUDE_DIR=$DepsPrefix\include","-DPNG_PNG_INCLUDE_DIR=$DepsPrefix\include","-DPNG_LIBRARY=$PngStatic","-DCURL_ROOT=$DepsPrefix","-DCURL_USE_STATIC_LIBS=TRUE","-DCURL_LIBRARY=$CurlStatic","-DCURL_INCLUDE_DIR=$DepsPrefix\include")
+$cmakeArgs=@("-S",$Core,"-B",$BuildDir,"-G",$CMakeGenerator,"-A","x64","-DCMAKE_BUILD_TYPE=Release","-DQRX_REQUIRE_PQC=ON","-DQRX_REQUIRE_BUNDLED_DEPS=ON","-DQRX_DEPS_PREFIX=$DepsPrefix","-DOPENSSL_ROOT_DIR=$DepsPrefix","-DOPENSSL_USE_STATIC_LIBS=TRUE","-DOPENSSL_CRYPTO_LIBRARY=$Crypto","-DZLIB_ROOT=$DepsPrefix","-DZLIB_LIBRARY=$ZlibStatic","-DZLIB_INCLUDE_DIR=$DepsPrefix\include","-DPNG_PNG_INCLUDE_DIR=$DepsPrefix\include","-DPNG_LIBRARY=$PngStatic","-DCURL_ROOT=$DepsPrefix","-DCURL_USE_STATIC_LIBS=TRUE","-DCURL_LIBRARY=$CurlStatic","-DCURL_INCLUDE_DIR=$DepsPrefix\include")
 & cmake @cmakeArgs; if ($LASTEXITCODE -ne 0) { throw "QRX CMake configure failed" }
 & cmake --build $BuildDir --config Release --parallel $Jobs; if ($LASTEXITCODE -ne 0) { throw "QRX build failed" }
 $expected=@("qrx.exe","qrx-cli.exe","qrxd.exe","qrx-upscaler.exe","qrxdb_verify.exe","qrxdb_salvage.exe","qrxdb_compact.exe","qrxdb_snapshot.exe")
