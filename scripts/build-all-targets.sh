@@ -147,6 +147,33 @@ case "$TARGET:$actual_arch" in
   *) ;;
 esac
 
+# QRX 0.0.9.85: Linux Rust/Cargo bootstrap.
+# A fresh seed-node host should not stop merely because Rust has not been
+# installed yet. On Linux, install the official rustup toolchain non-
+# interactively with rustup's default profile/toolchain (-y), then load the
+# per-user Cargo environment into this build process. No system-wide Rust
+# package or persistent shell modification beyond rustup's normal defaults is
+# required.
+if [[ "$TARGET" == linux-* ]] && ! command -v cargo >/dev/null 2>&1; then
+  echo "Cargo not found; installing the default Rust toolchain via rustup..."
+  if ! command -v curl >/dev/null 2>&1; then
+    command -v apt-get >/dev/null 2>&1 || { echo "Cannot auto-install Rust: curl is missing and apt-get is unavailable." >&2; exit 4; }
+    command -v sudo >/dev/null 2>&1 || { echo "Cannot auto-install curl: sudo is unavailable." >&2; exit 4; }
+    sudo apt-get update
+    sudo apt-get install -y curl ca-certificates
+  fi
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  [[ -f "$HOME/.cargo/env" ]] || { echo "rustup completed but $HOME/.cargo/env was not created." >&2; exit 4; }
+  # shellcheck disable=SC1091
+  source "$HOME/.cargo/env"
+  command -v cargo >/dev/null 2>&1 || { echo "Rust bootstrap completed but cargo is still unavailable." >&2; exit 4; }
+  echo "Rust/Cargo installed: $(cargo --version)"
+elif [[ "$TARGET" == linux-* && -f "$HOME/.cargo/env" ]]; then
+  # Ensure rustup-managed cargo/rustc are visible even in non-login shells.
+  # shellcheck disable=SC1091
+  source "$HOME/.cargo/env"
+fi
+
 for command_name in cmake cargo rustc rustup node npm python3; do
   command -v "$command_name" >/dev/null 2>&1 || { echo "Missing build dependency: $command_name" >&2; exit 4; }
 done

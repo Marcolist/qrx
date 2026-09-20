@@ -62,7 +62,7 @@ build_openssl(){
   local stamp="$PREFIX/.qrx-openssl-$OPENSSL_VERSION"
   [[ -f "$stamp" && -f "$PREFIX/lib/libcrypto.a" && -f "$PREFIX/include/openssl/evp.h" ]] && { echo "Reusing OpenSSL $OPENSSL_VERSION"; return; }
   local src="$WORKROOT/openssl-$OPENSSL_VERSION"; rm -rf "$src"; mkdir -p "$src"; tar -xzf "$OSSL_TAR" --strip-components=1 -C "$src"
-  ( cd "$src"; ./Configure "$OSSL_TARGET" no-shared no-tests --prefix="$PREFIX" --openssldir="$PREFIX/ssl"; make -j"$JOBS"; make install_sw )
+  ( cd "$src"; ./Configure "$OSSL_TARGET" no-shared no-tests --prefix="$PREFIX" --openssldir="$PREFIX/ssl" --libdir=lib; make -j"$JOBS"; make install_sw )
   touch "$stamp"
 }
 
