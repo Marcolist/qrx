@@ -122,9 +122,11 @@ if (-not (Test-Path $Crypto)) { throw "Static OpenSSL crypto library missing" }
 # The Windows preflight already requires the VS 2022 C++ toolchain, so use its
 # generator deterministically for dependency and Core builds.
 $CMakeGenerator="Visual Studio 17 2022"
-function CMakeInstall([string]$Source,[string]$Build,[string[]]$Args) {
+function CMakeInstall([string]$Source,[string]$Build,[string[]]$CMakeOptions) {
   if (Test-Path $Build) { Remove-Item -Recurse -Force $Build }
-  & cmake -S $Source -B $Build -G $CMakeGenerator -A x64 @Args
+  # $args is an automatic PowerShell variable; using it as a parameter loses
+  # the dependency options, including the explicit ZLIB library/header paths.
+  & cmake -S $Source -B $Build -G $CMakeGenerator -A x64 @CMakeOptions
   if ($LASTEXITCODE -ne 0) { throw "CMake configure failed: $Source" }
   & cmake --build $Build --config Release --parallel $Jobs
   if ($LASTEXITCODE -ne 0) { throw "CMake build failed: $Source" }
