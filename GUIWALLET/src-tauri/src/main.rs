@@ -1714,6 +1714,13 @@ fn wallet_directory_has_entries(path: &Path) -> std::io::Result<bool> {
     Ok(fs::read_dir(path)?.next().transpose()?.is_some())
 }
 
+fn ensure_new_wallet_target(target: &Path) -> Result<(), String> {
+    if target.exists() && wallet_directory_has_entries(target).map_err(|e| e.to_string())? {
+        return Err("Wallet directory already contains files; refusing to overwrite existing wallet data. Choose another name or open/import the existing wallet.".into());
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn list_wallets(network: Option<String>) -> Result<Vec<WalletListItem>, String> {
     let network = network.unwrap_or_else(|| "mainnet".into());
@@ -1812,9 +1819,7 @@ fn create_wallet(
     }
 
     let target = wallet_dir(&network, &wallet).map_err(String::from)?;
-    if target.exists() && wallet_directory_has_entries(&target).map_err(|e| e.to_string())? {
-        return Err("Wallet directory already contains files; refusing to overwrite existing wallet data. Choose another name or open/import the existing wallet.".into());
-    }
+    ensure_new_wallet_target(&target)?;
 
     // Core creates the directory after the bundled executable has been found.
     let output = run_qrx(
