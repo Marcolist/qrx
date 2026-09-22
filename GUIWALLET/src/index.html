@@ -675,6 +675,15 @@ pre,.receive-box{max-width:100%;overflow:auto}
 .qrx-project-footer .qrx-icon-link{width:34px;height:34px;border-radius:11px}
 .aura-send-icon{width:42px!important;min-width:42px!important;height:38px!important;padding:0!important;display:grid!important;place-items:center!important;font-size:17px}
 
+
+/* Keep complete node hashes and supply values inside their dashboard cards. */
+#view-dashboard > *, #mainnetHealthCard > *,
+#view-dashboard .metric { min-width:0; }
+#view-dashboard .metric .value { overflow-wrap:anywhere; }
+#mainnetHealthCard .wide-grid {
+  grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr))!important;
+}
+#mhBlockHash, #mhStateRoot { white-space:normal; overflow-wrap:anywhere; }
 </style>
 </head>
 <body><div class="top-tools">
