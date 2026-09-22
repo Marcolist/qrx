@@ -180,14 +180,23 @@ if [[ "$TARGET" == "linux-arm64" ]]; then
   cloned=0
   for attempt in 1 2 3; do
     rm -rf "$SRC"
-    if git -c http.version=HTTP/1.1 clone --quiet --depth 1 --branch "$RUNTIME_TAG" --recurse-submodules --shallow-submodules "$RUNTIME_REPO" "$SRC"; then
+    # Some upstream submodules still use SSH GitHub URLs. Release builders do
+    # not have deploy keys for public third-party repositories, so rewrite
+    # those URLs to HTTPS for this command and all recursive child clones.
+    if GIT_CONFIG_COUNT=2 \
+      GIT_CONFIG_KEY_0='url.https://github.com/.insteadOf' GIT_CONFIG_VALUE_0='git@github.com:' \
+      GIT_CONFIG_KEY_1='url.https://github.com/.insteadOf' GIT_CONFIG_VALUE_1='ssh://git@github.com/' \
+      git -c http.version=HTTP/1.1 clone --quiet --depth 1 --branch "$RUNTIME_TAG" --recurse-submodules --shallow-submodules "$RUNTIME_REPO" "$SRC"; then
       cloned=1; break
     fi
     echo "Pinned Real-ESRGAN runtime fetch attempt $attempt/3 failed; retrying..." >&2
     sleep $((attempt * 2))
   done
   [[ "$cloned" -eq 1 ]] || { echo "Unable to fetch pinned Real-ESRGAN runtime source after 3 attempts. Check GitHub/TLS connectivity or provide the verified QRX AI cache." >&2; exit 3; }
-  git -C "$SRC" -c http.version=HTTP/1.1 submodule update --init --recursive --depth 1
+  GIT_CONFIG_COUNT=2 \
+    GIT_CONFIG_KEY_0='url.https://github.com/.insteadOf' GIT_CONFIG_VALUE_0='git@github.com:' \
+    GIT_CONFIG_KEY_1='url.https://github.com/.insteadOf' GIT_CONFIG_VALUE_1='ssh://git@github.com/' \
+    git -C "$SRC" -c http.version=HTTP/1.1 submodule update --init --recursive --depth 1
   RUNTIME_SOURCE_COMMIT="$(git -C "$SRC" rev-parse HEAD)"
   [[ "$RUNTIME_SOURCE_COMMIT" == "$RUNTIME_COMMIT_PREFIX"* ]] || { echo "runtime tag resolved to unexpected commit: $RUNTIME_SOURCE_COMMIT" >&2; exit 3; }
   [[ -f "$SRC/CMakeLists.txt" ]] || { echo "Pinned Real-ESRGAN-ncnn-vulkan source is incomplete: CMakeLists.txt missing at $SRC" >&2; exit 4; }

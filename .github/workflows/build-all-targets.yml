@@ -39,7 +39,7 @@ jobs:
             node_only: ''
           - target: windows-x64
             build_target: windows-x64
-            runner: windows-2025
+            runner: windows-2022
             node_only: ''
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
@@ -47,6 +47,11 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v6
+
+      - name: Install Linux ARM AI build dependencies
+        if: matrix.target == 'linux-arm64'
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y libvulkan-dev glslang-tools
 
       - name: Build and package ${{ matrix.target }}
         if: runner.os != 'Windows'
