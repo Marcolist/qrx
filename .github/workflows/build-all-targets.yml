@@ -49,8 +49,14 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Build and package ${{ matrix.target }}
+        if: runner.os != 'Windows'
         shell: bash
         run: bash ./scripts/build-all-targets.sh --target "${{ matrix.build_target }}" ${{ matrix.node_only }}
+
+      - name: Build and package ${{ matrix.target }}
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build-all-targets.ps1 -Target windows-x64 -InstallDependencies
 
       - name: Upload ${{ matrix.target }} package
         uses: actions/upload-artifact@v4

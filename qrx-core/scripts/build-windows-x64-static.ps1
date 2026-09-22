@@ -72,7 +72,7 @@ Fetch "https://github.com/openssl/openssl/releases/download/openssl-$OpenSSLVers
 $OsslExpected=((Get-Content $OsslShaFile | Select-Object -First 1) -split '\s+')[0]
 if ($OsslExpected -notmatch '^[0-9a-fA-F]{64}$') { throw "Invalid OpenSSL checksum sidecar" }
 Verify $OsslTar $OsslExpected
-$ZlibTar=Join-Path $SourceCache "zlib-$ZlibVersion.tar.gz"; Fetch "https://zlib.net/fossils/zlib-$ZlibVersion.tar.gz" $ZlibTar; Verify $ZlibTar $ZlibSha
+$ZlibTar=Join-Path $SourceCache "zlib-$ZlibVersion.tar.gz"; Fetch "https://github.com/madler/zlib/releases/download/v$ZlibVersion/zlib-$ZlibVersion.tar.gz" $ZlibTar; Verify $ZlibTar $ZlibSha
 $PngTar=Join-Path $SourceCache "libpng-$PngVersion.tar.xz"
 $PngArchiveOk=$false
 try {
