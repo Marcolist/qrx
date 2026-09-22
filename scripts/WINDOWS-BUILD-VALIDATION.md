@@ -58,3 +58,23 @@ checks: the six upscaler self-tests, isolated Core hybrid key generation and
 wallet inspection, BTC JSON status/error handling against an unreachable local
 endpoint, the four GUI/Core/browser audits and the three existing Windows build
 audits (00992, 00993, 00995). No payment or mainnet synchronization was tested.
+
+## Wallet creation regression
+
+The packaged Windows sidecars use names such as `qrx.exe`, whereas development
+sidecars include the Rust target suffix. Both layouts must resolve. A fresh
+installation must also show creation errors without requiring an existing wallet.
+
+```powershell
+node scripts/test-wallet-welcome.cjs
+python scripts/test-windows-wallet-creation.py build/core/windows-x64/Release/qrx.exe
+```
+
+The second check requires `rustc` on PATH. It compiles the production resolver
+and command runner into an isolated harness, creates a disposable wallet with
+`seed-new`, and checks its keys/recovery files. It also covers empty directories
+left by failed creation and nonempty partial wallets. Empty directories are
+omitted from wallet discovery and may be reused; creation refuses any nonempty
+target even if its manifest is missing. The frontend check executes the actual
+welcome functions with a simulated backend failure and success. The initial
+resolver and missing-feedback regressions failed against the previous release.

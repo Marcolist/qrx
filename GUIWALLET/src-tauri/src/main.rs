@@ -646,6 +646,10 @@ fn rpc_endpoint(network: &str) -> String {
 fn candidate_paths(app: Option<&tauri::AppHandle>, binary: &str) -> Vec<PathBuf> {
     let mut paths = Vec::new();
     let sidecar = current_sidecar_binary_name(binary);
+    // Tauri removes the target suffix when packaging sidecars, but Windows
+    // still requires .exe for the filesystem existence check below.
+    let packaged = if cfg!(target_os = "windows") { format!("{binary}.exe") } else { binary.to_string() };
+    let binary = packaged.as_str();
 
     if let Ok(bin_dir) = std::env::var("QRX_BIN_DIR") {
         paths.push(PathBuf::from(&bin_dir).join(&sidecar));
@@ -683,10 +687,10 @@ fn candidate_paths(app: Option<&tauri::AppHandle>, binary: &str) -> Vec<PathBuf>
 fn resolve_binary(app: Option<&tauri::AppHandle>, binary: &str) -> Result<PathBuf, AppError> {
     candidate_paths(app, binary)
         .into_iter()
-        .find(|p| p.exists())
+        .find(|p| p.is_file())
         .ok_or_else(|| {
             AppError::Message(format!(
-                "Could not find sidecar binary: {binary}. Place {} in src-tauri/bin/ or set QUB_BIN_DIR.",
+                "Could not find sidecar binary: {binary}. Place {} in src-tauri/bin/ or set QRX_BIN_DIR.",
                 current_sidecar_binary_name(binary)
             ))
         })
@@ -1706,6 +1710,10 @@ fn get_context(network: Option<String>, wallet: Option<String>) -> Result<Wallet
     .map_err(Into::into)
 }
 
+fn wallet_directory_has_entries(path: &Path) -> std::io::Result<bool> {
+    Ok(fs::read_dir(path)?.next().transpose()?.is_some())
+}
+
 #[tauri::command]
 fn list_wallets(network: Option<String>) -> Result<Vec<WalletListItem>, String> {
     let network = network.unwrap_or_else(|| "mainnet".into());
@@ -1717,6 +1725,11 @@ fn list_wallets(network: Option<String>) -> Result<Vec<WalletListItem>, String> 
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
         if !path.is_dir() {
+            continue;
+        }
+        // A failed creation in an older build can leave an empty directory.
+        // Keep incomplete/nonempty wallets visible, but do not offer empty ones.
+        if !wallet_directory_has_entries(&path).map_err(|e| e.to_string())? {
             continue;
         }
         let name = entry.file_name().to_string_lossy().to_string();
@@ -1799,11 +1812,11 @@ fn create_wallet(
     }
 
     let target = wallet_dir(&network, &wallet).map_err(String::from)?;
-    if target.exists() && target.join("wallet.json").exists() {
-        return Err("Wallet already exists".into());
+    if target.exists() && wallet_directory_has_entries(&target).map_err(|e| e.to_string())? {
+        return Err("Wallet directory already contains files; refusing to overwrite existing wallet data. Choose another name or open/import the existing wallet.".into());
     }
 
-    fs::create_dir_all(&target).map_err(|e| e.to_string())?;
+    // Core creates the directory after the bundled executable has been found.
     let output = run_qrx(
         Some(&app),
         &["seed-new", target.to_string_lossy().as_ref()],
