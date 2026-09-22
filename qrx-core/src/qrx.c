@@ -5018,12 +5018,22 @@ static int remember_known_peer(const char *node_dir, const char *host, const cha
     char p[1024]; snprintf(p, sizeof(p), "%s/known_peers.txt", node_dir);
     return unique_append_peerfile(p, host, port);
 }
+static int peer_endpoint_is_usable(const char *host, const char *port) {
+    if (!host || !*host || !port || !*port || strlen(host) > 253) return 0;
+    if (!strcmp(host, "0.0.0.0") || !strcmp(host, "::") || !strcmp(host, "[::]") || !strcmp(host, "*")) return 0;
+    for (const unsigned char *p=(const unsigned char*)host; *p; ++p)
+        if (!(isalnum(*p) || *p=='.' || *p=='-')) return 0;
+    char *end=NULL; long n=strtol(port,&end,10);
+    return end && *end==0 && n>0 && n<=65535;
+}
 static int add_peer_cmd(const char *node_dir, const char *host, const char *port) {
+    if (!peer_endpoint_is_usable(host, port)) return -1;
     char p[1024]; snprintf(p, sizeof(p), "%s/peers.txt", node_dir);
     if (unique_append_peerfile(p, host, port) != 0) return -1;
     return remember_known_peer(node_dir, host, port);
 }
 static int add_seed_cmd(const char *node_dir, const char *host, const char *port) {
+    if (!peer_endpoint_is_usable(host, port)) return -1;
     char p[1024]; snprintf(p, sizeof(p), "%s/seednodes.txt", node_dir);
     return unique_append_peerfile(p, host, port);
 }
@@ -5042,7 +5052,7 @@ static int discover_peers_cmd(const char *node_dir) {
             if (len > 0) {
                 char line[256]; if (len >= sizeof(line)) len = sizeof(line)-1; memcpy(line, cur, len); line[len]=0;
                 char *colon = strrchr(line, ':');
-                if (colon) { *colon = 0; if (unique_append_peerfile(peers, line, colon+1) == 0) merged++; }
+                if (colon) { *colon = 0; if (peer_endpoint_is_usable(line,colon+1) && unique_append_peerfile(peers, line, colon+1) == 0) merged++; }
             }
             cur = e ? e+1 : NULL;
         }
@@ -5129,7 +5139,7 @@ static int request_peers_from_peer(const char *node_dir, const char *host, int p
                 const char *e = strchr(cur, '\n'); size_t len = e ? (size_t)(e-cur) : strlen(cur);
                 if (len > 0) {
                     char line[256]; if (len >= sizeof(line)) len = sizeof(line)-1; memcpy(line, cur, len); line[len]=0;
-                    char *colon = strrchr(line, ':'); if (colon) { *colon=0; int peer_port=atoi(colon+1); if (!peer_endpoint_is_self(node_dir, line, peer_port) && remember_known_peer(node_dir, line, colon+1) == 0) { char pp[1024]; snprintf(pp, sizeof(pp), "%s/peers.txt", node_dir); unique_append_peerfile(pp, line, colon+1); if (added) (*added)++; } }
+                    char *colon = strrchr(line, ':'); if (colon) { *colon=0; int peer_port=atoi(colon+1); if (peer_endpoint_is_usable(line,colon+1) && !peer_endpoint_is_self(node_dir, line, peer_port) && remember_known_peer(node_dir, line, colon+1) == 0) { char pp[1024]; snprintf(pp, sizeof(pp), "%s/peers.txt", node_dir); unique_append_peerfile(pp, line, colon+1); if (added) (*added)++; } }
                 }
                 cur = e ? e+1 : NULL;
             }
@@ -5178,7 +5188,7 @@ static int bootstrap_cmd(const char *node_dir) {
                     char endpoint[320]; snprintf(endpoint, sizeof(endpoint), "%s:%d", line, port);
                     int duplicate = 0;
                     for (int i=0; i<attempted_count; ++i) if (!strcmp(attempted[i], endpoint)) { duplicate = 1; break; }
-                    if (duplicate || peer_endpoint_is_self(node_dir, line, port)) { cur = e ? e+1 : NULL; continue; }
+                    if (duplicate || !peer_endpoint_is_usable(line,colon+1) || peer_endpoint_is_self(node_dir, line, port)) { cur = e ? e+1 : NULL; continue; }
                     if (attempted_count < (int)(MAX_PEERS * 3)) snprintf(attempted[attempted_count++], sizeof(attempted[0]), "%s", endpoint);
                     contacted++;
                     int local_added = 0;
@@ -5529,7 +5539,10 @@ static void node_handle_client(int fd, const char *node_dir) {
         peer_add_score(node_dir, ip, 20); send_framed(fd, "status=ERR\nreason=bad_hello\n"); free(msg); free(node_cfg); return;
     }
     char *ann_host = cfg_get(msg, "host"), *ann_port = cfg_get(msg, "port");
-    if (ann_host && ann_port) { remember_known_peer(node_dir, ann_host, ann_port); peer_rep_add(node_dir, ann_host, 1); peer_touch_seen(node_dir, ann_host, (long long)time(NULL)); }
+    /* A verified peer behind NAT may honestly announce 0.0.0.0.  Track the
+     * source as live, but never gossip an unusable or self endpoint. */
+    peer_touch_seen(node_dir, ip, (long long)time(NULL));
+    if (ann_host && ann_port && peer_endpoint_is_usable(ann_host,ann_port) && !peer_endpoint_is_self(node_dir,ann_host,atoi(ann_port))) { remember_known_peer(node_dir, ann_host, ann_port); peer_rep_add(node_dir, ann_host, 1); }
     send_framed(fd, "status=OK\n"); free(msg);
 
     if (!peer_rate_allow(node_dir, ip)) { peer_add_score(node_dir, ip, 50); send_framed(fd, "status=ERR\nreason=rate_limited\n"); if (ann_host) free(ann_host); if (ann_port) free(ann_port); free(node_cfg); return; }
@@ -7182,12 +7195,16 @@ static int history_cmd(const char *chain_dir, const char *address, size_t limit,
 }
 
 static int list_peers_cmd(const char *node_dir) {
-    char p1[1024], p2[1024];
+    char p1[1024], p2[1024], conf[1024];
     snprintf(p1, sizeof(p1), "%s/peers.txt", node_dir);
     snprintf(p2, sizeof(p2), "%s/known_peers.txt", node_dir);
     char *a = read_file(p1, NULL), *b = read_file(p2, NULL);
     if (a) { printf("[peers]\n%s", a); if (strlen(a) && a[strlen(a)-1] != '\n') puts(""); }
     if (b) { printf("[known]\n%s", b); if (strlen(b) && b[strlen(b)-1] != '\n') puts(""); }
+    snprintf(conf, sizeof(conf), "%s/node.conf", node_dir);
+    char *cfg=read_file(conf,NULL), *host=cfg?cfg_get(cfg,"host"):NULL, *port=cfg?cfg_get(cfg,"port"):NULL;
+    if(host&&port)printf("[listener]\n%s:%s\n",host,port);
+    free(cfg);free(host);free(port);
     if (!a && !b) puts("no peers");
     free(a); free(b); return 0;
 }

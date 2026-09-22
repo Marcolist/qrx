@@ -74,7 +74,9 @@ def main():
                     send_frame(conn, b"status=OK\n")
                     if recv_frame(conn) != b"type=GETPEERS\n":
                         raise RuntimeError("missing GETPEERS")
-                    peers = base64.b64encode(f"127.0.0.1:{self_port}\n".encode("ascii"))
+                    peers = base64.b64encode(
+                        f"127.0.0.1:{self_port}\n0.0.0.0:{self_port}\n".encode("ascii")
+                    )
                     send_frame(conn, b"status=OK\npeers_b64=" + peers + b"\n")
                 listener.settimeout(1)
                 try:
@@ -103,6 +105,8 @@ def main():
         peers = (root / "node" / "peers.txt").read_text(encoding="ascii")
         if f"127.0.0.1:{self_port}" in peers:
             raise AssertionError("bootstrap imported the node's own endpoint")
+        if f"0.0.0.0:{self_port}" in peers:
+            raise AssertionError("bootstrap imported a wildcard listener as a peer")
 
     print("p2p bootstrap DNS/dedup/self-filter regression: PASS")
 
