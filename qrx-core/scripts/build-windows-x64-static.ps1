@@ -124,6 +124,9 @@ if (-not (Test-Path $Crypto)) { throw "Static OpenSSL crypto library missing" }
 $CMakeGenerator="Visual Studio 17 2022"
 function CMakeInstall([string]$Source,[string]$Build,[string[]]$CMakeOptions) {
   if (Test-Path $Build) { Remove-Item -Recurse -Force $Build }
+  # Upstream packages may embed these path values in generated CMake files.
+  # Use CMake separators so C:\Users is not parsed as an invalid \U escape.
+  $CMakeOptions=@($CMakeOptions | ForEach-Object { $_.Replace('\','/') })
   # $args is an automatic PowerShell variable; using it as a parameter loses
   # the dependency options, including the explicit ZLIB library/header paths.
   & cmake -S $Source -B $Build -G $CMakeGenerator -A x64 @CMakeOptions
@@ -244,6 +247,8 @@ if (-not (Test-Path $CurlStatic)) { throw "Static libcurl missing" }
 
 if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
 $cmakeArgs=@("-S",$Core,"-B",$BuildDir,"-G",$CMakeGenerator,"-A","x64","-DCMAKE_BUILD_TYPE=Release","-DQRX_REQUIRE_PQC=ON","-DQRX_REQUIRE_BUNDLED_DEPS=ON","-DQRX_DEPS_PREFIX=$DepsPrefix","-DOPENSSL_ROOT_DIR=$DepsPrefix","-DOPENSSL_USE_STATIC_LIBS=TRUE","-DOPENSSL_CRYPTO_LIBRARY=$Crypto","-DZLIB_ROOT=$DepsPrefix","-DZLIB_LIBRARY=$ZlibStatic","-DZLIB_INCLUDE_DIR=$DepsPrefix\include","-DPNG_PNG_INCLUDE_DIR=$DepsPrefix\include","-DPNG_LIBRARY=$PngStatic","-DCURL_ROOT=$DepsPrefix","-DCURL_USE_STATIC_LIBS=TRUE","-DCURL_LIBRARY=$CurlStatic","-DCURL_INCLUDE_DIR=$DepsPrefix\include")
+# Match dependency-export paths and QRX's prefix checks on Windows as well.
+$cmakeArgs=@($cmakeArgs | ForEach-Object { $_.Replace('\','/') })
 & cmake @cmakeArgs; if ($LASTEXITCODE -ne 0) { throw "QRX CMake configure failed" }
 & cmake --build $BuildDir --config Release --parallel $Jobs; if ($LASTEXITCODE -ne 0) { throw "QRX build failed" }
 $expected=@("qrx.exe","qrx-cli.exe","qrxd.exe","qrx-upscaler.exe","qrxdb_verify.exe","qrxdb_salvage.exe","qrxdb_compact.exe","qrxdb_snapshot.exe")

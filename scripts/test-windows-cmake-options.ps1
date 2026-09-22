@@ -42,7 +42,10 @@ $options = @('-DBUILD_SHARED_LIBS=OFF', '-DPNG_STATIC=ON',
   "-DZLIB_LIBRARY=$DepsPrefix\lib\zlibstatic.lib", "-DZLIB_INCLUDE_DIR=$DepsPrefix\include")
 CMakeInstall $src $build $options
 if ($script:Calls.Count -ne 3) { throw 'Expected configure, build and install calls' }
-Assert-Equal $script:Calls[0] (@('-S', $src, '-B', $build, '-G', $CMakeGenerator, '-A', 'x64') + $options) 'configure'
+$normalizedOptions=@('-DBUILD_SHARED_LIBS=OFF', '-DPNG_STATIC=ON',
+  '-DCMAKE_INSTALL_PREFIX=C:/QRX test/dependencies', '-DZLIB_ROOT=C:/QRX test/dependencies',
+  '-DZLIB_LIBRARY=C:/QRX test/dependencies/lib/zlibstatic.lib', '-DZLIB_INCLUDE_DIR=C:/QRX test/dependencies/include')
+Assert-Equal $script:Calls[0] (@('-S', $src, '-B', $build, '-G', $CMakeGenerator, '-A', 'x64') + $normalizedOptions) 'configure'
 Assert-Equal $script:Calls[1] @('--build', $build, '--config', 'Release', '--parallel', $Jobs) 'build'
 Assert-Equal $script:Calls[2] @('--install', $build, '--config', 'Release', '--prefix', $DepsPrefix) 'install'
 
@@ -55,4 +58,4 @@ try { CMakeInstall $src $build $options } catch {
 }
 if (-not $failed -or $script:Calls.Count -ne 1) { throw 'Configure failure must stop before build/install' }
 $global:LASTEXITCODE = 0
-Write-Host 'PASS: CMake options survive PowerShell binding, paths with spaces, and configure failure stops the build.'
+Write-Host 'PASS: CMake options preserve paths with spaces, normalize Windows separators, and configure failure stops the build.'
