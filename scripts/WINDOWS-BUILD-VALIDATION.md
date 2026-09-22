@@ -23,9 +23,14 @@ Signed AURA runtime resources must also be configured for a complete release.
 
 The native dependency build, all Core executables, BTC service, QRX Browser and
 Tauri wallet were compiled locally. The wallet process reached its `.boot-ok`
-marker and remained responsive. This is a startup smoke test, not a full visual
+marker and remained responsive. QRX Browser also loaded its local home page and
+remained responsive. This is a startup smoke test, not a full visual
 UI or mainnet synchronization test. The complete orchestrator was not rerun
 end-to-end; its individual build stages were exercised during diagnosis.
+The MSI and NSIS packages were built with the developer resource configuration.
+The binaries require the Windows x64 Visual C++ runtime and WebView2; "static"
+in the dependency script refers to the crypto/compression libraries, not every
+Windows runtime component. Installer execution on a clean machine is untested.
 
 Regression checks:
 
