@@ -705,7 +705,9 @@ static void *maint_loop(void *arg){
         char *generals_offline[] = { g_backend_path, "generals-offline-process", g_cdir, NULL };
         run_capture(generals_offline, buf, sizeof(buf));
         run_capture(decay, buf, sizeof(buf));
-        for(int i=0;i<5 && g_running;i++) sleep(1);
+        /* Peer discovery performs signed HELLO + GETPEERS exchanges. Running it
+           every five seconds trips the peers' one-minute abuse limits. */
+        for(int i=0;i<60 && g_running;i++) sleep(1);
     }
 #ifdef _WIN32
     return 0;

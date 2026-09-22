@@ -92,6 +92,7 @@
   }
 #else
   #include <arpa/inet.h>
+  #include <netdb.h>
   #include <netinet/in.h>
   #include <sys/socket.h>
   #include <dirent.h>
@@ -185,6 +186,43 @@ static char g_aura_model_cache_path[1024] = {0};
 static EVP_PKEY *g_hello_priv = NULL;
 static EVP_PKEY *g_hello_pub = NULL;
 static char g_hello_wallet_dir[1024] = {0};
+
+static int connect_with_timeout(int fd, const struct sockaddr *addr, socklen_t addr_len, int seconds) {
+#ifdef _WIN32
+    u_long nonblocking = 1;
+    if (ioctlsocket((SOCKET)fd, FIONBIO, &nonblocking) != 0) return -1;
+    int rc = connect((SOCKET)fd, addr, addr_len);
+    if (rc != 0 && WSAGetLastError() != WSAEWOULDBLOCK && WSAGetLastError() != WSAEINPROGRESS) {
+        nonblocking = 0; ioctlsocket((SOCKET)fd, FIONBIO, &nonblocking); return -1;
+    }
+#else
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags < 0 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) != 0) return -1;
+    int rc = connect(fd, addr, addr_len);
+    if (rc != 0 && errno != EINPROGRESS) { fcntl(fd, F_SETFL, flags); return -1; }
+#endif
+    if (rc != 0) {
+        fd_set write_fds; FD_ZERO(&write_fds); FD_SET(fd, &write_fds);
+        struct timeval timeout; timeout.tv_sec = seconds; timeout.tv_usec = 0;
+#ifdef _WIN32
+        rc = select(0, NULL, &write_fds, NULL, &timeout);
+#else
+        rc = select(fd + 1, NULL, &write_fds, NULL, &timeout);
+#endif
+        if (rc <= 0) rc = -1;
+        else {
+            int socket_error = 0; socklen_t error_len = sizeof(socket_error);
+            rc = getsockopt(fd, SOL_SOCKET, SO_ERROR, (char *)&socket_error, &error_len) == 0 && socket_error == 0 ? 0 : -1;
+        }
+    }
+#ifdef _WIN32
+    nonblocking = 0;
+    if (ioctlsocket((SOCKET)fd, FIONBIO, &nonblocking) != 0) rc = -1;
+#else
+    if (fcntl(fd, F_SETFL, flags) != 0) rc = -1;
+#endif
+    return rc;
+}
 
 
 static int connect_to(const char *host, int port);
@@ -5070,6 +5108,8 @@ static long long peer_last_seen(const char *node_dir, const char *peer) {
     char db[1024], key[320]; snprintf(db, sizeof(db), "%s/peer_state.db", node_dir); key_from_ip(key, sizeof(key), peer, "last_seen"); return db_get_ll(db, key);
 }
 
+static int peer_endpoint_is_self(const char *node_dir, const char *host, int port);
+
 static int request_peers_from_peer(const char *node_dir, const char *host, int port, int *added) {
     int fd = connect_to(host, port); if (fd < 0) return -1;
     char *hello = NULL; if (build_hello_message(node_dir, &hello) != 0 || !hello) { free(hello); qrx_close_socket(fd); return -1; } if (send_framed(fd, hello) != 0) { free(hello); qrx_close_socket(fd); return -1; } free(hello);
@@ -5089,7 +5129,7 @@ static int request_peers_from_peer(const char *node_dir, const char *host, int p
                 const char *e = strchr(cur, '\n'); size_t len = e ? (size_t)(e-cur) : strlen(cur);
                 if (len > 0) {
                     char line[256]; if (len >= sizeof(line)) len = sizeof(line)-1; memcpy(line, cur, len); line[len]=0;
-                    char *colon = strrchr(line, ':'); if (colon) { *colon=0; if (remember_known_peer(node_dir, line, colon+1) == 0) { char pp[1024]; snprintf(pp, sizeof(pp), "%s/peers.txt", node_dir); unique_append_peerfile(pp, line, colon+1); if (added) (*added)++; } }
+                    char *colon = strrchr(line, ':'); if (colon) { *colon=0; int peer_port=atoi(colon+1); if (!peer_endpoint_is_self(node_dir, line, peer_port) && remember_known_peer(node_dir, line, colon+1) == 0) { char pp[1024]; snprintf(pp, sizeof(pp), "%s/peers.txt", node_dir); unique_append_peerfile(pp, line, colon+1); if (added) (*added)++; } }
                 }
                 cur = e ? e+1 : NULL;
             }
@@ -5100,6 +5140,23 @@ static int request_peers_from_peer(const char *node_dir, const char *host, int p
     free(status); free(resp); qrx_close_socket(fd); return 0;
 }
 
+static int peer_endpoint_is_self(const char *node_dir, const char *host, int port) {
+    char path[1024];
+    snprintf(path, sizeof(path), "%s/node.conf", node_dir);
+    char *cfg = read_file(path, NULL);
+    if (!cfg) return 0;
+    char *bind_host = cfg_get(cfg, "host");
+    char *bind_port = cfg_get(cfg, "port");
+    char *external_host = cfg_get(cfg, "external_host");
+    char *external_port = cfg_get(cfg, "external_port");
+    int is_self = (external_host && external_port && *external_host &&
+                   !strcmp(host, external_host) && port == atoi(external_port)) ||
+                  (bind_host && bind_port && strcmp(bind_host, "0.0.0.0") &&
+                   !strcmp(host, bind_host) && port == atoi(bind_port));
+    free(cfg); free(bind_host); free(bind_port); free(external_host); free(external_port);
+    return is_self;
+}
+
 static int bootstrap_cmd(const char *node_dir) {
     char seeds[1024], known[1024], peers[1024], cache[1024];
     snprintf(seeds, sizeof(seeds), "%s/seednodes.txt", node_dir);
@@ -5107,6 +5164,7 @@ static int bootstrap_cmd(const char *node_dir) {
     snprintf(peers, sizeof(peers), "%s/peers.txt", node_dir);
     snprintf(cache, sizeof(cache), "%s/bootstrap_cache.txt", node_dir);
     int contacted = 0, alive = 0, added = 0;
+    char attempted[MAX_PEERS * 3][320]; int attempted_count = 0;
     for (int pass=0; pass<3; ++pass) {
         const char *src = pass == 0 ? seeds : (pass == 1 ? known : peers);
         char *txt = read_file(src, NULL); if (!txt) continue;
@@ -5116,7 +5174,13 @@ static int bootstrap_cmd(const char *node_dir) {
             if (len > 0) {
                 char line[256]; if (len >= sizeof(line)) len = sizeof(line)-1; memcpy(line, cur, len); line[len]=0;
                 char *colon = strrchr(line, ':'); if (colon) {
-                    *colon = 0; int port = atoi(colon+1); contacted++;
+                    *colon = 0; int port = atoi(colon+1);
+                    char endpoint[320]; snprintf(endpoint, sizeof(endpoint), "%s:%d", line, port);
+                    int duplicate = 0;
+                    for (int i=0; i<attempted_count; ++i) if (!strcmp(attempted[i], endpoint)) { duplicate = 1; break; }
+                    if (duplicate || peer_endpoint_is_self(node_dir, line, port)) { cur = e ? e+1 : NULL; continue; }
+                    if (attempted_count < (int)(MAX_PEERS * 3)) snprintf(attempted[attempted_count++], sizeof(attempted[0]), "%s", endpoint);
+                    contacted++;
                     int local_added = 0;
                     if (request_peers_from_peer(node_dir, line, port, &local_added) == 0) {
                         alive++; added += local_added; remember_known_peer(node_dir, line, colon+1); peer_rep_add(node_dir, line, 1); peer_touch_seen(node_dir, line, (long long)time(NULL));
@@ -5571,11 +5635,21 @@ static void node_handle_client(int fd, const char *node_dir) {
 
 static int connect_to(const char *host, int port) {
     qrx_net_init_once();
-    int fd = socket(AF_INET, SOCK_STREAM, 0); if (fd < 0) return -1;
-    qrx_set_socket_timeout(fd, SOCKET_IO_TIMEOUT_SECS);
-    struct sockaddr_in addr; memset(&addr, 0, sizeof(addr)); addr.sin_family = AF_INET; addr.sin_port = htons((uint16_t)port);
-    if (inet_pton(AF_INET, host, &addr.sin_addr) != 1) { qrx_close_socket(fd); return -1; }
-    if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) != 0) { qrx_close_socket(fd); return -1; }
+    char port_s[16]; snprintf(port_s, sizeof(port_s), "%d", port);
+    struct addrinfo hints, *results = NULL, *it;
+    memset(&hints, 0, sizeof(hints)); hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
+    if (getaddrinfo(host, port_s, &hints, &results) != 0) return -1;
+    int fd = -1;
+    for (it = results; it; it = it->ai_next) {
+        fd = (int)socket(it->ai_family, it->ai_socktype, it->ai_protocol);
+        if (fd < 0) continue;
+        if (connect_with_timeout(fd, it->ai_addr, (socklen_t)it->ai_addrlen, SOCKET_IO_TIMEOUT_SECS) == 0) {
+            qrx_set_socket_timeout(fd, SOCKET_IO_TIMEOUT_SECS);
+            break;
+        }
+        qrx_close_socket(fd); fd = -1;
+    }
+    freeaddrinfo(results);
     return fd;
 }
 

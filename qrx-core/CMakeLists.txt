@@ -1065,6 +1065,10 @@ if(QRX_BUILD_TESTS)
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/genesis_phase185_remote_malformed_tx_survival.py $<TARGET_FILE:qrx>)
   set_tests_properties(genesis_phase185_remote_malformed_tx_survival PROPERTIES TIMEOUT 900)
 
+  add_test(NAME p2p_bootstrap_dns_dedup_self_filter
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/p2p_bootstrap_regression.py $<TARGET_FILE:qrx>)
+  set_tests_properties(p2p_bootstrap_dns_dedup_self_filter PROPERTIES TIMEOUT 30)
+
   # Phase 186: static proof that no unguarded die()/exit()/abort()/assert()
   # is reachable from an untrusted network ingress point.
   add_test(NAME genesis_phase186_untrusted_abort_reachability
