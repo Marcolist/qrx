@@ -201,7 +201,8 @@ if [[ "$TARGET" == "linux-arm64" ]]; then
   # The pinned upstream project keeps its CMake entry point under src/.
   RUNTIME_CMAKE_SRC="$SRC/src"
   [[ -f "$RUNTIME_CMAKE_SRC/CMakeLists.txt" ]] || { echo "Pinned Real-ESRGAN-ncnn-vulkan source is incomplete: CMakeLists.txt missing at $RUNTIME_CMAKE_SRC" >&2; exit 4; }
-  cmake -S "$RUNTIME_CMAKE_SRC" -B "$TMP/runtime-build" -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=ON
+  # CMake 4 removed legacy policy compatibility used by the pinned ncnn tree.
+  cmake -S "$RUNTIME_CMAKE_SRC" -B "$TMP/runtime-build" -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
   cmake --build "$TMP/runtime-build" --config Release --parallel "${JOBS:-2}"
   RUNTIME="$(find "$TMP/runtime-build" -type f -name 'realesrgan-ncnn-vulkan' -print -quit)"
 else
