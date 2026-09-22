@@ -17,6 +17,14 @@ RUNTIME_TAG="v0.2.0"
 RUNTIME_COMMIT_PREFIX="37026f4"
 SOURCE_REPO="https://github.com/xinntao/Real-ESRGAN"
 RUNTIME_REPO="https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan"
+# The pinned runtime declares these public submodules using SSH URLs. Use
+# explicit HTTPS URLs for this command only: no SSH key or global insteadOf
+# rule is required, and malformed SSH rewrites cannot drop the owner/path.
+runtime_git() {
+  git -c http.version=HTTP/1.1 \
+    -c submodule.src/libwebp.url=https://github.com/webmproject/libwebp.git \
+    -c submodule.src/ncnn.url=https://github.com/Tencent/ncnn.git "$@"
+}
 LOCK_FILE="$ROOT/scripts/upscaler-ai-archives.sha256"
 CACHE_DIR="${QRX_AI_DOWNLOAD_CACHE:-$ROOT/.cache/qrx-ai}"
 mkdir -p "$CACHE_DIR"
@@ -180,14 +188,14 @@ if [[ "$TARGET" == "linux-arm64" ]]; then
   cloned=0
   for attempt in 1 2 3; do
     rm -rf "$SRC"
-    if git -c http.version=HTTP/1.1 clone --quiet --depth 1 --branch "$RUNTIME_TAG" --recurse-submodules --shallow-submodules "$RUNTIME_REPO" "$SRC"; then
+    if runtime_git clone --quiet --depth 1 --branch "$RUNTIME_TAG" --recurse-submodules --shallow-submodules "$RUNTIME_REPO" "$SRC"; then
       cloned=1; break
     fi
     echo "Pinned Real-ESRGAN runtime fetch attempt $attempt/3 failed; retrying..." >&2
     sleep $((attempt * 2))
   done
   [[ "$cloned" -eq 1 ]] || { echo "Unable to fetch pinned Real-ESRGAN runtime source after 3 attempts. Check GitHub/TLS connectivity or provide the verified QRX AI cache." >&2; exit 3; }
-  git -C "$SRC" -c http.version=HTTP/1.1 submodule update --init --recursive --depth 1
+  runtime_git -C "$SRC" submodule update --init --recursive --depth 1
   RUNTIME_SOURCE_COMMIT="$(git -C "$SRC" rev-parse HEAD)"
   [[ "$RUNTIME_SOURCE_COMMIT" == "$RUNTIME_COMMIT_PREFIX"* ]] || { echo "runtime tag resolved to unexpected commit: $RUNTIME_SOURCE_COMMIT" >&2; exit 3; }
   [[ -f "$SRC/CMakeLists.txt" ]] || { echo "Pinned Real-ESRGAN-ncnn-vulkan source is incomplete: CMakeLists.txt missing at $SRC" >&2; exit 4; }
