@@ -147,9 +147,12 @@ function Resolve-ZlibStatic([string]$Build,[string]$Source,[string]$Prefix) {
 
   $preferred=@(
     (Join-Path $destLib "zlibstatic.lib"),
+    (Join-Path $destLib "zs.lib"),
     (Join-Path $destLib "z.lib"),
     (Join-Path $Build "Release\zlibstatic.lib"),
     (Join-Path $Build "zlibstatic.lib"),
+    (Join-Path $Build "Release\zs.lib"),
+    (Join-Path $Build "zs.lib"),
     (Join-Path $Build "Release\z.lib"),
     (Join-Path $Build "z.lib")
   )
@@ -160,22 +163,23 @@ function Resolve-ZlibStatic([string]$Build,[string]$Source,[string]$Prefix) {
     $manifest=Join-Path $Build "install_manifest.txt"
     if (Test-Path $manifest) {
       $candidate=Get-Content $manifest | Where-Object {
-        $_ -match '\.(lib)$' -and (Split-Path $_ -Leaf) -match '^(zlibstatic|zlib|z)\.lib$'
+        $_ -match '\.(lib)$' -and (Split-Path $_ -Leaf) -match '^(zlibstatic|zs|zlib|z)\.lib$'
       } | Where-Object { Test-Path $_ } | Select-Object -First 1
     }
   }
   if (-not $candidate) {
     $candidate=(Get-ChildItem $Build -Recurse -File -ErrorAction SilentlyContinue |
-      Where-Object { $_.Name -match '^(zlibstatic|zlib|z)\.lib$' } |
-      Sort-Object @{Expression={ if ($_.Name -eq 'zlibstatic.lib') {0} else {1} }},FullName |
+      Where-Object { $_.Name -match '^(zlibstatic|zs|zlib|z)\.lib$' } |
+      Sort-Object @{Expression={ if ($_.Name -match '^(zlibstatic|zs)\.lib$') {0} else {1} }},FullName |
       Select-Object -First 1).FullName
   }
   if (-not $candidate -or -not (Test-Path $candidate)) { return $null }
 
   # Prefer an explicitly static archive.  A bare z.lib next to z.dll can be an
-  # import library, so if zlibstatic.lib exists anywhere in this build it wins.
-  if ((Split-Path $candidate -Leaf) -ne 'zlibstatic.lib') {
-    $explicit=(Get-ChildItem $Build -Recurse -File -Filter 'zlibstatic.lib' -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+  # import library. zlib 1.3.2 names its static archive zs.lib, so prefer either
+  # explicitly static name over an ambiguous z.lib/zlib.lib from this build.
+  if ((Split-Path $candidate -Leaf) -notmatch '^(zlibstatic|zs)\.lib$') {
+    $explicit=(Get-ChildItem $Build -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^(zlibstatic|zs)\.lib$' } | Sort-Object FullName | Select-Object -First 1).FullName
     if ($explicit) { $candidate=$explicit }
   }
 
