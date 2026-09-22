@@ -375,6 +375,15 @@ target_link_libraries(qrxd PRIVATE qrxcore Threads::Threads ${QRX_OPENSSL_LINK_L
 
 add_executable(qrx-cli src/qrx_cli.c ${QRX_OPENSSL_APPLINK_SRC})
 target_link_libraries(qrx-cli PRIVATE qrxcore ${QRX_OPENSSL_LINK_LIBS})
+if(MSVC)
+    # Core commands use bounded stack buffers exceeding Windows' default 1 MiB.
+    foreach(frontend qrx qrxd qrx-cli)
+        target_link_options(${frontend} PRIVATE /STACK:8388608)
+    endforeach()
+    # MSVC currently allocates about 9 MiB for handle_command alone, plus its
+    # HTTP caller. Reserve headroom for that frame before the first RPC call.
+    target_link_options(qrxd PRIVATE /STACK:16777216)
+endif()
 
 add_executable(qrx-aura-model-seed src/qrx_aura_model_seed.c ${QRX_OPENSSL_APPLINK_SRC})
 target_link_libraries(qrx-aura-model-seed PRIVATE qrxcore ${QRX_OPENSSL_LINK_LIBS})

@@ -923,6 +923,17 @@ fn copy_dir_recursive(source: &Path, destination: &Path) -> Result<Vec<String>, 
     Ok(copied)
 }
 
+fn background_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let mut command = Command::new(program);
+    command.stdin(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    command
+}
+
 fn run_qrx(
     app: Option<&tauri::AppHandle>,
     args: &[&str],
@@ -930,7 +941,7 @@ fn run_qrx(
     stdin_text: Option<&str>,
 ) -> Result<String, AppError> {
     let qrx_bin = resolve_binary(app, "qrx")?;
-    let mut cmd = Command::new(qrx_bin);
+    let mut cmd = background_command(qrx_bin);
     cmd.args(args);
     if let Some(passphrase) = passphrase {
         cmd.env("QRX_PASSPHRASE", passphrase);
@@ -968,7 +979,7 @@ fn run_cli_raw(
 ) -> Result<String, AppError> {
     let data_dir = app_data_dir()?;
     let cli_bin = resolve_binary(app, "qrx-cli")?;
-    let output = Command::new(cli_bin)
+    let output = background_command(cli_bin)
         .arg("--network")
         .arg(network)
         .arg("--datadir")
@@ -1092,7 +1103,7 @@ fn daemon_health_inner(
                 Ok(None) => {
                     launched_by_app = true;
                     pid = Some(child_pid(child));
-                    running = true;
+                    // A live process is not proof that its RPC endpoint works.
                 }
                 Err(_) => {
                     clear_child = true;
@@ -1180,7 +1191,7 @@ fn spawn_daemon(
         .append(true)
         .open(stderr_log)?;
 
-    let mut cmd = Command::new(daemon_bin);
+    let mut cmd = background_command(daemon_bin);
     cmd.arg("--network")
         .arg(network)
         .arg("--datadir")
@@ -2787,7 +2798,7 @@ fn is_mainnet_like(network: &str) -> bool {
 
 fn shared_btc_service<T: serde::de::DeserializeOwned>(app: &tauri::AppHandle, request: Value) -> Result<T, String> {
     let binary=resolve_binary(Some(app),"qrx-btc-wallet-service").map_err(|e|e.to_string())?;
-    let mut child=Command::new(binary).arg("--data-dir").arg(app_data_dir().map_err(|e|e.to_string())?)
+    let mut child=background_command(binary).arg("--data-dir").arg(app_data_dir().map_err(|e|e.to_string())?)
         .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e|format!("Could not start shared BTC wallet service: {e}"))?;
     if let Some(stdin)=child.stdin.as_mut(){stdin.write_all(serde_json::to_string(&request).map_err(|e|e.to_string())?.as_bytes()).map_err(|e|e.to_string())?;}else{return Err("BTC wallet service stdin unavailable".into())}
     drop(child.stdin.take());let output=child.wait_with_output().map_err(|e|e.to_string())?;
@@ -2937,7 +2948,7 @@ fn arbitrage_state_dir(network: &str, wallet: &str) -> Result<PathBuf, String> {
 fn run_python_json(app: &tauri::AppHandle, script_name: &str, args: &[String], input: Option<&Value>) -> Result<Value, String> {
     let script = resolve_bundled_python_script(app, script_name)?;
     let (python, prefix) = resolve_python_launcher()?;
-    let mut cmd = Command::new(python); for a in prefix { cmd.arg(a); } cmd.arg(script).args(args);
+    let mut cmd = background_command(python); for a in prefix { cmd.arg(a); } cmd.arg(script).args(args);
     if input.is_some() { cmd.stdin(Stdio::piped()); }
     let mut child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| e.to_string())?;
     if let Some(value) = input {
@@ -3038,7 +3049,7 @@ fn resolve_python_launcher() -> Result<(String, Vec<String>), String> {
         vec![("python3".to_string(), vec![]), ("python".to_string(), vec![])]
     };
     for (program, prefix) in candidates {
-        let mut c = Command::new(&program);
+        let mut c = background_command(&program);
         for a in &prefix { c.arg(a); }
         if c.arg("--version").stdout(Stdio::null()).stderr(Stdio::null()).status().map(|s| s.success()).unwrap_or(false) {
             return Ok((program, prefix));
@@ -3125,7 +3136,7 @@ fn kraken_start_gateway(app: tauri::AppHandle, state: tauri::State<KrakenGateway
     let (outlog, errlog) = kraken_gateway_log_paths(&network, &wallet)?;
     let stdout = OpenOptions::new().create(true).append(true).open(&outlog).map_err(|e| e.to_string())?;
     let stderr = OpenOptions::new().create(true).append(true).open(&errlog).map_err(|e| e.to_string())?;
-    let mut cmd = Command::new(python);
+    let mut cmd = background_command(python);
     for a in prefix { cmd.arg(a); }
     cmd.arg(script)
         .arg("--qrx-cli").arg(qrx_cli)
@@ -3962,7 +3973,7 @@ fn upscaler_start_local(app: tauri::AppHandle, input: String, output: String, sc
     let ext = input_path.extension().and_then(|x| x.to_str()).unwrap_or("").to_ascii_lowercase();
     let is_video = matches!(ext.as_str(), "mp4" | "mov" | "mkv" | "webm");
     let binary = resolve_binary(Some(&app), "qrx-upscaler").map_err(String::from)?;
-    let mut cmd = Command::new(binary);
+    let mut cmd = background_command(binary);
     apply_packaged_upscaler_ai_env(&app, &mut cmd);
     if engine == "ai" {
         if is_video { return Err("AI video uses the Video Pipeline planner in 0.0.9.67; local single-image AI jobs are enabled here.".into()); }
@@ -4025,7 +4036,7 @@ fn upscaler_video_pipeline_plan(input: String, scale: u8, batch_frames: Option<u
 #[tauri::command]
 fn upscaler_capabilities(app: tauri::AppHandle) -> Result<Value, String> {
     let binary = resolve_binary(Some(&app), "qrx-upscaler").map_err(String::from)?;
-    let mut cmd = Command::new(binary);
+    let mut cmd = background_command(binary);
     apply_packaged_upscaler_ai_env(&app, &mut cmd);
     let output = cmd
         .arg("capabilities")

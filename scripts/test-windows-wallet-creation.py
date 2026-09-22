@@ -16,7 +16,7 @@ core = Path(sys.argv[1]).resolve(strict=True)
 source_path = Path(sys.argv[2]) if len(sys.argv) > 2 else Path(__file__).resolve().parents[1] / "GUIWALLET/src-tauri/src/main.rs"
 source = source_path.read_text()
 functions = []
-for name in ("current_sidecar_binary_name", "candidate_paths", "resolve_binary", "run_qrx", "wallet_directory_has_entries", "ensure_new_wallet_target"):
+for name in ("current_sidecar_binary_name", "candidate_paths", "resolve_binary", "background_command", "run_qrx", "wallet_directory_has_entries", "ensure_new_wallet_target"):
     match = re.search(r"^fn " + name + r"\(.*?^\}", source, re.S | re.M)
     assert match, name
     functions.append(match.group())

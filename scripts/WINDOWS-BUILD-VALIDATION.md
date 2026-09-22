@@ -78,3 +78,28 @@ omitted from wallet discovery and may be reused; creation refuses any nonempty
 target even if its manifest is missing. The frontend check executes the actual
 welcome functions with a simulated backend failure and success. The initial
 resolver and missing-feedback regressions failed against the previous release.
+
+## Node startup and RPC regression
+
+Windows Event Log showed `qrxd.exe` failing with `0xc00000fd` (stack overflow)
+on the first RPC request. MSVC's `handle_command` frame alone was approximately
+9 MiB, larger than the default 1 MiB and an initial 8 MiB reserve. The Windows
+daemon now reserves 16 MiB; Core/CLI reserve 8 MiB. A future handler refactor can
+reduce these large stack allocations independently of this compatibility fix.
+
+GUI background commands use `CREATE_NO_WINDOW` and closed standard input.
+Health requires a successful RPC response rather than merely a live child.
+The CLI no longer initializes wallets/chain state during RPC polling, and
+`getwalletinfo` escapes Windows paths with the existing JSON encoder.
+
+```powershell
+python scripts/test-windows-node-rpc.py build/core/windows-x64/Release
+```
+
+This integration check requires an unused regtest RPC port 37663. It creates an
+isolated temporary wallet, starts a loopback regtest node without block
+production, checks repeated status/wallet/balance/tokenomics replies with a
+strict JSON parser, unlocks/relocks its disposable signer, and stops the node.
+It also verifies that polling an offline node does not create a data directory.
+The check passed on Windows with the rebuilt binaries. No user wallet or funds
+are involved, and this does not establish Mainnet synchronization correctness.
