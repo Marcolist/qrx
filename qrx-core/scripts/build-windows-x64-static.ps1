@@ -27,6 +27,8 @@ $CurlSha = "f7ef3ae8a22e521f289803fe93543eb64c329b58aa73a9e224dfd915a2a5f4f7"
 
 function Need([string]$Name) { if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) { throw "Missing build tool: $Name" } }
 foreach ($c in @("cmake","perl","tar","git")) { Need $c }
+$TarExe = Join-Path $env:SystemRoot "System32\tar.exe"
+if (-not (Test-Path $TarExe)) { throw "Windows tar.exe not found: $TarExe" }
 
 function Fetch([string]$Url,[string]$Out) {
   if (-not (Test-Path $Out) -or (Get-Item $Out).Length -eq 0) {
@@ -55,7 +57,11 @@ function FetchVerified([string]$Url,[string]$Out,[string]$Expected) {
 function Extract([string]$Archive,[string]$Destination) {
   if (Test-Path $Destination) { Remove-Item -Recurse -Force $Destination }
   New-Item -ItemType Directory -Force -Path $Destination | Out-Null
-  & tar -xf $Archive --strip-components=1 -C $Destination
+  # GitHub Actions invokes this script from Git Bash, whose /usr/bin/tar sees
+  # native paths such as D:\a\... as remote host syntax ("Cannot connect to
+  # D:").  Call the Windows tar executable explicitly so native paths remain
+  # native on every Windows entry point.
+  & $TarExe -xf $Archive --strip-components=1 -C $Destination
   if ($LASTEXITCODE -ne 0) { throw "Failed to extract $Archive" }
 }
 
