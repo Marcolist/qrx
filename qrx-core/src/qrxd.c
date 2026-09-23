@@ -57,6 +57,9 @@
   #ifndef PATH_MAX
     #define PATH_MAX MAX_PATH
   #endif
+  #ifndef R_OK
+    #define R_OK 4
+  #endif
   #define strtok_r strtok_s
   #define strdup _strdup
   #define sleep(sec) Sleep((DWORD)((sec) * 1000))

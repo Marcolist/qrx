@@ -120,14 +120,28 @@ $vcvars = Join-Path $vsroot "VC\Auxiliary\Build\vcvars64.bat"
 if (-not (Test-Path $vcvars)) { throw "vcvars64.bat not found: $vcvars" }
 
 $Crypto=Join-Path $DepsPrefix "lib\libcrypto.lib"
+$OpenSSLSource=Join-Path $Work "openssl-$OpenSSLVersion"
 if (-not (Test-Path $Crypto)) {
-  $src=Join-Path $Work "openssl-$OpenSSLVersion"; Extract $OsslTar $src
-  $cmd='"{0}" && cd /d "{1}" && perl Configure VC-WIN64A no-shared no-tests no-asm --prefix="{2}" --openssldir="{2}\ssl" && nmake && nmake install_sw' -f $vcvars,$src,$DepsPrefix
+  Extract $OsslTar $OpenSSLSource
+  $cmd='"{0}" && cd /d "{1}" && perl Configure VC-WIN64A no-shared no-tests no-asm --prefix="{2}" --openssldir="{2}\ssl" && nmake && nmake install_sw' -f $vcvars,$OpenSSLSource,$DepsPrefix
   & cmd.exe /d /s /c $cmd
   if ($LASTEXITCODE -ne 0) { throw "OpenSSL source build failed" }
 }
 if (-not (Test-Path $Crypto)) { $Crypto=Join-Path $DepsPrefix "lib\crypto.lib" }
 if (-not (Test-Path $Crypto)) { throw "Static OpenSSL crypto library missing" }
+
+# OpenSSL requires applink.c to be compiled into MSVC applications which use
+# its stdio APIs. install_sw does not install that source file, so adopt it
+# from the same verified source archive used to build libcrypto.
+$OpenSSLApplink=Join-Path $DepsPrefix "include\openssl\applink.c"
+if (-not (Test-Path $OpenSSLApplink)) {
+  $SourceApplink=Join-Path $OpenSSLSource "ms\applink.c"
+  if (-not (Test-Path $SourceApplink)) {
+    Extract $OsslTar $OpenSSLSource
+  }
+  if (-not (Test-Path $SourceApplink)) { throw "OpenSSL applink source missing from verified archive" }
+  Copy-Item -Force $SourceApplink $OpenSSLApplink
+}
 
 # Pin the multi-config Visual Studio generator.  Passing -A x64 to an
 # environment-selected Ninja generator is invalid (Ninja has no platform
