@@ -8,6 +8,8 @@ assert 'foreach ($c in @("cmake","perl","tar","git"))' in b
 assert '$TarExe = Join-Path $env:SystemRoot "System32\\tar.exe"' in b
 assert '& $TarExe -xf $Archive --strip-components=1 -C $Destination' in b
 assert 'https://github.com/madler/zlib/releases/download/v$ZlibVersion/' in b
+assert '[string[]]$ConfigureArgs' in b and '@ConfigureArgs' in b
+assert '[string[]]$Args' not in b and '@Args' not in b
 assert '$CMakeGenerator="Visual Studio 17 2022"' in b
 assert '-G $CMakeGenerator -A x64' in b
 assert '"-G",$CMakeGenerator,"-A","x64"' in b

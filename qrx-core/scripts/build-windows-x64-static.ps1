@@ -128,9 +128,12 @@ if (-not (Test-Path $Crypto)) { throw "Static OpenSSL crypto library missing" }
 # The Windows preflight already requires the VS 2022 C++ toolchain, so use its
 # generator deterministically for dependency and Core builds.
 $CMakeGenerator="Visual Studio 17 2022"
-function CMakeInstall([string]$Source,[string]$Build,[string[]]$Args) {
+function CMakeInstall([string]$Source,[string]$Build,[string[]]$ConfigureArgs) {
   if (Test-Path $Build) { Remove-Item -Recurse -Force $Build }
-  & cmake -S $Source -B $Build -G $CMakeGenerator -A x64 @Args
+  # $args is PowerShell's automatic collection for undeclared arguments and
+  # is case-insensitive.  A parameter named $Args therefore swallowed these
+  # dependency options on clean runners.  Use a distinct splat name.
+  & cmake -S $Source -B $Build -G $CMakeGenerator -A x64 @ConfigureArgs
   if ($LASTEXITCODE -ne 0) { throw "CMake configure failed: $Source" }
   & cmake --build $Build --config Release --parallel $Jobs
   if ($LASTEXITCODE -ne 0) { throw "CMake build failed: $Source" }

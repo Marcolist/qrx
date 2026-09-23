@@ -199,8 +199,9 @@ if [[ "$TARGET" == "linux-arm64" ]]; then
     git -C "$SRC" -c http.version=HTTP/1.1 submodule update --init --recursive --depth 1
   RUNTIME_SOURCE_COMMIT="$(git -C "$SRC" rev-parse HEAD)"
   [[ "$RUNTIME_SOURCE_COMMIT" == "$RUNTIME_COMMIT_PREFIX"* ]] || { echo "runtime tag resolved to unexpected commit: $RUNTIME_SOURCE_COMMIT" >&2; exit 3; }
-  [[ -f "$SRC/CMakeLists.txt" ]] || { echo "Pinned Real-ESRGAN-ncnn-vulkan source is incomplete: CMakeLists.txt missing at $SRC" >&2; exit 4; }
-  cmake -S "$SRC" -B "$TMP/runtime-build" -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=ON
+  RUNTIME_SOURCE_DIR="$SRC/src"
+  [[ -f "$RUNTIME_SOURCE_DIR/CMakeLists.txt" ]] || { echo "Pinned Real-ESRGAN-ncnn-vulkan source is incomplete: CMakeLists.txt missing at $RUNTIME_SOURCE_DIR" >&2; exit 4; }
+  cmake -S "$RUNTIME_SOURCE_DIR" -B "$TMP/runtime-build" -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=ON
   cmake --build "$TMP/runtime-build" --config Release --parallel "${JOBS:-2}"
   RUNTIME="$(find "$TMP/runtime-build" -type f -name 'realesrgan-ncnn-vulkan' -print -quit)"
 else
