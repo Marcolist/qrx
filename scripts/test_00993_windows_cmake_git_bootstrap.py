@@ -7,6 +7,9 @@ assert r"C:\Program Files\Git\cmd" in a
 assert 'foreach ($c in @("cmake","perl","tar","git"))' in b
 assert '$TarExe = Join-Path $env:SystemRoot "System32\\tar.exe"' in b
 assert '& $TarExe -xf $Archive --strip-components=1 -C $Destination' in b
+assert 'curl-$CurlVersion.tar.gz' in b
+assert 'curl-$CurlVersion.tar.xz' not in b
+assert 'd54dd598bf05927a726deb38df31c6a255ba83ff1de57c5d1464dac3ed8f44a1' in b
 assert 'https://github.com/madler/zlib/releases/download/v$ZlibVersion/' in b
 assert '[string[]]$ConfigureArgs' in b and '@ConfigureArgs' in b
 assert '[string[]]$Args' not in b and '@Args' not in b

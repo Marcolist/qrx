@@ -23,7 +23,7 @@ $PngVersion = if ($env:QRX_LIBPNG_VERSION) { $env:QRX_LIBPNG_VERSION } else { "1
 $CurlVersion = if ($env:QRX_CURL_VERSION) { $env:QRX_CURL_VERSION } else { "8.22.0" }
 $ZlibSha = "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"
 $PngSha = "28eb403f51f0f7405249132cecfe82ea5c0ef97f1b32c5a65828814ae0d34775"
-$CurlSha = "f7ef3ae8a22e521f289803fe93543eb64c329b58aa73a9e224dfd915a2a5f4f7"
+$CurlSha = "d54dd598bf05927a726deb38df31c6a255ba83ff1de57c5d1464dac3ed8f44a1"
 
 function Need([string]$Name) { if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) { throw "Missing build tool: $Name" } }
 foreach ($c in @("cmake","perl","tar","git")) { Need $c }
@@ -55,6 +55,7 @@ function FetchVerified([string]$Url,[string]$Out,[string]$Expected) {
   Verify $Out $Expected
 }
 function Extract([string]$Archive,[string]$Destination) {
+  Write-Host "Extracting $Archive -> $Destination"
   if (Test-Path $Destination) { Remove-Item -Recurse -Force $Destination }
   New-Item -ItemType Directory -Force -Path $Destination | Out-Null
   # GitHub Actions invokes this script from Git Bash, whose /usr/bin/tar sees
@@ -63,6 +64,7 @@ function Extract([string]$Archive,[string]$Destination) {
   # native on every Windows entry point.
   & $TarExe -xf $Archive --strip-components=1 -C $Destination
   if ($LASTEXITCODE -ne 0) { throw "Failed to extract $Archive" }
+  Write-Host "Extracted $Archive"
 }
 
 $OsslTar=Join-Path $SourceCache "openssl-$OpenSSLVersion.tar.gz"
@@ -101,7 +103,11 @@ if (-not $PngArchiveOk) {
   & git -C $PngGitSource checkout --detach $PngCommit
   if ($LASTEXITCODE -ne 0) { throw "libpng pinned commit checkout failed" }
 }
-$CurlTar=Join-Path $SourceCache "curl-$CurlVersion.tar.xz"; Fetch "https://curl.se/download/curl-$CurlVersion.tar.xz" $CurlTar; Verify $CurlTar $CurlSha
+# Windows' bundled bsdtar extracted gzip sources above correctly, but hung
+# indefinitely while opening curl's XZ archive on the hosted VS 2022 runner.
+# curl publishes the same signed release as gzip, so use that Windows-native
+# compatible format and keep its exact official bytes SHA-256 pinned.
+$CurlTar=Join-Path $SourceCache "curl-$CurlVersion.tar.gz"; Fetch "https://curl.se/download/curl-$CurlVersion.tar.gz" $CurlTar; Verify $CurlTar $CurlSha
 
 # OpenSSL's Windows build requires the MSVC developer environment. Locate it
 # without depending on vcpkg/Chocolatey/Homebrew-like package managers.
