@@ -10,6 +10,10 @@ assert '& $TarExe -xf $Archive --strip-components=1 -C $Destination' in b
 assert 'curl-$CurlVersion.tar.gz' in b
 assert 'curl-$CurlVersion.tar.xz' not in b
 assert 'd54dd598bf05927a726deb38df31c6a255ba83ff1de57c5d1464dac3ed8f44a1' in b
+assert "$DepsPrefixCMake=$DepsPrefix -replace '\\\\','/'" in b
+assert "$ZlibStaticCMake=$ZlibStatic -replace '\\\\','/'" in b
+assert '"-DZLIB_LIBRARY=$ZlibStaticCMake"' in b
+assert '"-DZLIB_LIBRARY=$ZlibStatic"' not in b
 assert 'https://github.com/madler/zlib/releases/download/v$ZlibVersion/' in b
 assert '[string[]]$ConfigureArgs' in b and '@ConfigureArgs' in b
 assert '[string[]]$Args' not in b and '@Args' not in b

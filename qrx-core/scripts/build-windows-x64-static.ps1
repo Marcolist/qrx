@@ -12,6 +12,7 @@ $Core = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Repo = (Resolve-Path (Join-Path $Core "..")).Path
 if (-not $BuildDir) { $BuildDir = Join-Path $Repo "build\core\windows-x64" }
 if (-not $DepsPrefix) { $DepsPrefix = Join-Path $Repo "build\deps\windows-x64" }
+$DepsPrefixCMake=$DepsPrefix -replace '\\','/'
 if ($Jobs -le 0) { $Jobs = [Environment]::ProcessorCount }
 $SourceCache = Join-Path $Repo "build\deps\sources"
 $Work = Join-Path $Repo "build\deps\work\windows-x64"
@@ -225,17 +226,18 @@ $ZlibStatic=Resolve-ZlibStatic $ZlibBuild $ZlibSource $DepsPrefix
 if (-not $ZlibStatic) {
   Extract $ZlibTar $ZlibSource
   CMakeInstall $ZlibSource $ZlibBuild @(
-    "-DCMAKE_BUILD_TYPE=Release","-DCMAKE_INSTALL_PREFIX=$DepsPrefix",
+    "-DCMAKE_BUILD_TYPE=Release","-DCMAKE_INSTALL_PREFIX=$DepsPrefixCMake",
     "-DBUILD_SHARED_LIBS=OFF","-DZLIB_BUILD_SHARED=OFF","-DZLIB_BUILD_STATIC=ON","-DZLIB_BUILD_TESTING=OFF"
   )
   $ZlibStatic=Resolve-ZlibStatic $ZlibBuild $ZlibSource $DepsPrefix
 }
 if (-not $ZlibStatic -or -not (Test-Path $ZlibStatic)) { throw "Static zlib missing after build/artifact resolution" }
+$ZlibStaticCMake=$ZlibStatic -replace '\\','/'
 
 $PngStatic=(Get-ChildItem (Join-Path $DepsPrefix "lib") -Filter "*png*static*.lib" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
 if (-not $PngStatic) {
   if ($PngArchiveOk) { $src=Join-Path $Work "libpng-$PngVersion"; Extract $PngTar $src } else { $src=$PngGitSource }
-  CMakeInstall $src (Join-Path $Work "libpng-build") @("-DCMAKE_BUILD_TYPE=Release","-DCMAKE_INSTALL_PREFIX=$DepsPrefix","-DBUILD_SHARED_LIBS=OFF","-DPNG_SHARED=OFF","-DPNG_STATIC=ON","-DPNG_TESTS=OFF","-DPNG_TOOLS=OFF","-DZLIB_ROOT=$DepsPrefix","-DZLIB_LIBRARY=$ZlibStatic","-DZLIB_INCLUDE_DIR=$DepsPrefix\include")
+  CMakeInstall $src (Join-Path $Work "libpng-build") @("-DCMAKE_BUILD_TYPE=Release","-DCMAKE_INSTALL_PREFIX=$DepsPrefixCMake","-DBUILD_SHARED_LIBS=OFF","-DPNG_SHARED=OFF","-DPNG_STATIC=ON","-DPNG_TESTS=OFF","-DPNG_TOOLS=OFF","-DZLIB_ROOT=$DepsPrefixCMake","-DZLIB_LIBRARY=$ZlibStaticCMake","-DZLIB_INCLUDE_DIR=$DepsPrefixCMake/include")
   $PngStatic=(Get-ChildItem (Join-Path $DepsPrefix "lib") -Filter "*png*.lib" | Where-Object { $_.Name -notmatch 'dll' } | Select-Object -First 1).FullName
 }
 if (-not $PngStatic) { throw "Static libpng missing" }
@@ -244,18 +246,22 @@ $CurlStatic=Join-Path $DepsPrefix "lib\libcurl.lib"
 if (-not (Test-Path $CurlStatic)) {
   $src=Join-Path $Work "curl-$CurlVersion"; Extract $CurlTar $src
   CMakeInstall $src (Join-Path $Work "curl-build") @(
-    "-DCMAKE_BUILD_TYPE=Release","-DCMAKE_INSTALL_PREFIX=$DepsPrefix","-DBUILD_SHARED_LIBS=OFF","-DBUILD_CURL_EXE=OFF","-DBUILD_TESTING=OFF",
-    "-DCURL_USE_OPENSSL=ON","-DCURL_ZLIB=ON","-DOPENSSL_ROOT_DIR=$DepsPrefix","-DOPENSSL_USE_STATIC_LIBS=TRUE","-DZLIB_ROOT=$DepsPrefix","-DZLIB_LIBRARY=$ZlibStatic",
+    "-DCMAKE_BUILD_TYPE=Release","-DCMAKE_INSTALL_PREFIX=$DepsPrefixCMake","-DBUILD_SHARED_LIBS=OFF","-DBUILD_CURL_EXE=OFF","-DBUILD_TESTING=OFF",
+    "-DCURL_USE_OPENSSL=ON","-DCURL_ZLIB=ON","-DOPENSSL_ROOT_DIR=$DepsPrefixCMake","-DOPENSSL_USE_STATIC_LIBS=TRUE","-DZLIB_ROOT=$DepsPrefixCMake","-DZLIB_LIBRARY=$ZlibStaticCMake",
     "-DCURL_USE_LIBPSL=OFF","-DCURL_BROTLI=OFF","-DCURL_ZSTD=OFF","-DUSE_LIBIDN2=OFF","-DUSE_NGHTTP2=OFF","-DUSE_NGTCP2=OFF","-DUSE_QUICHE=OFF","-DCURL_USE_LIBSSH2=OFF","-DCURL_USE_GSSAPI=OFF",
     "-DCURL_DISABLE_LDAP=ON","-DCURL_DISABLE_LDAPS=ON","-DCURL_DISABLE_FTP=ON","-DCURL_DISABLE_FILE=ON","-DCURL_DISABLE_TELNET=ON","-DCURL_DISABLE_TFTP=ON","-DCURL_DISABLE_DICT=ON","-DCURL_DISABLE_GOPHER=ON","-DCURL_DISABLE_IMAP=ON","-DCURL_DISABLE_POP3=ON","-DCURL_DISABLE_RTSP=ON","-DCURL_DISABLE_SMB=ON","-DCURL_DISABLE_SMTP=ON","-DCURL_DISABLE_MQTT=ON","-DCURL_DISABLE_WEBSOCKETS=ON"
   )
 }
 if (-not (Test-Path $CurlStatic)) { throw "Static libcurl missing" }
 
+$CryptoCMake=$Crypto -replace '\\','/'
+$PngStaticCMake=$PngStatic -replace '\\','/'
+$CurlStaticCMake=$CurlStatic -replace '\\','/'
+
 @("openssl=$OpenSSLVersion sha256=$OsslExpected","zlib=$ZlibVersion sha256=$ZlibSha","libpng=$PngVersion archive-sha256=$PngSha git-fallback-commit=3061454d980de7d53608f594194cfac722721d2a","curl=$CurlVersion sha256=$CurlSha","os=windows","arch=x86_64") | Set-Content -Encoding ascii (Join-Path $DepsPrefix "qrx-deps.lock")
 
 if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
-$cmakeArgs=@("-S",$Core,"-B",$BuildDir,"-G",$CMakeGenerator,"-A","x64","-DCMAKE_BUILD_TYPE=Release","-DQRX_REQUIRE_PQC=ON","-DQRX_REQUIRE_BUNDLED_DEPS=ON","-DQRX_DEPS_PREFIX=$DepsPrefix","-DOPENSSL_ROOT_DIR=$DepsPrefix","-DOPENSSL_USE_STATIC_LIBS=TRUE","-DOPENSSL_CRYPTO_LIBRARY=$Crypto","-DZLIB_ROOT=$DepsPrefix","-DZLIB_LIBRARY=$ZlibStatic","-DZLIB_INCLUDE_DIR=$DepsPrefix\include","-DPNG_PNG_INCLUDE_DIR=$DepsPrefix\include","-DPNG_LIBRARY=$PngStatic","-DCURL_ROOT=$DepsPrefix","-DCURL_USE_STATIC_LIBS=TRUE","-DCURL_LIBRARY=$CurlStatic","-DCURL_INCLUDE_DIR=$DepsPrefix\include")
+$cmakeArgs=@("-S",$Core,"-B",$BuildDir,"-G",$CMakeGenerator,"-A","x64","-DCMAKE_BUILD_TYPE=Release","-DQRX_REQUIRE_PQC=ON","-DQRX_REQUIRE_BUNDLED_DEPS=ON","-DQRX_DEPS_PREFIX=$DepsPrefixCMake","-DOPENSSL_ROOT_DIR=$DepsPrefixCMake","-DOPENSSL_USE_STATIC_LIBS=TRUE","-DOPENSSL_CRYPTO_LIBRARY=$CryptoCMake","-DZLIB_ROOT=$DepsPrefixCMake","-DZLIB_LIBRARY=$ZlibStaticCMake","-DZLIB_INCLUDE_DIR=$DepsPrefixCMake/include","-DPNG_PNG_INCLUDE_DIR=$DepsPrefixCMake/include","-DPNG_LIBRARY=$PngStaticCMake","-DCURL_ROOT=$DepsPrefixCMake","-DCURL_USE_STATIC_LIBS=TRUE","-DCURL_LIBRARY=$CurlStaticCMake","-DCURL_INCLUDE_DIR=$DepsPrefixCMake/include")
 & cmake @cmakeArgs; if ($LASTEXITCODE -ne 0) { throw "QRX CMake configure failed" }
 & cmake --build $BuildDir --config Release --parallel $Jobs; if ($LASTEXITCODE -ne 0) { throw "QRX build failed" }
 $expected=@("qrx.exe","qrx-cli.exe","qrxd.exe","qrx-upscaler.exe","qrxdb_verify.exe","qrxdb_salvage.exe","qrxdb_compact.exe","qrxdb_snapshot.exe")
