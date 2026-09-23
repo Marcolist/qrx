@@ -253,6 +253,8 @@ if(WIN32)
     target_link_libraries(qrxcore PUBLIC ws2_32)
     target_compile_definitions(qrxcore PUBLIC
         _CRT_SECURE_NO_WARNINGS
+        strtok_r=strtok_s
+        strdup=_strdup
         WIN32_LEAN_AND_MEAN
         NOMINMAX
     )
