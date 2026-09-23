@@ -68,6 +68,7 @@ asset_url() {
 expected_bytes() {
   case "$1" in
     realesrgan-ncnn-vulkan-20220424-macos.zip) printf '51817124' ;;
+    realesrgan-ncnn-vulkan-20220424-windows.zip) printf '45474481' ;;
     *) printf '' ;;
   esac
 }
